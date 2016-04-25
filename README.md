@@ -63,8 +63,8 @@ For posting the "posting-key" of the author needs to be added to the wallet.
 
 Additionally, a `--category` can be added as well.
 
-    echo "Texts" | piston.py post --author "<author>" --category "<category>" --title "<posttitle>" --permlink "<permlink>"
-    cat filename | piston.py post --author "<author>" --category "<category>" --title "<posttitle>" --permlink "<permlink>"
+    echo "Texts" | piston post --author "<author>" --category "<category>" --title "<posttitle>" --permlink "<permlink>"
+    cat filename | piston post --author "<author>" --category "<category>" --title "<posttitle>" --permlink "<permlink>"
 
 ### Replying
 
@@ -77,5 +77,5 @@ The `--replyto` parameter takes the following form:
 
 E.g:
 
-    echo "Texts" | piston.py post --replyto "@xeroc/python-steem-0.1.1" --author "<author>" --title "<posttitle>" --permlink "<permlink>"
-    cat filename | piston.py post --replyto "@xeroc/python-steem-0.1.1" --author "<author>" --title "<posttitle>" --permlink "<permlink>"
+    echo "Texts" | piston reply --replyto "@xeroc/python-steem-0.1.1" --author "<author>" --title "<posttitle>" --permlink "<permlink>"
+    cat filename | piston reply --replyto "@xeroc/python-steem-0.1.1" --author "<author>" --title "<posttitle>" --permlink "<permlink>"
