@@ -35,4 +35,4 @@ install-user: build
 release: clean
 	python3 setup.py check
 	python3 setup.py sdist upload -r pypi
-	python3 setup.py bdist --format=wininst,zip upload
+	python3 setup.py bdist --format=zip upload

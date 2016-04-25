@@ -31,6 +31,7 @@ def executeOp(op, wif=None):
     )
     tx = tx.sign([wif])
     reply = broadcastTx(tx)
+    # reply = None
     if not reply:
         pprint(transactions.JsonObj(tx))
     else:
@@ -182,6 +183,7 @@ def main() :
         op = transactions.Comment(
             **{"parent_author": parent["author"],
                "parent_permlink": parent["permlink"],
+               "author": args.author,
                "permlink": args.permlink,
                "title": args.title,
                "body": "".join(sys.stdin.readlines()),
