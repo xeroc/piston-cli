@@ -27,5 +27,7 @@ setup(name='steem-piston',
               'piston = piston.__main__:main',
           ],
       },
-      install_requires=["steem"],
+      install_requires=["steem",
+                        "python-frontmatter",
+                        ],
       )

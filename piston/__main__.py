@@ -76,7 +76,7 @@ def main() :
     addkey.add_argument(
         'wifkey',
         type=str,
-        help='the private key in wallet import format (wif))'
+        help='the private key in wallet import format (wif)'
     )
     addkey.set_defaults(command="addkey")
 
@@ -120,6 +120,19 @@ def main() :
         type=str,
         required=True,
         help='Title of the post'
+    )
+
+    """
+        Command "yaml"
+    """
+    parser_yaml = subparsers.add_parser('yaml', help='yaml something new')
+    parser_yaml.set_defaults(command="yaml")
+    parser_yaml.add_argument(
+        'file',
+        nargs='?',
+        type=str,
+        default=None,
+        help='Filename to open. If not present, or "-", stdin will be used'
     )
 
     """
@@ -186,7 +199,7 @@ def main() :
                "author": args.author,
                "permlink": args.permlink,
                "title": args.title,
-               "body": "".join(sys.stdin.readlines()),
+               "body": sys.stdin.read(),
                "json_metadata": ""}
         )
         wif = Wallet(rpc).getPostingKeyForAccount(args.author)
@@ -199,10 +212,51 @@ def main() :
                "author": args.author,
                "permlink": args.permlink,
                "title": args.title,
-               "body": "".join(sys.stdin.readlines()),
+               "body": sys.stdin.read(),
                "json_metadata": ""}
         )
         wif = Wallet(rpc).getPostingKeyForAccount(args.author)
+        executeOp(op, wif)
+
+    elif args.command == "yaml":
+        if args.file and args.file != "-":
+            import os
+            if not os.path.isfile(args.file):
+                print("File %s does not exist!" % args.file)
+                return
+            with open(args.file) as fp:
+                data = fp.read()
+        else:
+            data = sys.stdin.read()
+
+        import frontmatter
+        meta, body = frontmatter.parse(data)
+
+        for required in ["author", "permlink", "title"]:
+            if required not in meta:
+                print("Front matter incomplete: '%s' required!" % required)
+                return
+        if "type" in meta and meta["type"] not in ["post", "reply"]:
+            print("Type can only be 'post', or 'reply'!")
+            return
+            if meta["type"] == "reply":
+                for required in ["parent_author", "parent_permlink"]:
+                    if required not in meta:
+                        print("For reply posts, '%s' is required!" % required)
+                        return
+
+
+        op = transactions.Comment(
+            **{"parent_author": meta["parent_author"] if "parent_author" in meta else "",
+               "parent_permlink": meta["category"] if "category" in meta else "",
+               "author": meta["author"],
+               "permlink": meta["permlink"],
+               "title": meta["title"],
+               "body": body,
+               "json_metadata": ""}
+        )
+
+        wif = Wallet(rpc).getPostingKeyForAccount(meta["author"])
         executeOp(op, wif)
 
     else:
