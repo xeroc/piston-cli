@@ -6,7 +6,7 @@ from steemapi.steemclient import SteemNodeRPC
 from pprint import pprint
 from steembase.account import PrivateKey, PublicKey, Address
 import steembase.transactions as transactions
-from .wallet import Wallet
+from piston.wallet import Wallet
 
 
 def broadcastTx(tx):
@@ -30,15 +30,19 @@ def executeOp(op, wif=None):
         operations=ops
     )
     tx = tx.sign([wif])
-    reply = broadcastTx(tx)
-    # reply = None
-    if not reply:
-        pprint(transactions.JsonObj(tx))
-    else:
-        print(reply)
 
+    pprint(transactions.JsonObj(tx))
+
+    if not args.nobroadcast:
+        reply = broadcastTx(tx)
+        if reply:
+            print(reply)
+    else:
+        print("Not broadcasting anything!")
+        reply = None
 
 def main() :
+    global args
 
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -65,6 +69,11 @@ def main() :
         type=str,
         default='',
         help='Websocket password if authentication is required'
+    )
+    parser.add_argument(
+        '--nobroadcast',
+        action='store_true',
+        help='Do not broadcast anything'
     )
     subparsers = parser.add_subparsers(help='sub-command help')
     parser.set_defaults(command=None)
@@ -264,5 +273,6 @@ def main() :
 
 
 rpc = None
+args = None
 if __name__ == '__main__':
     main()
