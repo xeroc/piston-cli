@@ -143,6 +143,21 @@ def main() :
         default=None,
         help='Filename to open. If not present, or "-", stdin will be used'
     )
+    parser_yaml.add_argument(
+        '--author',
+        type=str,
+        help='Publish post as this user (requires to have the key installed in the wallet)'
+    )
+    parser_yaml.add_argument(
+        '--permlink',
+        type=str,
+        help='The permlink (together with the author identifies the post uniquely)'
+    )
+    parser_yaml.add_argument(
+        '--title',
+        type=str,
+        help='Title of the post'
+    )
 
     """
         Command "reply"
@@ -240,6 +255,10 @@ def main() :
 
         import frontmatter
         meta, body = frontmatter.parse(data)
+
+        for key in ["author", "permlink", "title"]:
+            if getattr(args, key):
+                meta[key] = getattr(args, key)
 
         for required in ["author", "permlink", "title"]:
             if required not in meta:
