@@ -51,6 +51,44 @@ are available.
 This command tries to resolve the public keys into account names registered
 on the network (experimental).
 
+### Reading
+
+The subcommand `read` allows to read posts and replies fro STEAM. It
+takes the optional parameters:
+
+* `--yaml`: show the posts meta data as YAML formatted frontmatter
+* `--comments`: to show all comments and replies made to that post
+
+    $ piston read "@xeroc/piston-readme"
+
+    [this readme]
+
+    $ piston read "@xeroc/python-steem-0-1" --comments
+
+     ---
+     author: puppies
+     permlink: re-python-steem-0-1
+     reply: '@puppies/re-python-steem-0-1'
+     ---
+
+     Great work Xeroc.  Your libraries make working with graphene chains truly a joy.
+       ---
+       author: xeroc
+       permlink: re-puppies-re-python-stem-0-1
+       reply: '@xeroc/re-puppies-re-python-stem-0-1'
+       ---
+       
+       Thank you, I enjoy writing python a lot myself!
+     ---
+     author: dantheman
+     permlink: re-xeroc-python-steem-0-1-20160414t145522693z
+     reply: '@dantheman/re-xeroc-python-steem-0-1-20160414t145522693z'
+     ---
+
+     This is great work xeroc!  Thanks for supporting steem!
+
+
+
 ### Posting
 
 To post new content, you need to provide
@@ -63,19 +101,52 @@ For posting the "posting-key" of the author needs to be added to the wallet.
 
 Additionally, a `--category` can be added as well.
 
-    echo "Texts" | piston.py post --author "<author>" --category "<category>" --title "<posttitle>" --permlink "<permlink>"
-    cat filename | piston.py post --author "<author>" --category "<category>" --title "<posttitle>" --permlink "<permlink>"
+    echo "Texts" | piston post --author "<author>" --category "<category>" --title "<posttitle>" --permlink "<permlink>"
+    cat filename | piston post --author "<author>" --category "<category>" --title "<posttitle>" --permlink "<permlink>"
 
 ### Replying
 
 Here, the same parameters as for simply posting new content are
-available except that instead of `--category` a `--replyto` has to be
+available except that instead of `--category` a `replyto` has to be
 provided to identify the post that you want the reply to be posted to.
-The `--replyto` parameter takes the following form:
+The `replyto` parameter takes the following form:
 
     @author/permlink
 
 E.g:
 
-    echo "Texts" | piston.py post --replyto "@xeroc/python-steem-0.1.1" --author "<author>" --title "<posttitle>" --permlink "<permlink>"
-    cat filename | piston.py post --replyto "@xeroc/python-steem-0.1.1" --author "<author>" --title "<posttitle>" --permlink "<permlink>"
+    echo "Texts" | piston reply "@xeroc/python-steem-0.1.1" --author "<author>" --title "<posttitle>" --permlink "<permlink>"
+    cat filename | piston reply "@xeroc/python-steem-0.1.1" --author "<author>" --title "<posttitle>" --permlink "<permlink>"
+
+### Editing
+
+With piston, you can edit your own posts with your favorite text editor
+(as defined in the environmental variable `EDITOR`):
+
+    $ piston "@xeroc/edit-test" 
+    $ EDITOR="nano" piston "@xeroc/edit-test" 
+
+If you want to replace your entire post and not *patch* it, you can add
+the `--replace` flag.
+
+### Posting with YAML
+
+Since parameters might be seen as unhandy by some, the `yaml` mode
+allows to define post and reply parameters by means of
+a [YAML](http://yaml.org/) formated frontmatter similar to Jekyll.
+A document needs `---` separated header that defines the parameters:
+
+```
+---
+category: The category to post in
+author: The author which will sign the post (requires the porsting key to be installed in the wallet)
+permlink: Permlink of the Post
+title: |
+    Title of the Post. Since this
+    is a very long and verbatim title,
+    the `|` syntax is used
+[type: reply|post]
+---
+
+This is the plain text (possibly markdown or reStructureText-formated) body
+```
