@@ -29,5 +29,6 @@ setup(name='steem-piston',
       },
       install_requires=["steem",
                         "python-frontmatter",
+                        "diff-match-patch",
                         ],
       )

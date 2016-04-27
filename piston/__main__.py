@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 
 import sys
+import os
 import argparse
 from steemapi.steemclient import SteemNodeRPC
 from pprint import pprint
 from steembase.account import PrivateKey, PublicKey, Address
 import steembase.transactions as transactions
 from piston.wallet import Wallet
+import frontmatter
 
 
 def broadcastTx(tx):
@@ -40,6 +42,7 @@ def executeOp(op, wif=None):
     else:
         print("Not broadcasting anything!")
         reply = None
+
 
 def main() :
     global args
@@ -102,6 +105,27 @@ def main() :
     listaccounts.set_defaults(command="listaccounts")
 
     """
+        Command "read"
+    """
+    parser_read = subparsers.add_parser('read', help='Read a post on Steem')
+    parser_read.set_defaults(command="read")
+    parser_read.add_argument(
+        'post',
+        type=str,
+        help='@author/permlink-identifier of the post to read (e.g. @xeroc/python-steem-0-1)'
+    )
+    parser_read.add_argument(
+        '--yaml',
+        action='store_true',
+        help='Show YAML formated header'
+    )
+    parser_read.add_argument(
+        '--comments',
+        action='store_true',
+        help='Also show all comments'
+    )
+
+    """
         Command "post"
     """
     parser_post = subparsers.add_parser('post', help='Post something new')
@@ -162,31 +186,52 @@ def main() :
     """
         Command "reply"
     """
-    parser_replay = subparsers.add_parser('reply', help='Reply to an existing post')
-    parser_replay.set_defaults(command="reply")
-    parser_replay.add_argument(
-        '--replyto',
+    reply = subparsers.add_parser('reply', help='Reply to an existing post')
+    reply.set_defaults(command="reply")
+    reply.add_argument(
+        'replyto',
         type=str,
-        required=True,
-        help='@author/permlink-identifier of the post to reply to (e.g. @xeroc/python-steem-0.1)'
+        help='@author/permlink-identifier of the post to reply to (e.g. @xeroc/python-steem-0-1)'
     )
-    parser_replay.add_argument(
+    reply.add_argument(
         '--author',
         type=str,
         required=True,
         help='Publish post as this user (requires to have the key installed in the wallet)'
     )
-    parser_replay.add_argument(
+    reply.add_argument(
         '--permlink',
         type=str,
         required=True,
         help='The permlink (together with the author identifies the post uniquely)'
     )
-    parser_replay.add_argument(
+    reply.add_argument(
         '--title',
         type=str,
         required=True,
         help='Title of the post'
+    )
+
+    """
+        Command "edit"
+    """
+    parser_edit = subparsers.add_parser('edit', help='Edit to an existing post')
+    parser_edit.set_defaults(command="edit")
+    parser_edit.add_argument(
+        'post',
+        type=str,
+        help='@author/permlink-identifier of the post to edit to (e.g. @xeroc/python-steem-0-1)'
+    )
+    parser_edit.add_argument(
+        '--author',
+        type=str,
+        required=False,
+        help='Post an edit as another author'
+    )
+    parser_edit.add_argument(
+        '--replace',
+        action='store_true',
+        help="Don't patch but replace original post (will make you lose votes)"
     )
 
     """
@@ -244,7 +289,6 @@ def main() :
 
     elif args.command == "yaml":
         if args.file and args.file != "-":
-            import os
             if not os.path.isfile(args.file):
                 print("File %s does not exist!" % args.file)
                 return
@@ -253,7 +297,6 @@ def main() :
         else:
             data = sys.stdin.read()
 
-        import frontmatter
         meta, body = frontmatter.parse(data)
 
         for key in ["author", "permlink", "title"]:
@@ -273,7 +316,6 @@ def main() :
                         print("For reply posts, '%s' is required!" % required)
                         return
 
-
         op = transactions.Comment(
             **{"parent_author": meta["parent_author"] if "parent_author" in meta else "",
                "parent_permlink": meta["category"] if "category" in meta else "",
@@ -287,8 +329,96 @@ def main() :
         wif = Wallet(rpc).getPostingKeyForAccount(meta["author"])
         executeOp(op, wif)
 
+    elif args.command == "edit":
+        import re
+        match = re.match("@?(\w*)/([\w-]*)", args.post)
+        post_author = match.group(1)
+        post_permlink = match.group(2)
+        post = rpc.get_content(post_author, post_permlink)
+
+        if post["id"] == "0.0.0":
+            print("Can't find post %s" % args.post)
+            return
+
+        import tempfile
+        from subprocess import call
+        EDITOR = os.environ.get('EDITOR', 'vim')
+        edited_message = None
+
+        with tempfile.NamedTemporaryFile(
+            suffix=b".yaml",
+            prefix=b"piston-"
+        ) as fp:
+            fp.write(bytes(post["body"], 'ascii'))
+            fp.flush()
+            call([EDITOR, fp.name])
+
+            fp.seek(0)
+            edited_message = fp.read().decode('ascii')
+
+        if args.replace:
+            newbody = edited_message
+        else:
+            author = args.author if args.author else post["author"]
+            import diff_match_patch
+            dmp = diff_match_patch.diff_match_patch()
+            patch = dmp.patch_make(post["body"], edited_message)
+            newbody = dmp.patch_toText(patch)
+
+            op = transactions.Comment(
+                **{"parent_author": post["parent_author"],
+                   "parent_permlink": post["parent_permlink"],
+                   "author": post["author"],
+                   "permlink": post["permlink"],
+                   "title": post["title"],
+                   "body": newbody,
+                   "json_metadata": ""}
+            )
+
+        wif = Wallet(rpc).getPostingKeyForAccount(author)
+        executeOp(op, wif)
+
+    elif args.command == "read":
+        import re
+        match = re.match("@?(\w*)/([\w-]*)", args.post)
+        post_author = match.group(1)
+        post_permlink = match.group(2)
+
+        if not args.comments:
+            post = rpc.get_content(post_author, post_permlink)
+            if post["id"] == "0.0.0":
+                print("Can't find post %s" % args.post)
+                return
+            if args.yaml:
+                meta = post.copy()
+                meta.pop("body", None)
+                yaml = frontmatter.Post(post["body"], **meta)
+                print(frontmatter.dumps(yaml))
+            else:
+                print(post["body"])
+        else:
+            dump_recursive_comments(post_author, post_permlink, 0)
+
     else:
         print("No valid command given")
+
+
+def dump_recursive_comments(post_author, post_permlink, depth):
+    import re
+    posts = rpc.get_content_replies(post_author, post_permlink)
+    for post in posts:
+        meta = {}
+        for key in ["author", "permlink"]:
+            meta[key] = post[key]
+        meta["reply"] = "@{author}/{permlink}".format(**post)
+        yaml = frontmatter.Post(post["body"], **meta)
+        d = frontmatter.dumps(yaml)
+        print(re.sub(
+            "^", "  " * depth, d, flags=re.MULTILINE
+        ))
+        reply = rpc.get_content_replies(post["author"], post["permlink"])
+        if len(reply):
+            dump_recursive_comments(post["author"], post["permlink"], depth + 1)
 
 
 rpc = None
