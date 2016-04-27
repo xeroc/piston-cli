@@ -59,6 +59,8 @@ takes the optional parameters:
 * `--yaml`: show the posts meta data as YAML formatted frontmatter
 * `--comments`: to show all comments and replies made to that post
 
+See examples:
+
     $ piston read "@xeroc/piston-readme"
 
     [this readme]
@@ -86,8 +88,6 @@ takes the optional parameters:
      ---
 
      This is great work xeroc!  Thanks for supporting steem!
-
-
 
 ### Posting
 

@@ -29,9 +29,17 @@ install: build
 install-user: build
 	python3 setup.py install --user
 
-release: clean
+check:
 	python3 setup.py check
+
+dist:
 	python3 setup.py sdist upload -r pypi
 	python3 setup.py bdist --format=zip upload
-	git tag -l -n100 $(TAG) | piston post --author xeroc --permlink "piston-changelog-$(TAGSTEEM)" --category steem --title "[Changelog] Piston $(TAG)" \
+
+release: clean check dist steem-readme steem-changelog
+
+steem-readme:
 	piston edit "@xeroc/piston-readme" --file README.md
+
+steem-changelog:
+	git tag -l -n100 $(TAG) | piston post --author xeroc --permlink "piston-changelog-$(TAGSTEEM)" --category steem --title "[Changelog] Piston $(TAG)" \
