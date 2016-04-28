@@ -4,7 +4,7 @@ import base64
 import hashlib
 from Crypto import Random
 from Crypto.Cipher import AES
-from steembase.account import PrivateKey
+from steembase import PrivateKey
 from appdirs import user_data_dir
 appname = "piston"
 appauthor = "Fabian Schuh"
@@ -107,7 +107,7 @@ class Wallet(object):
 
     def getPrivateKeyForPublicKey(self, pub):
         for key in self.keys:
-            if str(PrivateKey(key).pubkey) == pub:
+            if format(PrivateKey(key).pubkey, "STM") == pub:
                 return (key)
 
     def getPostingKeyForAccount(self, name):
@@ -120,13 +120,13 @@ class Wallet(object):
 
     def removePrivateKeyFromPublicKey(self, pub):
         for key in self.keys:
-            if str(PrivateKey(key).pubkey) == pub:
+            if format(PrivateKey(key).pubkey, "STM") == pub:
                 self.keys.remove(key)
         self._storeWallet()
 
     def addPrivateKey(self, wif):
         try:
-            pub = str(PrivateKey(wif).pubkey)
+            pub = format(PrivateKey(wif).pubkey, "STM")
         except:
             print("Invalid Private Key Format. Please use WIF!")
             return
@@ -149,7 +149,7 @@ class Wallet(object):
         pub = []
         for key in self.keys:
             try:
-                pub.append(str(PrivateKey(key).pubkey))
+                pub.append(format(PrivateKey(key).pubkey, "STM"))
             except:
                 continue
         return pub

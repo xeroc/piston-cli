@@ -5,7 +5,7 @@ import os
 import argparse
 from steemapi.steemclient import SteemNodeRPC
 from pprint import pprint
-from steembase.account import PrivateKey, PublicKey, Address
+from steembase import PrivateKey, PublicKey, Address
 import steembase.transactions as transactions
 from piston.wallet import Wallet
 import frontmatter
@@ -229,6 +229,12 @@ def main() :
         help='Post an edit as another author'
     )
     parser_edit.add_argument(
+        '--file',
+        type=str,
+        required=False,
+        help='Patch with content of this file'
+    )
+    parser_edit.add_argument(
         '--replace',
         action='store_true',
         help="Don't patch but replace original post (will make you lose votes)"
@@ -340,21 +346,28 @@ def main() :
             print("Can't find post %s" % args.post)
             return
 
-        import tempfile
-        from subprocess import call
-        EDITOR = os.environ.get('EDITOR', 'vim')
-        edited_message = None
+        if args.file and args.file != "-":
+            if not os.path.isfile(args.file):
+                print("File %s does not exist!" % args.file)
+                return
+            with open(args.file) as fp:
+                edited_message = fp.read()
+        else:
+            import tempfile
+            from subprocess import call
+            EDITOR = os.environ.get('EDITOR', 'vim')
+            edited_message = None
 
-        with tempfile.NamedTemporaryFile(
-            suffix=b".yaml",
-            prefix=b"piston-"
-        ) as fp:
-            fp.write(bytes(post["body"], 'ascii'))
-            fp.flush()
-            call([EDITOR, fp.name])
+            with tempfile.NamedTemporaryFile(
+                suffix=b".yaml",
+                prefix=b"piston-"
+            ) as fp:
+                fp.write(bytes(post["body"], 'ascii'))
+                fp.flush()
+                call([EDITOR, fp.name])
 
-            fp.seek(0)
-            edited_message = fp.read().decode('ascii')
+                fp.seek(0)
+                edited_message = fp.read().decode('ascii')
 
         if args.replace:
             newbody = edited_message
