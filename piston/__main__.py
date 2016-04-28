@@ -52,6 +52,24 @@ def executeOp(op, wif=None):
         reply = None
 
 
+def dump_recursive_comments(post_author, post_permlink, depth):
+    import re
+    posts = rpc.get_content_replies(post_author, post_permlink)
+    for post in posts:
+        meta = {}
+        for key in ["author", "permlink"]:
+            meta[key] = post[key]
+        meta["reply"] = "@{author}/{permlink}".format(**post)
+        yaml = frontmatter.Post(post["body"], **meta)
+        d = frontmatter.dumps(yaml)
+        print(re.sub(
+            "^", "  " * depth, d, flags=re.MULTILINE
+        ))
+        reply = rpc.get_content_replies(post["author"], post["permlink"])
+        if len(reply):
+            dump_recursive_comments(post["author"], post["permlink"], depth + 1)
+
+
 def main() :
     global args
 
@@ -360,9 +378,10 @@ def main() :
     rpc = SteemNodeRPC(args.node, args.rpcuser, args.rpcpassword)
 
     if args.command == "addkey":
+        wallet = Wallet(rpc)
         if len(args.wifkeys):
             for wifkey in args.wifkeys:
-                pub = (Wallet(rpc).addPrivateKey(wifkey))
+                pub = (wallet.addPrivateKey(wifkey))
                 if pub:
                     print(pub)
         else:
@@ -372,19 +391,19 @@ def main() :
                 wifkey = getpass.getpass('Private Key (wif) [Enter to quit]:')
                 if not wifkey:
                     break
-                pub = (Wallet(rpc).addPrivateKey(wifkey))
+                pub = (wallet.addPrivateKey(wifkey))
                 if pub:
                     print(pub)
 
     elif args.command == "listkeys":
-        t = PrettyTable(["key"])
+        t = PrettyTable(["Available Key"])
         t.align = "l"
         for key in Wallet(rpc).getPublicKeys():
             t.add_row([key])
         print(t)
 
     elif args.command == "listaccounts":
-        t = PrettyTable(["name", "key"])
+        t = PrettyTable(["Name", "Available Key"])
         t.align = "l"
         for account in Wallet(rpc).getAccounts():
             t.add_row(account)
@@ -505,6 +524,10 @@ def main() :
             patch = dmp.patch_make(post["body"], edited_message)
             newbody = dmp.patch_toText(patch)
 
+            if not newbody:
+                print("No changes made! Skipping ...")
+                return
+
             op = transactions.Comment(
                 **{"parent_author": post["parent_author"],
                    "parent_permlink": post["parent_permlink"],
@@ -624,24 +647,6 @@ def main() :
 
     else:
         print("No valid command given")
-
-
-def dump_recursive_comments(post_author, post_permlink, depth):
-    import re
-    posts = rpc.get_content_replies(post_author, post_permlink)
-    for post in posts:
-        meta = {}
-        for key in ["author", "permlink"]:
-            meta[key] = post[key]
-        meta["reply"] = "@{author}/{permlink}".format(**post)
-        yaml = frontmatter.Post(post["body"], **meta)
-        d = frontmatter.dumps(yaml)
-        print(re.sub(
-            "^", "  " * depth, d, flags=re.MULTILINE
-        ))
-        reply = rpc.get_content_replies(post["author"], post["permlink"])
-        if len(reply):
-            dump_recursive_comments(post["author"], post["permlink"], depth + 1)
 
 
 rpc = None
