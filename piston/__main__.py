@@ -19,6 +19,12 @@ def broadcastTx(tx):
     return rpc.broadcast_transaction(tx, api="network_broadcast")
 
 
+def resolveIdentifier(identifier):
+        import re
+        match = re.match("@?(\w*)/([\w-]*)", args.post)
+        return match.group(1), match.group(2)
+
+
 def executeOp(op, wif=None):
     if not wif:
         print("Missing required key")
@@ -297,6 +303,54 @@ def main() :
     )
 
     """
+        Command "upvote"
+    """
+    parser_upvote = subparsers.add_parser('upvote', help='Upvote a post')
+    parser_upvote.set_defaults(command="upvote")
+    parser_upvote.add_argument(
+        'post',
+        type=str,
+        help='@author/permlink-identifier of the post to upvote to (e.g. @xeroc/python-steem-0-1)'
+    )
+    parser_upvote.add_argument(
+        '--voter',
+        type=str,
+        required=True,
+        help='The voter account name'
+    )
+    parser_upvote.add_argument(
+        '--weight',
+        type=float,
+        default=100.0,
+        required=False,
+        help='Actual weight (from 0.1 to 100.0)'
+    )
+
+    """
+        Command "downvote"
+    """
+    parser_downvote = subparsers.add_parser('downvote', help='Downvote a post')
+    parser_downvote.set_defaults(command="downvote")
+    parser_downvote.add_argument(
+        '--voter',
+        type=str,
+        required=True,
+        help='The voter account name'
+    )
+    parser_downvote.add_argument(
+        'post',
+        type=str,
+        help='@author/permlink-identifier of the post to downvote to (e.g. @xeroc/python-steem-0-1)'
+    )
+    parser_downvote.add_argument(
+        '--weight',
+        type=float,
+        default=100.0,
+        required=False,
+        help='Actual weight (from 0.1 to 100.0)'
+    )
+
+    """
         Parse Arguments
     """
     args = parser.parse_args()
@@ -322,10 +376,8 @@ def main() :
         print(t)
 
     elif args.command == "reply":
-        import re
-        match = re.match("@?(\w*)/([\w-]*)", args.replyto)
-        parent_author = match.group(1)
-        parent_permlink = match.group(2)
+        parent_author, parent_permlink = resolveIdentifier(args.post)
+
         parent = rpc.get_content(parent_author, parent_permlink)
         if parent["id"] == "0.0.0":
             print("Can't find post %s" % args.replyto)
@@ -399,10 +451,7 @@ def main() :
         executeOp(op, wif)
 
     elif args.command == "edit":
-        import re
-        match = re.match("@?(\w*)/([\w-]*)", args.post)
-        post_author = match.group(1)
-        post_permlink = match.group(2)
+        post_author, post_permlink = resolveIdentifier(args.post)
         post = rpc.get_content(post_author, post_permlink)
 
         if post["id"] == "0.0.0":
@@ -454,11 +503,27 @@ def main() :
         wif = Wallet(rpc).getPostingKeyForAccount(author)
         executeOp(op, wif)
 
+    elif args.command == "upvote" or args.command == "downvote":
+        STEEMIT_100_PERCENT = 10000
+        STEEMIT_1_PERCENT = (STEEMIT_100_PERCENT / 100)
+        if args.command == "downvote":
+            weight = -float(args.weight)
+        else:
+            weight = +float(args.weight)
+
+        post_author, post_permlink = resolveIdentifier(args.post)
+
+        op = transactions.Vote(
+            **{"voter": args.voter,
+               "author": post_author,
+               "permlink": post_permlink,
+               "weight": int(weight * STEEMIT_1_PERCENT)}
+        )
+        wif = Wallet(rpc).getPostingKeyForAccount(args.voter)
+        executeOp(op, wif)
+
     elif args.command == "read":
-        import re
-        match = re.match("@?(\w*)/([\w-]*)", args.post)
-        post_author = match.group(1)
-        post_permlink = match.group(2)
+        post_author, post_permlink = resolveIdentifier(args.post)
 
         if not args.comments:
             post = rpc.get_content(post_author, post_permlink)

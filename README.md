@@ -182,3 +182,16 @@ title: |
 
 This is the plain text (possibly markdown or reStructureText-formated) body
 ```
+
+### Voting
+
+With `piston`, you can up-/downvote any post with your installed accounts:
+
+    piston upvote --voter<voter> <identifier> 
+    piston downvote --voter<voter> <identifier> 
+
+providing the post *identifier*. The identifier takes the form
+
+    @author/permlink
+
+You can further define the weight (default 100%) manually with `--weight`.
