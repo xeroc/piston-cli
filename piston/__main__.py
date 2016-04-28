@@ -5,7 +5,7 @@ import os
 import argparse
 from steemapi.steemclient import SteemNodeRPC
 from pprint import pprint
-from steembase.account import PrivateKey, PublicKey, Address
+from steembase import PrivateKey, PublicKey, Address
 import steembase.transactions as transactions
 from piston.wallet import Wallet
 import frontmatter
