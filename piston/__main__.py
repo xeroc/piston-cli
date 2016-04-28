@@ -21,7 +21,7 @@ def broadcastTx(tx):
 
 def resolveIdentifier(identifier):
         import re
-        match = re.match("@?(\w*)/([\w-]*)", identifier)
+        match = re.match("@?([\w-]*)/([\w-]*)", identifier)
         return match.group(1), match.group(2)
 
 
