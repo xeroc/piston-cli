@@ -2,7 +2,7 @@
 
 from setuptools import setup
 
-VERSION = '0.1'
+VERSION = '0.1.1'
 
 setup(name='steem-piston',
       version=VERSION,
@@ -32,4 +32,5 @@ setup(name='steem-piston',
                         "diff-match-patch",
                         "graphenelib>=0.3.9"
                         ],
+      include_package_data=True,
       )
