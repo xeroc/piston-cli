@@ -21,7 +21,7 @@ def broadcastTx(tx):
 
 def resolveIdentifier(identifier):
         import re
-        match = re.match("@?(\w*)/([\w-]*)", args.post)
+        match = re.match("@?(\w*)/([\w-]*)", identifier)
         return match.group(1), match.group(2)
 
 
@@ -376,7 +376,7 @@ def main() :
         print(t)
 
     elif args.command == "reply":
-        parent_author, parent_permlink = resolveIdentifier(args.post)
+        parent_author, parent_permlink = resolveIdentifier(args.replyto)
 
         parent = rpc.get_content(parent_author, parent_permlink)
         if parent["id"] == "0.0.0":
