@@ -51,10 +51,32 @@ are available.
 This command tries to resolve the public keys into account names registered
 on the network (experimental).
 
+### Listing
+
+`piston` can list, sort, and filter for posts on the STEEM blockchain.
+You can read about the parameters by
+
+    piston list --help
+
+Example:
+
+    $ piston list --limit 3 --sort payout
+    +----------------------------------------+------------------------------------------------+----------+---------+------------------+---------------+
+    | identifier                             | title                                          | category | replies |            votes |       payouts |
+    +----------------------------------------+------------------------------------------------+----------+---------+------------------+---------------+
+    | @donaldtrump/lets-talk-politics        | Let's Talk Politics and the U.S. 2016 Election | politics |    20   | 1020791260074419 | 14106.752 SBD |
+    | @nextgencrypto/steem-price-speculation | STEEM Price Speculation                        | steem    |    14   |  777027533714240 | 11675.872 SBD |
+    | @clayop/lets-request-steem-to-poloniex | Let's Request STEEM to Poloniex                | steem    |    8    |  988929602909199 | 10530.426 SBD |
+    +----------------------------------------+------------------------------------------------+----------+---------+------------------+---------------+
+
 ### Reading
 
-The subcommand `read` allows to read posts and replies fro STEAM. It
-takes the optional parameters:
+The subcommand `read` allows to read posts and replies from STEAM by
+providing the post *identifier*. The identifier takes the form
+
+    @author/permlink
+
+The subcommands takes the optional parameters:
 
 * `--yaml`: show the posts meta data as YAML formatted frontmatter
 * `--comments`: to show all comments and replies made to that post
@@ -88,6 +110,16 @@ See examples:
      ---
 
      This is great work xeroc!  Thanks for supporting steem!
+
+### Categories
+
+Existing categories can be listed via:
+
+    piston categories --limit 10
+
+Please see the corresponding help page for further options:
+
+    piston categories --help
 
 ### Posting
 

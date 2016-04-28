@@ -10,6 +10,8 @@ import steembase.transactions as transactions
 from piston.wallet import Wallet
 import frontmatter
 
+from prettytable import PrettyTable
+
 
 def broadcastTx(tx):
     if isinstance(tx, transactions.Signed_Transaction):
@@ -103,6 +105,60 @@ def main() :
     """
     listaccounts = subparsers.add_parser('listaccounts', help='List available accounts in your wallet')
     listaccounts.set_defaults(command="listaccounts")
+
+    """
+        Command "list"
+    """
+    parser_list = subparsers.add_parser('list', help='List posts on STEAM')
+    parser_list.set_defaults(command="list")
+    parser_list.add_argument(
+        '--author',
+        type=str,
+        help='Only posts by this author'
+    )
+    parser_list.add_argument(
+        '--category',
+        type=str,
+        help='Only posts with in this category'
+    )
+    parser_list.add_argument(
+        '--sort',
+        type=str,
+        default="recent",
+        choices=["recent", "payout"],
+        help='Sort posts'
+    )
+    parser_list.add_argument(
+        '--limit',
+        type=int,
+        default=10,
+        help='Limit posts by number'
+    )
+
+    """
+        Command "categories"
+    """
+    parser_categories = subparsers.add_parser('categories', help='Show categories')
+    parser_categories.set_defaults(command="categories")
+    parser_categories.add_argument(
+        '--sort',
+        type=str,
+        default="trending",
+        choices=["trending", "best", "active", "recent"],
+        help='Sort categories'
+    )
+    parser_categories.add_argument(
+        'category',
+        nargs="?",
+        type=str,
+        help='Only categories used by this author'
+    )
+    parser_categories.add_argument(
+        '--limit',
+        type=int,
+        default=10,
+        help='Limit categories by number'
+    )
 
     """
         Command "read"
@@ -252,11 +308,18 @@ def main() :
         print(Wallet(rpc).addPrivateKey(args.wifkey))
 
     elif args.command == "listkeys":
-        [print(a) for a in Wallet(rpc).getPublicKeys()]
+        t = PrettyTable(["key"])
+        t.align = "l"
+        for key in Wallet(rpc).getPublicKeys():
+            t.add_row([key])
+        print(t)
 
     elif args.command == "listaccounts":
+        t = PrettyTable(["name", "key"])
+        t.align = "l"
         for account in Wallet(rpc).getAccounts():
-            print(" ".join(account))
+            t.add_row(account)
+        print(t)
 
     elif args.command == "reply":
         import re
@@ -411,6 +474,73 @@ def main() :
                 print(post["body"])
         else:
             dump_recursive_comments(post_author, post_permlink, 0)
+
+    elif args.command == "categories":
+
+        if args.sort == "trending":
+            func = rpc.get_trending_categories
+        elif args.sort == "best":
+            func = rpc.get_best_categories
+        elif args.sort == "active":
+            func = rpc.get_active_categories
+        elif args.sort == "recent":
+            func = rpc.get_recent_categories
+        else:
+            print("Invalid choice of '--sort'!")
+            return
+
+        categories = func(args.category, args.limit)
+        t = PrettyTable(["name", "discussions", "payouts"])
+        t.align = "l"
+        for category in categories:
+            t.add_row([
+                category["name"],
+                category["discussions"],
+                category["total_payouts"],
+            ])
+        print(t)
+
+    elif args.command == "list":
+        from functools import partial
+        from textwrap import wrap
+        if args.sort == "recent":
+            if args.category:
+                func = partial(rpc.get_discussions_in_category_by_last_update, args.category)
+            else:
+                func = rpc.get_discussions_by_last_update
+        elif args.sort == "payout":
+            if args.category:
+                func = partial(rpc.get_discussions_in_category_by_total_pending_payout, args.category)
+            else:
+                func = rpc.get_discussions_by_total_pending_payout
+        else:
+            print("Invalid choice of '--sort'!")
+            return
+
+        discussions = func(args.author, "", args.limit)
+        t = PrettyTable([
+            "identifier",
+            "title",
+            "category",
+            "replies",
+            "votes",
+            "payouts",
+        ])
+        t.align = "l"
+        t.align["payouts"] = "r"
+        t.align["votes"] = "r"
+        t.align["replies"] = "c"
+        for d in discussions:
+            identifier = "@%s/%s" % (d["author"], d["permlink"])
+            t.add_row([
+                "\n".join(wrap(identifier, 60)),
+                "\n".join(wrap(d["title"], 60)),
+                d["category"],
+                d["children"],
+                d["net_rshares"],
+                d["pending_payout_value"],
+            ])
+        print(t)
 
     else:
         print("No valid command given")
