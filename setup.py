@@ -32,4 +32,5 @@ setup(name='steem-piston',
                         "diff-match-patch",
                         "graphenelib>=0.3.9"
                         ],
+      include_package_data=True,
       )
