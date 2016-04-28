@@ -94,7 +94,8 @@ def main() :
     """
     addkey = subparsers.add_parser('addkey', help='Add a new key to the wallet')
     addkey.add_argument(
-        'wifkey',
+        'wifkeys',
+        nargs='*',
         type=str,
         help='the private key in wallet import format (wif)'
     )
@@ -359,7 +360,21 @@ def main() :
     rpc = SteemNodeRPC(args.node, args.rpcuser, args.rpcpassword)
 
     if args.command == "addkey":
-        print(Wallet(rpc).addPrivateKey(args.wifkey))
+        if len(args.wifkeys):
+            for wifkey in args.wifkeys:
+                pub = (Wallet(rpc).addPrivateKey(wifkey))
+                if pub:
+                    print(pub)
+        else:
+            import getpass
+            wifkey = ""
+            while True:
+                wifkey = getpass.getpass('Private Key (wif) [Enter to quit]:')
+                if not wifkey:
+                    break
+                pub = (Wallet(rpc).addPrivateKey(wifkey))
+                if pub:
+                    print(pub)
 
     elif args.command == "listkeys":
         t = PrettyTable(["key"])
