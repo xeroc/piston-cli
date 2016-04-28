@@ -27,8 +27,9 @@ setup(name='steem-piston',
               'piston = piston.__main__:main',
           ],
       },
-      install_requires=["steem",
+      install_requires=["steem>=0.1.3",
                         "python-frontmatter",
                         "diff-match-patch",
+                        "graphenelib>=0.3.9"
                         ],
       )
