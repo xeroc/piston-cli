@@ -187,8 +187,8 @@ This is the plain text (possibly markdown or reStructureText-formated) body
 
 With `piston`, you can up-/downvote any post with your installed accounts:
 
-    piston upvote --voter<voter> <identifier> 
-    piston downvote --voter<voter> <identifier> 
+    piston upvote --voter <voter> <identifier>
+    piston downvote --voter <voter> <identifier>
 
 providing the post *identifier*. The identifier takes the form
 
