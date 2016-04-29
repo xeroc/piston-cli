@@ -528,6 +528,7 @@ def main() :
         post_author, post_permlink = resolveIdentifier(args.post)
         post = rpc.get_content(post_author, post_permlink)
 
+        edited_message = None
         if post["id"] == "0.0.0":
             print("Can't find post %s" % args.post)
             return
@@ -538,11 +539,12 @@ def main() :
                 return
             with open(args.file) as fp:
                 edited_message = fp.read()
+        elif args.file == "-":
+            edited_message = sys.stdin.read()
         else:
             import tempfile
             from subprocess import call
             EDITOR = os.environ.get('EDITOR', 'vim')
-            edited_message = None
 
             with tempfile.NamedTemporaryFile(
                 suffix=b".yaml",
