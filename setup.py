@@ -2,7 +2,7 @@
 
 from setuptools import setup
 
-VERSION = '0.1.3-hotfix'
+VERSION = '0.1.4'
 
 setup(name='steem-piston',
       version=VERSION,
