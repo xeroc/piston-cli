@@ -46,4 +46,4 @@ steem-readme:
 	piston edit "@xeroc/piston-readme" --file README.md
 
 steem-changelog:
-	git tag -l -n100 $(TAG) | piston post --author xeroc --permlink "piston-changelog-$(TAGSTEEM)" --category steem --title "[Changelog] Piston $(TAG)" \
+	git tag -l -n100 $(TAG) | piston post --file "-" --author xeroc --permlink "piston-changelog-$(TAGSTEEM)" --category piston --title "[Changelog] Piston $(TAG)"

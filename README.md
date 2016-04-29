@@ -20,7 +20,6 @@ python3 setup.py install --user
 
 ### Upgrade
 
-
 ```
 $ pip install --user --upgrade steem-piston
 ```
