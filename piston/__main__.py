@@ -471,6 +471,7 @@ def main() :
             "title": args.title if args.title else "required",
             "permlink": args.permlink if args.permlink else "required",
             "author": args.author if args.author else "required",
+            "category": args.category if args.category else "required",
         })
 
         meta, body = yaml_parse_file(args, initial_content=post)
@@ -479,10 +480,10 @@ def main() :
             print("Empty body! Not posting!")
             return
 
-        for required in ["author", "permlink", "title"]:
-            if (required not in post or
-                    not post[required] or
-                    post[required] == "required"):
+        for required in ["author", "permlink", "title", "category"]:
+            if (required not in meta or
+                    not meta[required] or
+                    meta[required] == "required"):
                 print("'%s' required!" % required)
                 # TODO, instead of terminating here, send the user back
                 # to the EDITOR
@@ -490,7 +491,7 @@ def main() :
 
         op = transactions.Comment(
             **{"parent_author": "",
-               "parent_permlink": "",
+               "parent_permlink": meta["category"],
                "author": meta["author"],
                "permlink": meta["permlink"],
                "title": meta["title"],
