@@ -21,7 +21,7 @@ def broadcastTx(tx):
 
 def resolveIdentifier(identifier):
         import re
-        match = re.match("@?(\w*)/([\w-]*)", identifier)
+        match = re.match("@?([\w-]*)/([\w-]*)", identifier)
         return match.group(1), match.group(2)
 
 
@@ -50,6 +50,57 @@ def executeOp(op, wif=None):
     else:
         print("Not broadcasting anything!")
         reply = None
+
+
+def dump_recursive_comments(post_author, post_permlink, depth):
+    import re
+    posts = rpc.get_content_replies(post_author, post_permlink)
+    for post in posts:
+        meta = {}
+        for key in ["author", "permlink"]:
+            meta[key] = post[key]
+        meta["reply"] = "@{author}/{permlink}".format(**post)
+        yaml = frontmatter.Post(post["body"], **meta)
+        d = frontmatter.dumps(yaml)
+        print(re.sub(
+            "^", "  " * depth, d, flags=re.MULTILINE
+        ))
+        reply = rpc.get_content_replies(post["author"], post["permlink"])
+        if len(reply):
+            dump_recursive_comments(post["author"], post["permlink"], depth + 1)
+
+
+def yaml_parse_file(args, initial_content):
+    message = None
+
+    if args.file and args.file != "-":
+        if not os.path.isfile(args.file):
+            print("File %s does not exist!" % args.file)
+            return
+        with open(args.file) as fp:
+            message = fp.read()
+    elif args.file == "-":
+        message = sys.stdin.read()
+    else:
+        import tempfile
+        from subprocess import call
+        EDITOR = os.environ.get('EDITOR', 'vim')
+        with tempfile.NamedTemporaryFile(
+            suffix=b".yaml",
+            prefix=b"piston-"
+        ) as fp:
+            fp.write(bytes(frontmatter.dumps(initial_content), 'utf-8'))
+            fp.flush()
+            call([EDITOR, fp.name])
+            fp.seek(0)
+            message = fp.read().decode('utf-8')
+
+    try :
+        meta, body = frontmatter.parse(message)
+    except:
+        meta = initial_content
+        body = message
+    return meta, body
 
 
 def main() :
@@ -94,7 +145,8 @@ def main() :
     """
     addkey = subparsers.add_parser('addkey', help='Add a new key to the wallet')
     addkey.add_argument(
-        'wifkey',
+        'wifkeys',
+        nargs='*',
         type=str,
         help='the private key in wallet import format (wif)'
     )
@@ -195,13 +247,13 @@ def main() :
     parser_post.add_argument(
         '--author',
         type=str,
-        required=True,
+        required=False,
         help='Publish post as this user (requires to have the key installed in the wallet)'
     )
     parser_post.add_argument(
         '--permlink',
         type=str,
-        required=True,
+        required=False,
         help='The permlink (together with the author identifies the post uniquely)'
     )
     parser_post.add_argument(
@@ -213,36 +265,14 @@ def main() :
     parser_post.add_argument(
         '--title',
         type=str,
-        required=True,
+        required=False,
         help='Title of the post'
     )
-
-    """
-        Command "yaml"
-    """
-    parser_yaml = subparsers.add_parser('yaml', help='yaml something new')
-    parser_yaml.set_defaults(command="yaml")
-    parser_yaml.add_argument(
-        'file',
-        nargs='?',
+    parser_post.add_argument(
+        '--file',
         type=str,
         default=None,
         help='Filename to open. If not present, or "-", stdin will be used'
-    )
-    parser_yaml.add_argument(
-        '--author',
-        type=str,
-        help='Publish post as this user (requires to have the key installed in the wallet)'
-    )
-    parser_yaml.add_argument(
-        '--permlink',
-        type=str,
-        help='The permlink (together with the author identifies the post uniquely)'
-    )
-    parser_yaml.add_argument(
-        '--title',
-        type=str,
-        help='Title of the post'
     )
 
     """
@@ -258,20 +288,26 @@ def main() :
     reply.add_argument(
         '--author',
         type=str,
-        required=True,
+        required=False,
         help='Publish post as this user (requires to have the key installed in the wallet)'
     )
     reply.add_argument(
         '--permlink',
         type=str,
-        required=True,
+        required=False,
         help='The permlink (together with the author identifies the post uniquely)'
     )
     reply.add_argument(
         '--title',
         type=str,
-        required=True,
+        required=False,
         help='Title of the post'
+    )
+    reply.add_argument(
+        '--file',
+        type=str,
+        required=False,
+        help='Send file as responds. If "-", read from stdin'
     )
 
     """
@@ -359,23 +395,39 @@ def main() :
     rpc = SteemNodeRPC(args.node, args.rpcuser, args.rpcpassword)
 
     if args.command == "addkey":
-        print(Wallet(rpc).addPrivateKey(args.wifkey))
+        wallet = Wallet(rpc)
+        if len(args.wifkeys):
+            for wifkey in args.wifkeys:
+                pub = (wallet.addPrivateKey(wifkey))
+                if pub:
+                    print(pub)
+        else:
+            import getpass
+            wifkey = ""
+            while True:
+                wifkey = getpass.getpass('Private Key (wif) [Enter to quit]:')
+                if not wifkey:
+                    break
+                pub = (wallet.addPrivateKey(wifkey))
+                if pub:
+                    print(pub)
 
     elif args.command == "listkeys":
-        t = PrettyTable(["key"])
+        t = PrettyTable(["Available Key"])
         t.align = "l"
         for key in Wallet(rpc).getPublicKeys():
             t.add_row([key])
         print(t)
 
     elif args.command == "listaccounts":
-        t = PrettyTable(["name", "key"])
+        t = PrettyTable(["Name", "Available Key"])
         t.align = "l"
         for account in Wallet(rpc).getAccounts():
             t.add_row(account)
         print(t)
 
     elif args.command == "reply":
+        from textwrap import indent
         parent_author, parent_permlink = resolveIdentifier(args.replyto)
 
         parent = rpc.get_content(parent_author, parent_permlink)
@@ -383,63 +435,62 @@ def main() :
             print("Can't find post %s" % args.replyto)
             return
 
+        reply_message = indent(parent["body"], "> ")
+        post = frontmatter.Post(reply_message, **{
+            "title": args.title if args.title else "Re: " + parent["title"],
+            "permlink": args.permlink if args.permlink else "re-" + parent["permlink"],
+            "author": args.author if args.author else "required",
+        })
+
+        post, message = yaml_parse_file(args, initial_content=post)
+
+        for required in ["author", "permlink", "title"]:
+            if (required not in post or
+                    not post[required] or
+                    post[required] == "required"):
+                print("'%s' required!" % required)
+                # TODO, instead of terminating here, send the user back
+                # to the EDITOR
+                return
+
         op = transactions.Comment(
             **{"parent_author": parent["author"],
                "parent_permlink": parent["permlink"],
-               "author": args.author,
-               "permlink": args.permlink,
-               "title": args.title,
-               "body": sys.stdin.read(),
+               "author": post["author"],
+               "permlink": post["permlink"],
+               "title": post["title"],
+               "body": message,
                "json_metadata": ""}
         )
-        wif = Wallet(rpc).getPostingKeyForAccount(args.author)
+        wif = Wallet(rpc).getPostingKeyForAccount(post["author"])
         executeOp(op, wif)
 
-    elif args.command == "post":
+    elif args.command == "post" or args.command == "yaml":
+        post = frontmatter.Post("", **{
+            "title": args.title if args.title else "required",
+            "permlink": args.permlink if args.permlink else "required",
+            "author": args.author if args.author else "required",
+            "category": args.category if args.category else "required",
+        })
+
+        meta, body = yaml_parse_file(args, initial_content=post)
+
+        if not body:
+            print("Empty body! Not posting!")
+            return
+
+        for required in ["author", "permlink", "title", "category"]:
+            if (required not in meta or
+                    not meta[required] or
+                    meta[required] == "required"):
+                print("'%s' required!" % required)
+                # TODO, instead of terminating here, send the user back
+                # to the EDITOR
+                return
+
         op = transactions.Comment(
             **{"parent_author": "",
-               "parent_permlink": args.category,
-               "author": args.author,
-               "permlink": args.permlink,
-               "title": args.title,
-               "body": sys.stdin.read(),
-               "json_metadata": ""}
-        )
-        wif = Wallet(rpc).getPostingKeyForAccount(args.author)
-        executeOp(op, wif)
-
-    elif args.command == "yaml":
-        if args.file and args.file != "-":
-            if not os.path.isfile(args.file):
-                print("File %s does not exist!" % args.file)
-                return
-            with open(args.file) as fp:
-                data = fp.read()
-        else:
-            data = sys.stdin.read()
-
-        meta, body = frontmatter.parse(data)
-
-        for key in ["author", "permlink", "title"]:
-            if getattr(args, key):
-                meta[key] = getattr(args, key)
-
-        for required in ["author", "permlink", "title"]:
-            if required not in meta:
-                print("Front matter incomplete: '%s' required!" % required)
-                return
-        if "type" in meta and meta["type"] not in ["post", "reply"]:
-            print("Type can only be 'post', or 'reply'!")
-            return
-            if meta["type"] == "reply":
-                for required in ["parent_author", "parent_permlink"]:
-                    if required not in meta:
-                        print("For reply posts, '%s' is required!" % required)
-                        return
-
-        op = transactions.Comment(
-            **{"parent_author": meta["parent_author"] if "parent_author" in meta else "",
-               "parent_permlink": meta["category"] if "category" in meta else "",
+               "parent_permlink": meta["category"],
                "author": meta["author"],
                "permlink": meta["permlink"],
                "title": meta["title"],
@@ -452,55 +503,44 @@ def main() :
 
     elif args.command == "edit":
         post_author, post_permlink = resolveIdentifier(args.post)
-        post = rpc.get_content(post_author, post_permlink)
+        original_post = rpc.get_content(post_author, post_permlink)
 
-        if post["id"] == "0.0.0":
+        edited_message = None
+        if original_post["id"] == "0.0.0":
             print("Can't find post %s" % args.post)
             return
 
-        if args.file and args.file != "-":
-            if not os.path.isfile(args.file):
-                print("File %s does not exist!" % args.file)
-                return
-            with open(args.file) as fp:
-                edited_message = fp.read()
-        else:
-            import tempfile
-            from subprocess import call
-            EDITOR = os.environ.get('EDITOR', 'vim')
-            edited_message = None
+        post = frontmatter.Post(original_post["body"], **{
+            "title": original_post["title"] + " (immutable)",
+            "permlink": original_post["permlink"] + " (immutable)",
+            "author": original_post["author"] + " (immutable)"
+        })
 
-            with tempfile.NamedTemporaryFile(
-                suffix=b".yaml",
-                prefix=b"piston-"
-            ) as fp:
-                fp.write(bytes(post["body"], 'ascii'))
-                fp.flush()
-                call([EDITOR, fp.name])
-
-                fp.seek(0)
-                edited_message = fp.read().decode('ascii')
+        meta, edited_message = yaml_parse_file(args, initial_content=post)
 
         if args.replace:
             newbody = edited_message
         else:
-            author = args.author if args.author else post["author"]
             import diff_match_patch
             dmp = diff_match_patch.diff_match_patch()
-            patch = dmp.patch_make(post["body"], edited_message)
+            patch = dmp.patch_make(original_post["body"], edited_message)
             newbody = dmp.patch_toText(patch)
 
-            op = transactions.Comment(
-                **{"parent_author": post["parent_author"],
-                   "parent_permlink": post["parent_permlink"],
-                   "author": post["author"],
-                   "permlink": post["permlink"],
-                   "title": post["title"],
-                   "body": newbody,
-                   "json_metadata": ""}
-            )
+            if not newbody:
+                print("No changes made! Skipping ...")
+                return
 
-        wif = Wallet(rpc).getPostingKeyForAccount(author)
+        op = transactions.Comment(
+            **{"parent_author": original_post["parent_author"],
+               "parent_permlink": original_post["parent_permlink"],
+               "author": original_post["author"],
+               "permlink": original_post["permlink"],
+               "title": original_post["title"],
+               "body": newbody,
+               "json_metadata": ""}
+        )
+
+        wif = Wallet(rpc).getPostingKeyForAccount(original_post["author"])
         executeOp(op, wif)
 
     elif args.command == "upvote" or args.command == "downvote":
@@ -567,7 +607,7 @@ def main() :
 
     elif args.command == "list":
         from functools import partial
-        from textwrap import wrap
+        from textwrap import fill, TextWrapper
         if args.sort == "recent":
             if args.category:
                 func = partial(rpc.get_discussions_in_category_by_last_update, args.category)
@@ -597,9 +637,13 @@ def main() :
         t.align["replies"] = "c"
         for d in discussions:
             identifier = "@%s/%s" % (d["author"], d["permlink"])
+            identifier_wrapper = TextWrapper()
+            identifier_wrapper.width = 60
+            identifier_wrapper.subsequent_indent = " "
+
             t.add_row([
-                "\n".join(wrap(identifier, 60)),
-                "\n".join(wrap(d["title"], 60)),
+                identifier_wrapper.fill(identifier),
+                identifier_wrapper.fill(d["title"]),
                 d["category"],
                 d["children"],
                 d["net_rshares"],
@@ -609,24 +653,6 @@ def main() :
 
     else:
         print("No valid command given")
-
-
-def dump_recursive_comments(post_author, post_permlink, depth):
-    import re
-    posts = rpc.get_content_replies(post_author, post_permlink)
-    for post in posts:
-        meta = {}
-        for key in ["author", "permlink"]:
-            meta[key] = post[key]
-        meta["reply"] = "@{author}/{permlink}".format(**post)
-        yaml = frontmatter.Post(post["body"], **meta)
-        d = frontmatter.dumps(yaml)
-        print(re.sub(
-            "^", "  " * depth, d, flags=re.MULTILINE
-        ))
-        reply = rpc.get_content_replies(post["author"], post["permlink"])
-        if len(reply):
-            dump_recursive_comments(post["author"], post["permlink"], depth + 1)
 
 
 rpc = None

@@ -20,7 +20,6 @@ python3 setup.py install --user
 
 ### Upgrade
 
-
 ```
 $ pip install --user --upgrade steem-piston
 ```
@@ -147,8 +146,12 @@ The `replyto` parameter takes the following form:
 
 E.g:
 
-    echo "Texts" | piston reply "@xeroc/python-steem-0.1.1" --author "<author>" --title "<posttitle>" --permlink "<permlink>"
-    cat filename | piston reply "@xeroc/python-steem-0.1.1" --author "<author>" --title "<posttitle>" --permlink "<permlink>"
+    echo "Texts" | piston reply --file - "@xeroc/python-steem-0.1.1" --author "<author>"
+    cat filename | piston reply --file - "@xeroc/python-steem-0.1.1" --author "<author>"
+
+If you want to use your favorit `EDITOR`, you can do this by:
+
+    piston reply "@xeroc/python-steem-0.1.1"
 
 ### Editing
 
@@ -160,28 +163,6 @@ With piston, you can edit your own posts with your favorite text editor
 
 If you want to replace your entire post and not *patch* it, you can add
 the `--replace` flag.
-
-### Posting with YAML
-
-Since parameters might be seen as unhandy by some, the `yaml` mode
-allows to define post and reply parameters by means of
-a [YAML](http://yaml.org/) formated frontmatter similar to Jekyll.
-A document needs `---` separated header that defines the parameters:
-
-```
----
-category: The category to post in
-author: The author which will sign the post (requires the porsting key to be installed in the wallet)
-permlink: Permlink of the Post
-title: |
-    Title of the Post. Since this
-    is a very long and verbatim title,
-    the `|` syntax is used
-[type: reply|post]
----
-
-This is the plain text (possibly markdown or reStructureText-formated) body
-```
 
 ### Voting
 
