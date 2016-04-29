@@ -90,7 +90,8 @@ def yaml_parse_file(args, initial_content):
         EDITOR = os.environ.get('EDITOR', 'vim')
         with tempfile.NamedTemporaryFile(
             suffix=b".yaml",
-            prefix=b"piston-"
+            prefix=b"piston-",
+            delete=False
         ) as fp:
             fp.write(bytes(frontmatter.dumps(initial_content), 'utf-8'))
             fp.flush()
