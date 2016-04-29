@@ -100,6 +100,13 @@ def yaml_parse_file(args, initial_content):
     except:
         meta = initial_content
         body = message
+
+    # make sure that at least the metadata keys of initial_content are
+    # present!
+    for key in initial_content.metadata:
+        if key not in meta:
+            meta[key] = initial_content[key]
+
     return meta, body
 
 
