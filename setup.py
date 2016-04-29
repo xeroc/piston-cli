@@ -32,5 +32,7 @@ setup(name='steem-piston',
                         "diff-match-patch",
                         "graphenelib>=0.3.9"
                         ],
+      setup_requires=['pytest-runner'],
+      tests_require=['pytest'],
       include_package_data=True,
       )
