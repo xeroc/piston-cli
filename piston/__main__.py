@@ -21,7 +21,10 @@ def broadcastTx(tx):
 
 def resolveIdentifier(identifier):
         import re
-        match = re.match("@?([\w-]*)/([\w-]*)", identifier)
+        match = re.match("@?([\w\-\.]*)/([\w\-]*)", identifier)
+        if not hasattr(match, "group"):
+            print("Invalid identifier")
+            sys.exit(1)
         return match.group(1), match.group(2)
 
 
