@@ -80,7 +80,7 @@ Example:
 
 ### Reading
 
-The subcommand `read` allows to read posts and replies from STEAM by
+The subcommand `read` allows to read posts and replies from STEEM by
 providing the post *identifier*. The identifier takes the form
 
     @author/permlink
