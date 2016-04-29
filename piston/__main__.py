@@ -283,14 +283,20 @@ def main() :
     reply.add_argument(
         '--permlink',
         type=str,
-        required=True,
+        required=False,
         help='The permlink (together with the author identifies the post uniquely)'
     )
     reply.add_argument(
         '--title',
         type=str,
-        required=True,
+        required=False,
         help='Title of the post'
+    )
+    reply.add_argument(
+        '--file',
+        type=str,
+        required=False,
+        help='Send file as responds. If "-", read from stdin'
     )
 
     """
@@ -410,6 +416,8 @@ def main() :
         print(t)
 
     elif args.command == "reply":
+        from textwrap import indent
+
         parent_author, parent_permlink = resolveIdentifier(args.replyto)
 
         parent = rpc.get_content(parent_author, parent_permlink)
@@ -417,13 +425,45 @@ def main() :
             print("Can't find post %s" % args.replyto)
             return
 
+        reply_message = indent(parent["body"], "> ")
+        post = frontmatter.Post(reply_message, **{
+            "title": args.title if args.title else "Re: " + parent["title"],
+            "permlink": args.permlink if args.permlink else "re-" + parent["permlink"],
+            "author": args.author,
+        })
+
+        if args.file and args.file != "-":
+            if not os.path.isfile(args.file):
+                print("File %s does not exist!" % args.file)
+                return
+            with open(args.file) as fp:
+                message = fp.read()
+        elif args.file == "-":
+            message = sys.stdin.read()
+        else:
+            import tempfile
+            from subprocess import call
+            EDITOR = os.environ.get('EDITOR', 'vim')
+            edited_message = None
+
+            with tempfile.NamedTemporaryFile(
+                suffix=b".yaml",
+                prefix=b"piston-"
+            ) as fp:
+                fp.write(bytes(frontmatter.dumps(post), 'utf-8'))
+                fp.flush()
+                call([EDITOR, fp.name])
+                fp.seek(0)
+                data = fp.read().decode('utf-8')
+                post, message = frontmatter.parse(data)
+
         op = transactions.Comment(
             **{"parent_author": parent["author"],
                "parent_permlink": parent["permlink"],
-               "author": args.author,
-               "permlink": args.permlink,
-               "title": args.title,
-               "body": sys.stdin.read(),
+               "author": post["author"],
+               "permlink": post["permlink"],
+               "title": post["title"],
+               "body": message,
                "json_metadata": ""}
         )
         wif = Wallet(rpc).getPostingKeyForAccount(args.author)
@@ -605,7 +645,7 @@ def main() :
 
     elif args.command == "list":
         from functools import partial
-        from textwrap import wrap
+        from textwrap import fill, TextWrapper
         if args.sort == "recent":
             if args.category:
                 func = partial(rpc.get_discussions_in_category_by_last_update, args.category)
@@ -635,9 +675,13 @@ def main() :
         t.align["replies"] = "c"
         for d in discussions:
             identifier = "@%s/%s" % (d["author"], d["permlink"])
+            identifier_wrapper = TextWrapper()
+            identifier_wrapper.width = 60
+            identifier_wrapper.subsequent_indent = " "
+
             t.add_row([
-                "\n".join(wrap(identifier, 60)),
-                "\n".join(wrap(d["title"], 60)),
+                identifier_wrapper.fill(identifier),
+                identifier_wrapper.fill(d["title"]),
                 d["category"],
                 d["children"],
                 d["net_rshares"],

@@ -147,8 +147,12 @@ The `replyto` parameter takes the following form:
 
 E.g:
 
-    echo "Texts" | piston reply "@xeroc/python-steem-0.1.1" --author "<author>" --title "<posttitle>" --permlink "<permlink>"
-    cat filename | piston reply "@xeroc/python-steem-0.1.1" --author "<author>" --title "<posttitle>" --permlink "<permlink>"
+    echo "Texts" | piston reply --file - "@xeroc/python-steem-0.1.1" --author "<author>"
+    cat filename | piston reply --file - "@xeroc/python-steem-0.1.1" --author "<author>"
+
+If you want to use your favorit `EDITOR`, you can do this by:
+
+    piston reply "@xeroc/python-steem-0.1.1"
 
 ### Editing
 
