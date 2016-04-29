@@ -165,28 +165,6 @@ With piston, you can edit your own posts with your favorite text editor
 If you want to replace your entire post and not *patch* it, you can add
 the `--replace` flag.
 
-### Posting with YAML
-
-Since parameters might be seen as unhandy by some, the `yaml` mode
-allows to define post and reply parameters by means of
-a [YAML](http://yaml.org/) formated frontmatter similar to Jekyll.
-A document needs `---` separated header that defines the parameters:
-
-```
----
-category: The category to post in
-author: The author which will sign the post (requires the porsting key to be installed in the wallet)
-permlink: Permlink of the Post
-title: |
-    Title of the Post. Since this
-    is a very long and verbatim title,
-    the `|` syntax is used
-[type: reply|post]
----
-
-This is the plain text (possibly markdown or reStructureText-formated) body
-```
-
 ### Voting
 
 With `piston`, you can up-/downvote any post with your installed accounts:
