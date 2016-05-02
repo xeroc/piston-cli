@@ -119,7 +119,7 @@ def main() :
 
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        description="Command line tool to interact with the STEEM network"
+        description="Command line tool to interact with the Steem network"
     )
 
     """
@@ -178,7 +178,7 @@ def main() :
     """
         Command "list"
     """
-    parser_list = subparsers.add_parser('list', help='List posts on STEAM')
+    parser_list = subparsers.add_parser('list', help='List posts on Steem')
     parser_list.set_defaults(command="list")
     parser_list.add_argument(
         '--author',
