@@ -128,6 +128,9 @@ def main() :
     global rpc
     config = Configuration()
 
+    if "node" not in config or not config["node"]:
+        config["node"] = "wss://steemit.com/ws"
+
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="Command line tool to interact with the Steem network"
@@ -139,7 +142,7 @@ def main() :
     parser.add_argument(
         '--node',
         type=str,
-        default='wss://steemit.com/ws',
+        default=config["node"],
         help='Websocket URL for public Steem API (default: "wss://steemit.com/ws")'
     )
     parser.add_argument(
@@ -169,7 +172,7 @@ def main() :
     setconfig.add_argument(
         'key',
         type=str,
-        choices=["default_author", "default_voter"],
+        choices=["default_author", "default_voter", "node"],
         help='Configuration key'
     )
     setconfig.add_argument(
@@ -434,8 +437,8 @@ def main() :
     """
     args = parser.parse_args()
 
-    rpc_not_required = ["set"]
-    if args.command not in rpc_not_required: 
+    rpc_not_required = ["set", ""]
+    if args.command not in rpc_not_required and args.command: 
         rpc = SteemNodeRPC(args.node, args.rpcuser, args.rpcpassword)
 
     if args.command == "set":
