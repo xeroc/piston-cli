@@ -9,6 +9,8 @@ from steembase import PrivateKey, PublicKey, Address
 import steembase.transactions as transactions
 from piston.wallet import Wallet
 import frontmatter
+import time
+from datetime import datetime
 
 from prettytable import PrettyTable
 
@@ -112,6 +114,12 @@ def yaml_parse_file(args, initial_content):
             meta[key] = initial_content[key]
 
     return meta, body
+
+
+def formatTime(t) :
+    """ Properly Format Time for permlinks
+    """
+    return datetime.utcfromtimestamp(t).strftime("%Y%m%dt%H%M%S%Z")
 
 
 def main() :
@@ -448,9 +456,11 @@ def main() :
             return
 
         reply_message = indent(parent["body"], "> ")
+        default_permlink = "re-" + parent["permlink"] + "-" + formatTime(time.time())
+
         post = frontmatter.Post(reply_message, **{
             "title": args.title if args.title else "Re: " + parent["title"],
-            "permlink": args.permlink if args.permlink else "re-" + parent["permlink"],
+            "permlink": args.permlink if args.permlink else default_permlink,
             "author": args.author if args.author else "required",
         })
 
