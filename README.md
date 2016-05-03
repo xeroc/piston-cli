@@ -1,6 +1,16 @@
 # Piston for Steem
 
-A command line tool to interface with the Steem network.
+Swiss army knife for interacting with the STEEM blockchain.
+
+[![Travis master](https://travis-ci.org/xeroc/piston.png?branch=master)](https://travis-ci.org/xeroc/piston)
+[![Travis develop](https://travis-ci.org/xeroc/piston.png?branch=develop)](https://travis-ci.org/xeroc/piston)
+[![PyPI](https://img.shields.io/pypi/dm/steem-piston.svg?maxAge=2592000)]()
+[![PyPI](https://img.shields.io/pypi/dw/steem-piston.svg?maxAge=2592000)]()
+[![PyPI](https://img.shields.io/pypi/dd/steem.-pistonsvg?maxAge=2592000)]()
+
+## Quick-Start
+
+A quickstart guide can be found on STEEM: [\@xeroc/piston](https://steemit.com/@xeroc/piston)
 
 ## Installation
 
@@ -50,6 +60,15 @@ are available.
 This command tries to resolve the public keys into account names registered
 on the network (experimental).
 
+### Configuration
+
+`piston` comes with its owne configuration:
+
+    piston set default_voter <account-name>
+    piston set default_author <account-name>
+
+All configuration variables are provided with `piston set --help`
+
 ### Listing
 
 `piston` can list, sort, and filter for posts on the STEEM blockchain.
@@ -70,7 +89,7 @@ Example:
 
 ### Reading
 
-The subcommand `read` allows to read posts and replies from STEAM by
+The subcommand `read` allows to read posts and replies from STEEM by
 providing the post *identifier*. The identifier takes the form
 
     @author/permlink

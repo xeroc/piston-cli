@@ -8,7 +8,10 @@ from pprint import pprint
 from steembase import PrivateKey, PublicKey, Address
 import steembase.transactions as transactions
 from piston.wallet import Wallet
+from piston.configuration import Configuration
 import frontmatter
+import time
+from datetime import datetime
 
 from prettytable import PrettyTable
 
@@ -21,7 +24,10 @@ def broadcastTx(tx):
 
 def resolveIdentifier(identifier):
         import re
-        match = re.match("@?([\w-]*)/([\w-]*)", identifier)
+        match = re.match("@?([\w\-\.]*)/([\w\-]*)", identifier)
+        if not hasattr(match, "group"):
+            print("Invalid identifier")
+            sys.exit(1)
         return match.group(1), match.group(2)
 
 
@@ -87,7 +93,8 @@ def yaml_parse_file(args, initial_content):
         EDITOR = os.environ.get('EDITOR', 'vim')
         with tempfile.NamedTemporaryFile(
             suffix=b".yaml",
-            prefix=b"piston-"
+            prefix=b"piston-",
+            delete=False
         ) as fp:
             fp.write(bytes(frontmatter.dumps(initial_content), 'utf-8'))
             fp.flush()
@@ -100,15 +107,33 @@ def yaml_parse_file(args, initial_content):
     except:
         meta = initial_content
         body = message
+
+    # make sure that at least the metadata keys of initial_content are
+    # present!
+    for key in initial_content.metadata:
+        if key not in meta:
+            meta[key] = initial_content[key]
+
     return meta, body
+
+
+def formatTime(t) :
+    """ Properly Format Time for permlinks
+    """
+    return datetime.utcfromtimestamp(t).strftime("%Y%m%dt%H%M%S%Z")
 
 
 def main() :
     global args
+    global rpc
+    config = Configuration()
+
+    if "node" not in config or not config["node"]:
+        config["node"] = "wss://steemit.com/ws"
 
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        description="Command line tool to interact with the STEEM network"
+        description="Command line tool to interact with the Steem network"
     )
 
     """
@@ -117,7 +142,7 @@ def main() :
     parser.add_argument(
         '--node',
         type=str,
-        default='wss://steemit.com/ws',
+        default=config["node"],
         help='Websocket URL for public Steem API (default: "wss://steemit.com/ws")'
     )
     parser.add_argument(
@@ -139,6 +164,23 @@ def main() :
     )
     subparsers = parser.add_subparsers(help='sub-command help')
     parser.set_defaults(command=None)
+
+    """
+        Command "set"
+    """
+    setconfig = subparsers.add_parser('set', help='Set configuration')
+    setconfig.add_argument(
+        'key',
+        type=str,
+        choices=["default_author", "default_voter", "node"],
+        help='Configuration key'
+    )
+    setconfig.add_argument(
+        'value',
+        type=str,
+        help='Configuration value'
+    )
+    setconfig.set_defaults(command="set")
 
     """
         Command "addkey"
@@ -167,7 +209,7 @@ def main() :
     """
         Command "list"
     """
-    parser_list = subparsers.add_parser('list', help='List posts on STEAM')
+    parser_list = subparsers.add_parser('list', help='List posts on Steem')
     parser_list.set_defaults(command="list")
     parser_list.add_argument(
         '--author',
@@ -248,6 +290,7 @@ def main() :
         '--author',
         type=str,
         required=False,
+        default=config["default_author"],
         help='Publish post as this user (requires to have the key installed in the wallet)'
     )
     parser_post.add_argument(
@@ -289,6 +332,7 @@ def main() :
         '--author',
         type=str,
         required=False,
+        default=config["default_author"],
         help='Publish post as this user (requires to have the key installed in the wallet)'
     )
     reply.add_argument(
@@ -324,6 +368,7 @@ def main() :
         '--author',
         type=str,
         required=False,
+        default=config["default_author"],
         help='Post an edit as another author'
     )
     parser_edit.add_argument(
@@ -351,7 +396,8 @@ def main() :
     parser_upvote.add_argument(
         '--voter',
         type=str,
-        required=True,
+        required=False,
+        default=config["default_voter"],
         help='The voter account name'
     )
     parser_upvote.add_argument(
@@ -370,7 +416,7 @@ def main() :
     parser_downvote.add_argument(
         '--voter',
         type=str,
-        required=True,
+        required=False,
         help='The voter account name'
     )
     parser_downvote.add_argument(
@@ -391,10 +437,14 @@ def main() :
     """
     args = parser.parse_args()
 
-    global rpc
-    rpc = SteemNodeRPC(args.node, args.rpcuser, args.rpcpassword)
+    rpc_not_required = ["set", ""]
+    if args.command not in rpc_not_required and args.command: 
+        rpc = SteemNodeRPC(args.node, args.rpcuser, args.rpcpassword)
 
-    if args.command == "addkey":
+    if args.command == "set":
+        config[args.key] = args.value
+
+    elif args.command == "addkey":
         wallet = Wallet(rpc)
         if len(args.wifkeys):
             for wifkey in args.wifkeys:
@@ -436,9 +486,11 @@ def main() :
             return
 
         reply_message = indent(parent["body"], "> ")
+        default_permlink = "re-" + parent["permlink"] + "-" + formatTime(time.time())
+
         post = frontmatter.Post(reply_message, **{
             "title": args.title if args.title else "Re: " + parent["title"],
-            "permlink": args.permlink if args.permlink else "re-" + parent["permlink"],
+            "permlink": args.permlink if args.permlink else default_permlink,
             "author": args.author if args.author else "required",
         })
 
@@ -552,6 +604,10 @@ def main() :
             weight = +float(args.weight)
 
         post_author, post_permlink = resolveIdentifier(args.post)
+
+        if not args.voter:
+            print("Not voter provided!")
+            return
 
         op = transactions.Vote(
             **{"voter": args.voter,

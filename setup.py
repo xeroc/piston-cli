@@ -2,7 +2,7 @@
 
 from setuptools import setup
 
-VERSION = '0.1.4'
+VERSION = '0.1.5'
 
 setup(name='steem-piston',
       version=VERSION,
@@ -30,7 +30,11 @@ setup(name='steem-piston',
       install_requires=["steem>=0.1.3",
                         "python-frontmatter",
                         "diff-match-patch",
-                        "graphenelib>=0.3.9"
+                        "graphenelib>=0.3.9",
+                        "appdirs",
+                        "prettytable",
                         ],
+      setup_requires=['pytest-runner'],
+      tests_require=['pytest'],
       include_package_data=True,
       )
