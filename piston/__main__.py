@@ -23,12 +23,12 @@ def broadcastTx(tx):
 
 
 def resolveIdentifier(identifier):
-        import re
-        match = re.match("@?([\w\-\.]*)/([\w\-]*)", identifier)
-        if not hasattr(match, "group"):
-            print("Invalid identifier")
-            sys.exit(1)
-        return match.group(1), match.group(2)
+    import re
+    match = re.match("@?([\w\-\.]*)/([\w\-]*)", identifier)
+    if not hasattr(match, "group"):
+        print("Invalid identifier")
+        sys.exit(1)
+    return match.group(1), match.group(2)
 
 
 def executeOp(op, wif=None):
@@ -91,9 +91,12 @@ def yaml_parse_file(args, initial_content):
         import tempfile
         from subprocess import call
         EDITOR = os.environ.get('EDITOR', 'vim')
+        prefix = ""
+        if "permlink" in initial_content.metadata:
+            prefix = initial_content.metadata["permlink"]
         with tempfile.NamedTemporaryFile(
-            suffix=b".yaml",
-            prefix=b"piston-",
+            suffix=b".md",
+            prefix=bytes("piston-" + prefix, 'ascii'),
             delete=False
         ) as fp:
             fp.write(bytes(frontmatter.dumps(initial_content), 'utf-8'))
@@ -131,6 +134,18 @@ def main() :
     if "node" not in config or not config["node"]:
         config["node"] = "wss://steemit.com/ws"
 
+    if "default_vote_weight" not in config:
+        config["default_vote_weight"] = 100.0
+
+    if "list_sorting" not in config:
+        config["list_sorting"] = "recent"
+
+    if "categories_sorting" not in config:
+        config["categories_sorting"] = "trending"
+
+    if "limit" not in config:
+        config["limit"] = 10
+
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="Command line tool to interact with the Steem network"
@@ -148,13 +163,13 @@ def main() :
     parser.add_argument(
         '--rpcuser',
         type=str,
-        default='',
+        default=config["rpcuser"],
         help='Websocket user if authentication is required'
     )
     parser.add_argument(
         '--rpcpassword',
         type=str,
-        default='',
+        default=config["rpcpassword"],
         help='Websocket password if authentication is required'
     )
     parser.add_argument(
@@ -172,7 +187,16 @@ def main() :
     setconfig.add_argument(
         'key',
         type=str,
-        choices=["default_author", "default_voter", "node"],
+        choices=["default_author",
+                 "default_voter",
+                 "node",
+                 "rpcuser",
+                 "rpcpassword",
+                 "default_vote_weight",
+                 "list_sorting",
+                 "categories_sorting",
+                 "limit",
+                 "post_category"],
         help='Configuration key'
     )
     setconfig.add_argument(
@@ -224,14 +248,14 @@ def main() :
     parser_list.add_argument(
         '--sort',
         type=str,
-        default="recent",
+        default=config["list_sorting"],
         choices=["recent", "payout"],
         help='Sort posts'
     )
     parser_list.add_argument(
         '--limit',
         type=int,
-        default=10,
+        default=config["limit"],
         help='Limit posts by number'
     )
 
@@ -243,7 +267,7 @@ def main() :
     parser_categories.add_argument(
         '--sort',
         type=str,
-        default="trending",
+        default=config["categories_sorting"],
         choices=["trending", "best", "active", "recent"],
         help='Sort categories'
     )
@@ -256,7 +280,7 @@ def main() :
     parser_categories.add_argument(
         '--limit',
         type=int,
-        default=10,
+        default=config["limit"],
         help='Limit categories by number'
     )
 
@@ -301,7 +325,7 @@ def main() :
     )
     parser_post.add_argument(
         '--category',
-        default="",
+        default=config["post_category"],
         type=str,
         help='Specify category'
     )
@@ -403,7 +427,7 @@ def main() :
     parser_upvote.add_argument(
         '--weight',
         type=float,
-        default=100.0,
+        default=config["default_vote_weight"],
         required=False,
         help='Actual weight (from 0.1 to 100.0)'
     )
@@ -427,7 +451,7 @@ def main() :
     parser_downvote.add_argument(
         '--weight',
         type=float,
-        default=100.0,
+        default=config["default_vote_weight"],
         required=False,
         help='Actual weight (from 0.1 to 100.0)'
     )
@@ -438,7 +462,7 @@ def main() :
     args = parser.parse_args()
 
     rpc_not_required = ["set", ""]
-    if args.command not in rpc_not_required and args.command: 
+    if args.command not in rpc_not_required and args.command:
         rpc = SteemNodeRPC(args.node, args.rpcuser, args.rpcpassword)
 
     if args.command == "set":
