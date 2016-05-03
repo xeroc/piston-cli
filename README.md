@@ -60,6 +60,15 @@ are available.
 This command tries to resolve the public keys into account names registered
 on the network (experimental).
 
+### Configuration
+
+`piston` comes with its owne configuration:
+
+    piston set default_voter <account-name>
+    piston set default_author <account-name>
+
+All configuration variables are provided with `piston set --help`
+
 ### Listing
 
 `piston` can list, sort, and filter for posts on the STEEM blockchain.

@@ -8,6 +8,7 @@ from pprint import pprint
 from steembase import PrivateKey, PublicKey, Address
 import steembase.transactions as transactions
 from piston.wallet import Wallet
+from piston.configuration import Configuration
 import frontmatter
 import time
 from datetime import datetime
@@ -124,6 +125,8 @@ def formatTime(t) :
 
 def main() :
     global args
+    global rpc
+    config = Configuration()
 
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -158,6 +161,23 @@ def main() :
     )
     subparsers = parser.add_subparsers(help='sub-command help')
     parser.set_defaults(command=None)
+
+    """
+        Command "set"
+    """
+    setconfig = subparsers.add_parser('set', help='Set configuration')
+    setconfig.add_argument(
+        'key',
+        type=str,
+        choices=["default_author", "default_voter"],
+        help='Configuration key'
+    )
+    setconfig.add_argument(
+        'value',
+        type=str,
+        help='Configuration value'
+    )
+    setconfig.set_defaults(command="set")
 
     """
         Command "addkey"
@@ -267,6 +287,7 @@ def main() :
         '--author',
         type=str,
         required=False,
+        default=config["default_author"],
         help='Publish post as this user (requires to have the key installed in the wallet)'
     )
     parser_post.add_argument(
@@ -308,6 +329,7 @@ def main() :
         '--author',
         type=str,
         required=False,
+        default=config["default_author"],
         help='Publish post as this user (requires to have the key installed in the wallet)'
     )
     reply.add_argument(
@@ -343,6 +365,7 @@ def main() :
         '--author',
         type=str,
         required=False,
+        default=config["default_author"],
         help='Post an edit as another author'
     )
     parser_edit.add_argument(
@@ -370,7 +393,8 @@ def main() :
     parser_upvote.add_argument(
         '--voter',
         type=str,
-        required=True,
+        required=False,
+        default=config["default_voter"],
         help='The voter account name'
     )
     parser_upvote.add_argument(
@@ -389,7 +413,7 @@ def main() :
     parser_downvote.add_argument(
         '--voter',
         type=str,
-        required=True,
+        required=False,
         help='The voter account name'
     )
     parser_downvote.add_argument(
@@ -410,10 +434,14 @@ def main() :
     """
     args = parser.parse_args()
 
-    global rpc
-    rpc = SteemNodeRPC(args.node, args.rpcuser, args.rpcpassword)
+    rpc_not_required = ["set"]
+    if args.command not in rpc_not_required: 
+        rpc = SteemNodeRPC(args.node, args.rpcuser, args.rpcpassword)
 
-    if args.command == "addkey":
+    if args.command == "set":
+        config[args.key] = args.value
+
+    elif args.command == "addkey":
         wallet = Wallet(rpc)
         if len(args.wifkeys):
             for wifkey in args.wifkeys:
@@ -574,6 +602,10 @@ def main() :
             weight = +float(args.weight)
 
         post_author, post_permlink = resolveIdentifier(args.post)
+
+        if not args.voter:
+            print("Not voter provided!")
+            return
 
         op = transactions.Vote(
             **{"voter": args.voter,
