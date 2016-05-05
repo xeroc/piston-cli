@@ -15,7 +15,14 @@ class Configuration(collections.MutableMapping):
         self._loadConfig()
 
     def __getitem__(self, key):
-        return self.store[self.__keytransform__(key)]
+        """ This method behaves differently from regular `dict` in that
+            it returns `None` if a key is not found!
+        """
+        internalKey = self.__keytransform__(key)
+        if internalKey in self.store:
+            return self.store[internalKey]
+        else:
+            return None
 
     def __setitem__(self, key, value):
         self.store[self.__keytransform__(key)] = value
