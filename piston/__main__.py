@@ -236,9 +236,9 @@ def main() :
     parser_list = subparsers.add_parser('list', help='List posts on Steem')
     parser_list.set_defaults(command="list")
     parser_list.add_argument(
-        '--author',
+        '--start',
         type=str,
-        help='Only posts by this author'
+        help='Start list from this identifier (pagination)'
     )
     parser_list.add_argument(
         '--category',
@@ -703,7 +703,12 @@ def main() :
             print("Invalid choice of '--sort'!")
             return
 
-        discussions = func(args.author, "", args.limit)
+        author = ""
+        permlink = ""
+        if args.start:
+            author, permlink = resolveIdentifier(args.start)
+
+        discussions = func(author, permlink, args.limit)
         t = PrettyTable([
             "identifier",
             "title",
