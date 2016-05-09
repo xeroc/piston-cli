@@ -12,6 +12,7 @@ from piston.configuration import Configuration
 import frontmatter
 import time
 from datetime import datetime
+from textwrap import fill, TextWrapper
 
 from prettytable import PrettyTable
 
@@ -59,18 +60,21 @@ def executeOp(op, wif=None):
 
 
 def dump_recursive_comments(post_author, post_permlink, depth):
-    import re
+    identifier_wrapper = TextWrapper()
+    identifier_wrapper.width = 120
+    identifier_wrapper.initial_indent = "  " * depth
+    identifier_wrapper.subsequent_indent = "  " * depth
+
     posts = rpc.get_content_replies(post_author, post_permlink)
     for post in posts:
         meta = {}
         for key in ["author", "permlink"]:
             meta[key] = post[key]
         meta["reply"] = "@{author}/{permlink}".format(**post)
+        post["body"] = "\n".join(identifier_wrapper.fill(p) for p in post["body"].splitlines())
         yaml = frontmatter.Post(post["body"], **meta)
         d = frontmatter.dumps(yaml)
-        print(re.sub(
-            "^", "  " * depth, d, flags=re.MULTILINE
-        ))
+        print(d)
         reply = rpc.get_content_replies(post["author"], post["permlink"])
         if len(reply):
             dump_recursive_comments(post["author"], post["permlink"], depth + 1)
@@ -688,7 +692,6 @@ def main() :
 
     elif args.command == "list":
         from functools import partial
-        from textwrap import fill, TextWrapper
         if args.sort == "recent":
             if args.category:
                 func = partial(rpc.get_discussions_in_category_by_last_update, args.category)
