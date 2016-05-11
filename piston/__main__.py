@@ -12,6 +12,7 @@ from piston.configuration import Configuration
 import frontmatter
 import time
 from datetime import datetime
+from textwrap import fill, TextWrapper
 
 from prettytable import PrettyTable
 
@@ -59,18 +60,21 @@ def executeOp(op, wif=None):
 
 
 def dump_recursive_comments(post_author, post_permlink, depth):
-    import re
+    identifier_wrapper = TextWrapper()
+    identifier_wrapper.width = 120
+    identifier_wrapper.initial_indent = "  " * depth
+    identifier_wrapper.subsequent_indent = "  " * depth
+
     posts = rpc.get_content_replies(post_author, post_permlink)
     for post in posts:
         meta = {}
         for key in ["author", "permlink"]:
             meta[key] = post[key]
         meta["reply"] = "@{author}/{permlink}".format(**post)
+        post["body"] = "\n".join(identifier_wrapper.fill(p) for p in post["body"].splitlines())
         yaml = frontmatter.Post(post["body"], **meta)
         d = frontmatter.dumps(yaml)
-        print(re.sub(
-            "^", "  " * depth, d, flags=re.MULTILINE
-        ))
+        print(d)
         reply = rpc.get_content_replies(post["author"], post["permlink"])
         if len(reply):
             dump_recursive_comments(post["author"], post["permlink"], depth + 1)
@@ -81,8 +85,7 @@ def yaml_parse_file(args, initial_content):
 
     if args.file and args.file != "-":
         if not os.path.isfile(args.file):
-            print("File %s does not exist!" % args.file)
-            return
+            raise Exception("File %s does not exist!" % args.file)
         with open(args.file) as fp:
             message = fp.read()
     elif args.file == "-":
@@ -108,14 +111,14 @@ def yaml_parse_file(args, initial_content):
     try :
         meta, body = frontmatter.parse(message)
     except:
-        meta = initial_content
+        meta = initial_content.metadata
         body = message
 
     # make sure that at least the metadata keys of initial_content are
     # present!
     for key in initial_content.metadata:
         if key not in meta:
-            meta[key] = initial_content[key]
+            meta[key] = initial_content.metadata[key]
 
     return meta, body
 
@@ -236,9 +239,9 @@ def main() :
     parser_list = subparsers.add_parser('list', help='List posts on Steem')
     parser_list.set_defaults(command="list")
     parser_list.add_argument(
-        '--author',
+        '--start',
         type=str,
-        help='Only posts by this author'
+        help='Start list from this identifier (pagination)'
     )
     parser_list.add_argument(
         '--category',
@@ -687,7 +690,6 @@ def main() :
 
     elif args.command == "list":
         from functools import partial
-        from textwrap import fill, TextWrapper
         if args.sort == "recent":
             if args.category:
                 func = partial(rpc.get_discussions_in_category_by_last_update, args.category)
@@ -702,7 +704,12 @@ def main() :
             print("Invalid choice of '--sort'!")
             return
 
-        discussions = func(args.author, "", args.limit)
+        author = ""
+        permlink = ""
+        if args.start:
+            author, permlink = resolveIdentifier(args.start)
+
+        discussions = func(author, permlink, args.limit)
         t = PrettyTable([
             "identifier",
             "title",
