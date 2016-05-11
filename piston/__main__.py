@@ -85,8 +85,7 @@ def yaml_parse_file(args, initial_content):
 
     if args.file and args.file != "-":
         if not os.path.isfile(args.file):
-            print("File %s does not exist!" % args.file)
-            return
+            raise Exception("File %s does not exist!" % args.file)
         with open(args.file) as fp:
             message = fp.read()
     elif args.file == "-":
