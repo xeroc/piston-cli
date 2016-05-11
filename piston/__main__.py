@@ -112,14 +112,14 @@ def yaml_parse_file(args, initial_content):
     try :
         meta, body = frontmatter.parse(message)
     except:
-        meta = initial_content
+        meta = initial_content.metadata
         body = message
 
     # make sure that at least the metadata keys of initial_content are
     # present!
     for key in initial_content.metadata:
         if key not in meta:
-            meta[key] = initial_content[key]
+            meta[key] = initial_content.metadata[key]
 
     return meta, body
 
