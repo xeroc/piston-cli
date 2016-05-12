@@ -195,3 +195,12 @@ providing the post *identifier*. The identifier takes the form
     @author/permlink
 
 You can further define the weight (default 100%) manually with `--weight`.
+
+### Replies
+
+`piston` can show replies to posts made by any author:
+
+    piston replies --author xeroc
+
+If `--author` is not provided, the *default* author as defined with
+`piston set author` will be taken. Further options are: `--limit`.

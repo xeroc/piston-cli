@@ -129,6 +129,36 @@ def formatTime(t) :
     return datetime.utcfromtimestamp(t).strftime("%Y%m%dt%H%M%S%Z")
 
 
+def list_posts(discussions):
+        t = PrettyTable([
+            "identifier",
+            "title",
+            "category",
+            "replies",
+            "votes",
+            "payouts",
+        ])
+        t.align = "l"
+        t.align["payouts"] = "r"
+        t.align["votes"] = "r"
+        t.align["replies"] = "c"
+        for d in discussions:
+            identifier = "@%s/%s" % (d["author"], d["permlink"])
+            identifier_wrapper = TextWrapper()
+            identifier_wrapper.width = 60
+            identifier_wrapper.subsequent_indent = " "
+
+            t.add_row([
+                identifier_wrapper.fill(identifier),
+                identifier_wrapper.fill(d["title"]),
+                d["category"],
+                d["children"],
+                d["net_rshares"],
+                d["pending_payout_value"],
+            ])
+        print(t)
+
+
 def main() :
     global args
     global rpc
@@ -460,6 +490,25 @@ def main() :
     )
 
     """
+        Command "replies"
+    """
+    replies = subparsers.add_parser('replies', help='Show recent replies to your posts')
+    replies.set_defaults(command="replies")
+    replies.add_argument(
+        '--author',
+        type=str,
+        required=False,
+        default=config["default_author"],
+        help='Show replies to this author'
+    )
+    replies.add_argument(
+        '--limit',
+        type=int,
+        default=config["limit"],
+        help='Limit posts by number'
+    )
+
+    """
         Parse Arguments
     """
     args = parser.parse_args()
@@ -711,33 +760,17 @@ def main() :
             author, permlink = resolveIdentifier(args.start)
 
         discussions = func(author, permlink, args.limit)
-        t = PrettyTable([
-            "identifier",
-            "title",
-            "category",
-            "replies",
-            "votes",
-            "payouts",
-        ])
-        t.align = "l"
-        t.align["payouts"] = "r"
-        t.align["votes"] = "r"
-        t.align["replies"] = "c"
-        for d in discussions:
-            identifier = "@%s/%s" % (d["author"], d["permlink"])
-            identifier_wrapper = TextWrapper()
-            identifier_wrapper.width = 60
-            identifier_wrapper.subsequent_indent = " "
+        list_posts(discussions)
 
-            t.add_row([
-                identifier_wrapper.fill(identifier),
-                identifier_wrapper.fill(d["title"]),
-                d["category"],
-                d["children"],
-                d["net_rshares"],
-                d["pending_payout_value"],
-            ])
-        print(t)
+    elif args.command == "replies":
+        state = rpc.get_state("/@%s/recent-replies" % args.author)
+        replies = state["accounts"][args.author]["recent_replies"]
+        discussions  = []
+        for reply in replies:
+            post = state["content"][reply]
+            if post["author"] != args.author:
+                discussions.append(post)
+        list_posts(discussions[0:args.limit])
 
     else:
         print("No valid command given")
