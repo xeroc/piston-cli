@@ -59,11 +59,38 @@ def executeOp(op, wif=None):
         reply = None
 
 
-def dump_recursive_comments(post_author, post_permlink, depth):
-    identifier_wrapper = TextWrapper()
-    identifier_wrapper.width = 120
-    identifier_wrapper.initial_indent = "  " * depth
-    identifier_wrapper.subsequent_indent = "  " * depth
+def dump_recursive_parents(post_author, post_permlink, limit):
+    global currentThreadDepth
+    postWrapper = TextWrapper()
+    postWrapper.width = 120
+    postWrapper.initial_indent = "  " * (limit)
+    postWrapper.subsequent_indent = "  " * (limit)
+
+    if limit > currentThreadDepth:
+        currentThreadDepth = limit + 1
+
+    post = rpc.get_content(post_author, post_permlink)
+
+    if limit and post["parent_author"]:
+        parent = rpc.get_content_replies(post["parent_author"], post["parent_permlink"])
+        if len(parent):
+            dump_recursive_parents(post["parent_author"], post["parent_permlink"], limit - 1)
+
+    meta = {}
+    for key in ["author", "permlink"]:
+        meta[key] = post[key]
+    meta["reply"] = "@{author}/{permlink}".format(**post)
+    yaml = frontmatter.Post(post["body"], **meta)
+    d = frontmatter.dumps(yaml)
+    print("\n".join(postWrapper.fill(l) for l in d.splitlines()))
+
+
+def dump_recursive_comments(post_author, post_permlink, depth=0):
+    global currentThreadDepth
+    postWrapper = TextWrapper()
+    postWrapper.width = 120
+    postWrapper.initial_indent = "  " * (depth + currentThreadDepth)
+    postWrapper.subsequent_indent = "  " * (depth + currentThreadDepth)
 
     posts = rpc.get_content_replies(post_author, post_permlink)
     for post in posts:
@@ -71,10 +98,9 @@ def dump_recursive_comments(post_author, post_permlink, depth):
         for key in ["author", "permlink"]:
             meta[key] = post[key]
         meta["reply"] = "@{author}/{permlink}".format(**post)
-        post["body"] = "\n".join(identifier_wrapper.fill(p) for p in post["body"].splitlines())
         yaml = frontmatter.Post(post["body"], **meta)
         d = frontmatter.dumps(yaml)
-        print(d)
+        print("\n".join(postWrapper.fill(l) for l in d.splitlines()))
         reply = rpc.get_content_replies(post["author"], post["permlink"])
         if len(reply):
             dump_recursive_comments(post["author"], post["permlink"], depth + 1)
@@ -336,6 +362,12 @@ def main() :
         '--comments',
         action='store_true',
         help='Also show all comments'
+    )
+    parser_read.add_argument(
+        '--parents',
+        type=int,
+        default=0,
+        help='Show x parents for the reply'
     )
 
     """
@@ -698,7 +730,10 @@ def main() :
     elif args.command == "read":
         post_author, post_permlink = resolveIdentifier(args.post)
 
-        if not args.comments:
+        if args.parents:
+            dump_recursive_parents(post_author, post_permlink, args.parents)
+
+        if not args.comments and not args.parents:
             post = rpc.get_content(post_author, post_permlink)
             if post["id"] == "0.0.0":
                 print("Can't find post %s" % args.post)
@@ -710,8 +745,9 @@ def main() :
                 print(frontmatter.dumps(yaml))
             else:
                 print(post["body"])
-        else:
-            dump_recursive_comments(post_author, post_permlink, 0)
+
+        if args.comments:
+            dump_recursive_comments(post_author, post_permlink)
 
     elif args.command == "categories":
 
@@ -778,5 +814,9 @@ def main() :
 
 rpc = None
 args = None
+
+# For recursive display of a discussion thread (--comments + --parents)
+currentThreadDepth = 0
+
 if __name__ == '__main__':
     main()
