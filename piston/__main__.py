@@ -222,9 +222,9 @@ def main() :
         help='@author/permlink-identifier of the post to read (e.g. @xeroc/python-steem-0-1)'
     )
     parser_read.add_argument(
-        '--yaml',
+        '--full',
         action='store_true',
-        help='Show YAML formated header'
+        help='Show full header information (YAML formated)'
     )
     parser_read.add_argument(
         '--comments',
