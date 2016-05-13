@@ -9,27 +9,19 @@ from steembase import PrivateKey, PublicKey, Address
 import steembase.transactions as transactions
 from piston.wallet import Wallet
 from piston.configuration import Configuration
+from piston.utils import (
+    resolveIdentifier,
+    yaml_parse_file,
+    formatTime,
+)
+from piston.ui import (
+    dump_recursive_parents,
+    dump_recursive_comments,
+    list_posts,
+)
 import frontmatter
 import time
-from datetime import datetime
-from textwrap import fill, TextWrapper
-
 from prettytable import PrettyTable
-
-
-def broadcastTx(tx):
-    if isinstance(tx, transactions.Signed_Transaction):
-        tx     = transactions.JsonObj(tx)
-    return rpc.broadcast_transaction(tx, api="network_broadcast")
-
-
-def resolveIdentifier(identifier):
-    import re
-    match = re.match("@?([\w\-\.]*)/([\w\-]*)", identifier)
-    if not hasattr(match, "group"):
-        print("Invalid identifier")
-        sys.exit(1)
-    return match.group(1), match.group(2)
 
 
 def executeOp(op, wif=None):
@@ -51,138 +43,14 @@ def executeOp(op, wif=None):
     pprint(transactions.JsonObj(tx))
 
     if not args.nobroadcast:
-        reply = broadcastTx(tx)
+        if isinstance(tx, transactions.Signed_Transaction):
+            tx = transactions.JsonObj(tx)
+        reply = rpc.broadcast_transaction(tx, api="network_broadcast")
         if reply:
             print(reply)
     else:
         print("Not broadcasting anything!")
         reply = None
-
-
-def dump_recursive_parents(post_author, post_permlink, limit):
-    global currentThreadDepth
-    postWrapper = TextWrapper()
-    postWrapper.width = 120
-    postWrapper.initial_indent = "  " * (limit)
-    postWrapper.subsequent_indent = "  " * (limit)
-
-    if limit > currentThreadDepth:
-        currentThreadDepth = limit + 1
-
-    post = rpc.get_content(post_author, post_permlink)
-
-    if limit and post["parent_author"]:
-        parent = rpc.get_content_replies(post["parent_author"], post["parent_permlink"])
-        if len(parent):
-            dump_recursive_parents(post["parent_author"], post["parent_permlink"], limit - 1)
-
-    meta = {}
-    for key in ["author", "permlink"]:
-        meta[key] = post[key]
-    meta["reply"] = "@{author}/{permlink}".format(**post)
-    yaml = frontmatter.Post(post["body"], **meta)
-    d = frontmatter.dumps(yaml)
-    print("\n".join(postWrapper.fill(l) for l in d.splitlines()))
-
-
-def dump_recursive_comments(post_author, post_permlink, depth=0):
-    global currentThreadDepth
-    postWrapper = TextWrapper()
-    postWrapper.width = 120
-    postWrapper.initial_indent = "  " * (depth + currentThreadDepth)
-    postWrapper.subsequent_indent = "  " * (depth + currentThreadDepth)
-
-    posts = rpc.get_content_replies(post_author, post_permlink)
-    for post in posts:
-        meta = {}
-        for key in ["author", "permlink"]:
-            meta[key] = post[key]
-        meta["reply"] = "@{author}/{permlink}".format(**post)
-        yaml = frontmatter.Post(post["body"], **meta)
-        d = frontmatter.dumps(yaml)
-        print("\n".join(postWrapper.fill(l) for l in d.splitlines()))
-        reply = rpc.get_content_replies(post["author"], post["permlink"])
-        if len(reply):
-            dump_recursive_comments(post["author"], post["permlink"], depth + 1)
-
-
-def yaml_parse_file(args, initial_content):
-    message = None
-
-    if args.file and args.file != "-":
-        if not os.path.isfile(args.file):
-            raise Exception("File %s does not exist!" % args.file)
-        with open(args.file) as fp:
-            message = fp.read()
-    elif args.file == "-":
-        message = sys.stdin.read()
-    else:
-        import tempfile
-        from subprocess import call
-        EDITOR = os.environ.get('EDITOR', 'vim')
-        prefix = ""
-        if "permlink" in initial_content.metadata:
-            prefix = initial_content.metadata["permlink"]
-        with tempfile.NamedTemporaryFile(
-            suffix=b".md",
-            prefix=bytes("piston-" + prefix, 'ascii'),
-            delete=False
-        ) as fp:
-            fp.write(bytes(frontmatter.dumps(initial_content), 'utf-8'))
-            fp.flush()
-            call([EDITOR, fp.name])
-            fp.seek(0)
-            message = fp.read().decode('utf-8')
-
-    try :
-        meta, body = frontmatter.parse(message)
-    except:
-        meta = initial_content.metadata
-        body = message
-
-    # make sure that at least the metadata keys of initial_content are
-    # present!
-    for key in initial_content.metadata:
-        if key not in meta:
-            meta[key] = initial_content.metadata[key]
-
-    return meta, body
-
-
-def formatTime(t) :
-    """ Properly Format Time for permlinks
-    """
-    return datetime.utcfromtimestamp(t).strftime("%Y%m%dt%H%M%S%Z")
-
-
-def list_posts(discussions):
-        t = PrettyTable([
-            "identifier",
-            "title",
-            "category",
-            "replies",
-            "votes",
-            "payouts",
-        ])
-        t.align = "l"
-        t.align["payouts"] = "r"
-        t.align["votes"] = "r"
-        t.align["replies"] = "c"
-        for d in discussions:
-            identifier = "@%s/%s" % (d["author"], d["permlink"])
-            identifier_wrapper = TextWrapper()
-            identifier_wrapper.width = 60
-            identifier_wrapper.subsequent_indent = " "
-
-            t.add_row([
-                identifier_wrapper.fill(identifier),
-                identifier_wrapper.fill(d["title"]),
-                d["category"],
-                d["children"],
-                d["net_rshares"],
-                d["pending_payout_value"],
-            ])
-        print(t)
 
 
 def main() :
@@ -731,7 +599,7 @@ def main() :
         post_author, post_permlink = resolveIdentifier(args.post)
 
         if args.parents:
-            dump_recursive_parents(post_author, post_permlink, args.parents)
+            dump_recursive_parents(rpc, post_author, post_permlink, args.parents)
 
         if not args.comments and not args.parents:
             post = rpc.get_content(post_author, post_permlink)
@@ -747,7 +615,7 @@ def main() :
                 print(post["body"])
 
         if args.comments:
-            dump_recursive_comments(post_author, post_permlink)
+            dump_recursive_comments(rpc, post_author, post_permlink)
 
     elif args.command == "categories":
 
