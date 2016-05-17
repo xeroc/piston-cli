@@ -1,6 +1,11 @@
 from prettytable import PrettyTable
 from textwrap import fill, TextWrapper
 import frontmatter
+from piston.configuration import Configuration
+config = Configuration()
+
+# For recursive display of a discussion thread (--comments + --parents)
+currentThreadDepth = 0
 
 
 def list_posts(discussions):
@@ -33,8 +38,11 @@ def list_posts(discussions):
         print(t)
 
 
-def dump_recursive_parents(rpc, post_author, post_permlink, limit):
+def dump_recursive_parents(rpc, post_author, post_permlink, limit=1):
     global currentThreadDepth
+
+    limit = int(limit)
+
     postWrapper = TextWrapper()
     postWrapper.width = 120
     postWrapper.initial_indent = "  " * (limit)
@@ -48,7 +56,7 @@ def dump_recursive_parents(rpc, post_author, post_permlink, limit):
     if limit and post["parent_author"]:
         parent = rpc.get_content_replies(post["parent_author"], post["parent_permlink"])
         if len(parent):
-            dump_recursive_parents(post["parent_author"], post["parent_permlink"], limit - 1)
+            dump_recursive_parents(rpc, post["parent_author"], post["parent_permlink"], limit - 1)
 
     meta = {}
     for key in ["author", "permlink"]:
@@ -66,6 +74,8 @@ def dump_recursive_comments(rpc, post_author, post_permlink, depth=0):
     postWrapper.initial_indent = "  " * (depth + currentThreadDepth)
     postWrapper.subsequent_indent = "  " * (depth + currentThreadDepth)
 
+    depth = int(depth)
+
     posts = rpc.get_content_replies(post_author, post_permlink)
     for post in posts:
         meta = {}
@@ -77,4 +87,4 @@ def dump_recursive_comments(rpc, post_author, post_permlink, depth=0):
         print("\n".join(postWrapper.fill(l) for l in d.splitlines()))
         reply = rpc.get_content_replies(post["author"], post["permlink"])
         if len(reply):
-            dump_recursive_comments(post["author"], post["permlink"], depth + 1)
+            dump_recursive_comments(rpc, post["author"], post["permlink"], depth + 1)

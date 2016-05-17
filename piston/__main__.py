@@ -3,7 +3,6 @@
 import sys
 import os
 import argparse
-from steemapi.steemclient import SteemNodeRPC
 from pprint import pprint
 from steembase import PrivateKey, PublicKey, Address
 import steembase.transactions as transactions
@@ -19,47 +18,15 @@ from piston.ui import (
     dump_recursive_comments,
     list_posts,
 )
+from piston.steem import Steem
 import frontmatter
 import time
 from prettytable import PrettyTable
 
 
-def executeOp(op, wif=None):
-    if not wif:
-        print("Missing required key")
-        return
-
-    ops    = [transactions.Operation(op)]
-    expiration = transactions.formatTimeFromNow(30)
-    ref_block_num, ref_block_prefix = transactions.getBlockParams(rpc)
-    tx     = transactions.Signed_Transaction(
-        ref_block_num=ref_block_num,
-        ref_block_prefix=ref_block_prefix,
-        expiration=expiration,
-        operations=ops
-    )
-    tx = tx.sign([wif])
-
-    pprint(transactions.JsonObj(tx))
-
-    if not args.nobroadcast:
-        if isinstance(tx, transactions.Signed_Transaction):
-            tx = transactions.JsonObj(tx)
-        reply = rpc.broadcast_transaction(tx, api="network_broadcast")
-        if reply:
-            print(reply)
-    else:
-        print("Not broadcasting anything!")
-        reply = None
-
-
 def main() :
     global args
-    global rpc
     config = Configuration()
-
-    if "node" not in config or not config["node"]:
-        config["node"] = "wss://steemit.com/ws"
 
     if "default_vote_weight" not in config:
         config["default_vote_weight"] = 100.0
@@ -415,13 +382,18 @@ def main() :
 
     rpc_not_required = ["set", ""]
     if args.command not in rpc_not_required and args.command:
-        rpc = SteemNodeRPC(args.node, args.rpcuser, args.rpcpassword)
+        steem = Steem(
+            args.node,
+            args.rpcuser,
+            args.rpcpassword,
+            nobroadcast=args.nobroadcast
+        )
 
     if args.command == "set":
         config[args.key] = args.value
 
     elif args.command == "addkey":
-        wallet = Wallet(rpc)
+        wallet = Wallet(steem.rpc)
         if len(args.wifkeys):
             for wifkey in args.wifkeys:
                 pub = (wallet.addPrivateKey(wifkey))
@@ -441,39 +413,35 @@ def main() :
     elif args.command == "listkeys":
         t = PrettyTable(["Available Key"])
         t.align = "l"
-        for key in Wallet(rpc).getPublicKeys():
+        for key in Wallet(steem.rpc).getPublicKeys():
             t.add_row([key])
         print(t)
 
     elif args.command == "listaccounts":
         t = PrettyTable(["Name", "Available Key"])
         t.align = "l"
-        for account in Wallet(rpc).getAccounts():
+        for account in Wallet(steem.rpc).getAccounts():
             t.add_row(account)
         print(t)
 
     elif args.command == "reply":
         from textwrap import indent
 
-        parent_author, parent_permlink = resolveIdentifier(args.replyto)
-
-        parent = rpc.get_content(parent_author, parent_permlink)
+        parent = steem.get_content(args.replyto)
         if parent["id"] == "0.0.0":
             print("Can't find post %s" % args.replyto)
             return
 
         reply_message = indent(parent["body"], "> ")
-        default_permlink = "re-" + parent["permlink"] + "-" + formatTime(time.time())
 
         post = frontmatter.Post(reply_message, **{
             "title": args.title if args.title else "Re: " + parent["title"],
-            "permlink": args.permlink if args.permlink else default_permlink,
             "author": args.author if args.author else "required",
         })
 
         post, message = yaml_parse_file(args, initial_content=post)
 
-        for required in ["author", "permlink", "title"]:
+        for required in ["author", "title"]:
             if (required not in post or
                     not post[required] or
                     post[required] == "required"):
@@ -482,17 +450,7 @@ def main() :
                 # to the EDITOR
                 return
 
-        op = transactions.Comment(
-            **{"parent_author": parent["author"],
-               "parent_permlink": parent["permlink"],
-               "author": post["author"],
-               "permlink": post["permlink"],
-               "title": post["title"],
-               "body": message,
-               "json_metadata": ""}
-        )
-        wif = Wallet(rpc).getPostingKeyForAccount(post["author"])
-        executeOp(op, wif)
+        steem.reply(args.replyto, message, title=post["title"], author=args.author)
 
     elif args.command == "post" or args.command == "yaml":
         post = frontmatter.Post("", **{
@@ -517,22 +475,15 @@ def main() :
                 # to the EDITOR
                 return
 
-        op = transactions.Comment(
-            **{"parent_author": "",
-               "parent_permlink": meta["category"],
-               "author": meta["author"],
-               "permlink": meta["permlink"],
-               "title": meta["title"],
-               "body": body,
-               "json_metadata": ""}
+        steem.post(
+            meta["title"],
+            body,
+            author=meta["author"],
+            category=meta["category"]
         )
 
-        wif = Wallet(rpc).getPostingKeyForAccount(meta["author"])
-        executeOp(op, wif)
-
     elif args.command == "edit":
-        post_author, post_permlink = resolveIdentifier(args.post)
-        original_post = rpc.get_content(post_author, post_permlink)
+        original_post = steem.get_content(args.post)
 
         edited_message = None
         if original_post["id"] == "0.0.0":
@@ -546,67 +497,31 @@ def main() :
         })
 
         meta, edited_message = yaml_parse_file(args, initial_content=post)
-
-        if args.replace:
-            newbody = edited_message
-        else:
-            import diff_match_patch
-            dmp = diff_match_patch.diff_match_patch()
-            patch = dmp.patch_make(original_post["body"], edited_message)
-            newbody = dmp.patch_toText(patch)
-
-            if not newbody:
-                print("No changes made! Skipping ...")
-                return
-
-        op = transactions.Comment(
-            **{"parent_author": original_post["parent_author"],
-               "parent_permlink": original_post["parent_permlink"],
-               "author": original_post["author"],
-               "permlink": original_post["permlink"],
-               "title": original_post["title"],
-               "body": newbody,
-               "json_metadata": ""}
-        )
-
-        wif = Wallet(rpc).getPostingKeyForAccount(original_post["author"])
-        executeOp(op, wif)
+        steem.edit(args.post, edited_message, replace=args.replace)
 
     elif args.command == "upvote" or args.command == "downvote":
-        STEEMIT_100_PERCENT = 10000
-        STEEMIT_1_PERCENT = (STEEMIT_100_PERCENT / 100)
         if args.command == "downvote":
             weight = -float(args.weight)
         else:
             weight = +float(args.weight)
-
-        post_author, post_permlink = resolveIdentifier(args.post)
-
         if not args.voter:
             print("Not voter provided!")
             return
-
-        op = transactions.Vote(
-            **{"voter": args.voter,
-               "author": post_author,
-               "permlink": post_permlink,
-               "weight": int(weight * STEEMIT_1_PERCENT)}
-        )
-        wif = Wallet(rpc).getPostingKeyForAccount(args.voter)
-        executeOp(op, wif)
+        steem.vote(args.post, weight)
 
     elif args.command == "read":
         post_author, post_permlink = resolveIdentifier(args.post)
 
         if args.parents:
-            dump_recursive_parents(rpc, post_author, post_permlink, args.parents)
+            # FIXME inconsistency, use @author/permlink instead!
+            dump_recursive_parents(steem.rpc, post_author, post_permlink, args.parents)
 
         if not args.comments and not args.parents:
-            post = rpc.get_content(post_author, post_permlink)
+            post = steem.get_content(args.post)
             if post["id"] == "0.0.0":
                 print("Can't find post %s" % args.post)
                 return
-            if args.yaml:
+            if args.full:
                 meta = post.copy()
                 meta.pop("body", None)
                 yaml = frontmatter.Post(post["body"], **meta)
@@ -615,23 +530,14 @@ def main() :
                 print(post["body"])
 
         if args.comments:
-            dump_recursive_comments(rpc, post_author, post_permlink)
+            dump_recursive_comments(steem.rpc, post_author, post_permlink)
 
     elif args.command == "categories":
-
-        if args.sort == "trending":
-            func = rpc.get_trending_categories
-        elif args.sort == "best":
-            func = rpc.get_best_categories
-        elif args.sort == "active":
-            func = rpc.get_active_categories
-        elif args.sort == "recent":
-            func = rpc.get_recent_categories
-        else:
-            print("Invalid choice of '--sort'!")
-            return
-
-        categories = func(args.category, args.limit)
+        categories = steem.get_categories(
+            args.sort,
+            begin=args.category,
+            limit=args.limit
+        )
         t = PrettyTable(["name", "discussions", "payouts"])
         t.align = "l"
         for category in categories:
@@ -643,48 +549,24 @@ def main() :
         print(t)
 
     elif args.command == "list":
-        from functools import partial
-        if args.sort == "recent":
-            if args.category:
-                func = partial(rpc.get_discussions_in_category_by_last_update, args.category)
-            else:
-                func = rpc.get_discussions_by_last_update
-        elif args.sort == "payout":
-            if args.category:
-                func = partial(rpc.get_discussions_in_category_by_total_pending_payout, args.category)
-            else:
-                func = rpc.get_discussions_by_total_pending_payout
-        else:
-            print("Invalid choice of '--sort'!")
-            return
-
-        author = ""
-        permlink = ""
-        if args.start:
-            author, permlink = resolveIdentifier(args.start)
-
-        discussions = func(author, permlink, args.limit)
-        list_posts(discussions)
+        list_posts(
+            steem.get_posts(
+                limit=args.limit,
+                sort=args.sort,
+                category=args.category,
+                start=args.start
+            )
+        )
 
     elif args.command == "replies":
-        state = rpc.get_state("/@%s/recent-replies" % args.author)
-        replies = state["accounts"][args.author]["recent_replies"]
-        discussions  = []
-        for reply in replies:
-            post = state["content"][reply]
-            if post["author"] != args.author:
-                discussions.append(post)
+        discussions = steem.get_replies(args.author)
         list_posts(discussions[0:args.limit])
 
     else:
         print("No valid command given")
 
 
-rpc = None
 args = None
-
-# For recursive display of a discussion thread (--comments + --parents)
-currentThreadDepth = 0
 
 if __name__ == '__main__':
     main()
