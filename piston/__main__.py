@@ -18,7 +18,7 @@ from piston.ui import (
     dump_recursive_comments,
     list_posts,
 )
-from piston import steem
+from piston.steem import Steem
 import frontmatter
 import time
 from prettytable import PrettyTable
@@ -26,7 +26,6 @@ from prettytable import PrettyTable
 
 def main() :
     global args
-    global rpc
     config = Configuration()
 
     if "default_vote_weight" not in config:
@@ -383,7 +382,7 @@ def main() :
 
     rpc_not_required = ["set", ""]
     if args.command not in rpc_not_required and args.command:
-        rpc = steem.connect(
+        steem = Steem(
             args.node,
             args.rpcuser,
             args.rpcpassword,
@@ -394,7 +393,7 @@ def main() :
         config[args.key] = args.value
 
     elif args.command == "addkey":
-        wallet = Wallet(rpc)
+        wallet = Wallet(steem.rpc)
         if len(args.wifkeys):
             for wifkey in args.wifkeys:
                 pub = (wallet.addPrivateKey(wifkey))
@@ -414,14 +413,14 @@ def main() :
     elif args.command == "listkeys":
         t = PrettyTable(["Available Key"])
         t.align = "l"
-        for key in Wallet(rpc).getPublicKeys():
+        for key in Wallet(steem.rpc).getPublicKeys():
             t.add_row([key])
         print(t)
 
     elif args.command == "listaccounts":
         t = PrettyTable(["Name", "Available Key"])
         t.align = "l"
-        for account in Wallet(rpc).getAccounts():
+        for account in Wallet(steem.rpc).getAccounts():
             t.add_row(account)
         print(t)
 
@@ -515,7 +514,7 @@ def main() :
 
         if args.parents:
             # FIXME inconsistency, use @author/permlink instead!
-            dump_recursive_parents(rpc, post_author, post_permlink, args.parents)
+            dump_recursive_parents(steem.rpc, post_author, post_permlink, args.parents)
 
         if not args.comments and not args.parents:
             post = steem.get_content(args.post)
@@ -531,7 +530,7 @@ def main() :
                 print(post["body"])
 
         if args.comments:
-            dump_recursive_comments(rpc, post_author, post_permlink)
+            dump_recursive_comments(steem.rpc, post_author, post_permlink)
 
     elif args.command == "categories":
         categories = steem.get_categories(
@@ -567,7 +566,6 @@ def main() :
         print("No valid command given")
 
 
-rpc = None
 args = None
 
 if __name__ == '__main__':

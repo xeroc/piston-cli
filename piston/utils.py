@@ -21,7 +21,7 @@ def derivePermlink(title, parent_permlink=None):
     if parent_permlink:
         permlink += "re-"
         permlink += parent_permlink
-        permlink += formatTime(time.time())
+        permlink += "-" + formatTime(time.time())
     else:
         permlink += title
 
