@@ -3,19 +3,37 @@ from steembase import PrivateKey, PublicKey, Address
 import steembase.transactions as transactions
 from piston.utils import (
     resolveIdentifier,
+    constructIdentifier,
+    derivePermlink,
 )
 from piston.wallet import Wallet
 from piston.configuration import Configuration
-config = Configuration()
 
-if "node" not in config or not config["node"]:
-    config["node"] = "wss://steemit.com/ws"
-
+#: Global variables
 rpc = None
 nobroad = False
 
+#: Configuration from local user settings
+config = Configuration()
+
+#: Default settings
+if "node" not in config or not config["node"]:
+    config["node"] = "wss://steemit.com/ws"
+
 
 def executeOp(op, wif=None):
+    """ Execute an operation by signing it with the `wif` key and
+        broadcasting it to the Steem network
+
+        :param Object op: The operation to be signed and broadcasts as
+                          provided by the `transactions` class.
+        :param string wif: The wif key to use for signing a transaction
+
+        **TODO**: The full node could, given the operations, give us a
+        set of public keys that are required for signing, then the
+        public keys could used to identify the wif-keys from the wallet.
+
+    """
     if not wif:
         print("Missing required key")
         return
@@ -30,6 +48,8 @@ def executeOp(op, wif=None):
         operations=ops
     )
     tx = tx.sign([wif])
+    from pprint import pprint
+    pprint(transactions.JsonObj(tx))
 
     if not nobroad:
         if isinstance(tx, transactions.Signed_Transaction):
@@ -45,6 +65,23 @@ def executeOp(op, wif=None):
 
 
 def connect(node=None, rpcuser=None, rpcpassword=None, nobroadcast=False):
+    """ Connect to the Steem network.
+
+        :param str node: Node to connect to *(optional)*
+        :param str rpcuser: RPC user *(optional)*
+        :param str rpcpassword: RPC password *(optional)*
+        :param bool nobroadcast: Do **not** broadcast a transaction!
+
+        If no node is provided, it will connect to the node of
+        SteemIT.com. It is **highly** recommended that you pick your own
+        node instead. Default settings can be changed with:
+
+        ```
+        piston set node <host>
+        ```
+
+        where `<host>` starts with `ws://` or `wss://`.
+    """
     global nobroad
     global rpc
     nobroad = nobroadcast
@@ -64,11 +101,33 @@ def connect(node=None, rpcuser=None, rpcpassword=None, nobroadcast=False):
     return rpc
 
 
-def reply(reply_identifier="", author="", permlink="", title="", body="", meta=None):
-    post(author, permlink, title, body, meta, reply_identifier)
+def reply(identifier, body, title="", author="", meta=None):
+    """ Reply to an existing post
+
+        :param str identifier: Identifier of the post to reply to. Takes the
+                         form `@author/permlink`
+        :param str body: Body of the reply
+        :param str title: Title of the reply post
+        :param str author: Author of reply (optional) if not provided
+                           `default_user` will be used, if present, else
+                           a `ValueError` will be raised.
+        :param json meta: JSON meta object that can be attached to the
+                          post. (optional)
+    """
+    post(title, body, meta=meta, author=author, reply_identifier=identifier)
 
 
-def edit(identifier="", body="", meta=None, replace=False):
+def edit(identifier, body, meta=None, replace=False):
+    """ Edit an existing post
+
+        :param str identifier: Identifier of the post to reply to. Takes the
+                         form `@author/permlink`
+        :param str body: Body of the reply
+        :param json meta: JSON meta object that can be attached to the
+                          post. (optional)
+        :param bool replace: Instead of calculating a *diff*, replace
+                             the post entirely (defaults to `False`)
+    """
     post_author, post_permlink = resolveIdentifier(identifier)
     original_post = rpc.get_content(post_author, post_permlink)
 
@@ -84,18 +143,47 @@ def edit(identifier="", body="", meta=None, replace=False):
             print("No changes made! Skipping ...")
             return
 
-    post(**{"parent_author": original_post["parent_author"],
-            "parent_permlink": original_post["parent_permlink"],
-            "author": original_post["author"],
-            "permlink": original_post["permlink"],
-            "title": original_post["title"],
-            "body": newbody,
-            "meta": original_post["json_metadata"]})
+    reply_identifier = constructIdentifier(
+        original_post["parent_author"],
+        original_post["parent_permlink"]
+    )
+
+    post(original_post["title"],
+         newbody,
+         reply_identifier=reply_identifier,
+         author=original_post["author"],
+         permlink=original_post["permlink"],
+         meta=original_post["json_metadata"])
 
 
-def post(author="", permlink="",
-         title="", body="", meta="",
+def post(title, body,
+         author=None,
+         permlink=None, meta="",
          reply_identifier=None, category=""):
+    """ New post
+
+        :param str title: Title of the reply post
+        :param str body: Body of the reply
+        :param str author: Author of reply (optional) if not provided
+                           `default_user` will be used, if present, else
+                           a `ValueError` will be raised.
+        :param json meta: JSON meta object that can be attached to the
+                          post.
+        :param str reply_identifier: Identifier of the post to reply to. Takes the
+                                     form `@author/permlink`
+        :param str category: Allows to define a category for new posts.
+                             It is highly recommended to provide a
+                             category as posts end up in `spam`
+                             otherwise.
+    """
+
+    if not author and config["default_author"]:
+        author = config["default_author"]
+
+    if not author:
+        raise ValueError(
+            "Please define an author. (Try 'piston set default_author'"
+        )
 
     if reply_identifier and not category:
         parent_author, parent_permlink = resolveIdentifier(reply_identifier)
@@ -110,6 +198,9 @@ def post(author="", permlink="",
             "You can't provide a category while replying to a post"
         )
 
+    if not permlink:
+        permlink = derivePermlink(title, parent_permlink)
+
     op = transactions.Comment(
         **{"parent_author": parent_author,
            "parent_permlink": parent_permlink,
@@ -117,13 +208,28 @@ def post(author="", permlink="",
            "permlink": permlink,
            "title": title,
            "body": body,
-           "json_metadata": meta}
+           "json_metadata": ""}  # fixme: allow for posting of metadata
     )
     wif = Wallet(rpc).getPostingKeyForAccount(author)
     executeOp(op, wif)
 
 
 def vote(identifier, weight, voter=None):
+    """ Vote for a post
+
+        :param str identifier: Identifier for the post to upvote Takes
+                               the form `@author/permlink`
+        :param float weight: Voting weight. Range: -100.0 - +100.0. May
+                             not be 0.0
+        :param str voter: Voter to use for voting. (Optional)
+        
+        If `voter` is not defines, the `default_voter` will be taken or
+        a ValueError will be raised
+
+        ```
+        piston set default_voter <account>
+        ```
+    """
 
     STEEMIT_100_PERCENT = 10000
     STEEMIT_1_PERCENT = (STEEMIT_100_PERCENT / 100)
@@ -147,18 +253,29 @@ def vote(identifier, weight, voter=None):
 
 
 def get_content(identifier):
+    """ Get the full content of a post.
+
+        :param str identifier: Identifier for the post to upvote Takes
+                               the form `@author/permlink`
+    """
     post_author, post_permlink = resolveIdentifier(identifier)
     return rpc.get_content(post_author, post_permlink)
 
 
 def get_replies(author, skipown=True):
+    """ Get replies for an author
+
+        :param str author: Show replies for this author
+        :param bool skipown: Do not show my own replies
+    """
     state = rpc.get_state("/@%s/recent-replies" % author)
     replies = state["accounts"][author]["recent_replies"]
     discussions  = []
     for reply in replies:
         post = state["content"][reply]
-        if skipown and post["author"] != author:
-            discussions.append(post)
+        if skipown and post["author"] == author:
+            continue
+        discussions.append(post)
     return discussions
 
 
@@ -166,6 +283,14 @@ def get_posts(limit=10,
               sort="recent",
               category=None,
               start=None,):
+    """ Get multiple posts in an array.
+
+        :param int limit: Limit the list of posts by `limit`
+        :param str sort: Sort the list by "recent" or "payout"
+        :param str category: Only show posts in this category
+        :param str start: Show posts after this post. Takes an
+                          identifier of the form `@author/permlink`
+    """
     from functools import partial
     if sort == "recent":
         if category:
@@ -187,3 +312,26 @@ def get_posts(limit=10,
         author, permlink = resolveIdentifier(start)
 
     return func(author, permlink, limit)
+
+
+def get_categories(sort, begin="", limit=10):
+    """ List categories
+
+        :param str sort: Sort categories by "trending", "best",
+                         "active", or "recent"
+        :param str begin: Show categories after this
+        :param int limit: Limit categories by `x`
+    """
+    if sort == "trending":
+        func = rpc.get_trending_categories
+    elif sort == "best":
+        func = rpc.get_best_categories
+    elif sort == "active":
+        func = rpc.get_active_categories
+    elif sort == "recent":
+        func = rpc.get_recent_categories
+    else:
+        print("Invalid choice of 'sort'!")
+        return
+
+    return func(begin, limit)

@@ -5,6 +5,29 @@ import time
 from datetime import datetime
 
 
+def constructIdentifier(a, p):
+    return "@%s/%s" % (a, p)
+
+
+def sanitizePermlink(permlink):
+    import re
+    permlink = re.sub("_|\s|\.", "-", permlink)
+    permlink = permlink.lower()
+    return permlink
+
+
+def derivePermlink(title, parent_permlink=None):
+    permlink = ""
+    if parent_permlink:
+        permlink += "re-"
+        permlink += parent_permlink
+        permlink += formatTime(time.time())
+    else:
+        permlink += title
+
+    return sanitizePermlink(permlink)
+
+
 def resolveIdentifier(identifier):
     import re
     match = re.match("@?([\w\-\.]*)/([\w\-]*)", identifier)

@@ -434,17 +434,15 @@ def main() :
             return
 
         reply_message = indent(parent["body"], "> ")
-        default_permlink = "re-" + parent["permlink"] + "-" + formatTime(time.time())
 
         post = frontmatter.Post(reply_message, **{
             "title": args.title if args.title else "Re: " + parent["title"],
-            "permlink": args.permlink if args.permlink else default_permlink,
             "author": args.author if args.author else "required",
         })
 
         post, message = yaml_parse_file(args, initial_content=post)
 
-        for required in ["author", "permlink", "title"]:
+        for required in ["author", "title"]:
             if (required not in post or
                     not post[required] or
                     post[required] == "required"):
@@ -453,7 +451,7 @@ def main() :
                 # to the EDITOR
                 return
 
-        steem.reply(args.replyto, post["author"], post["permlink"], post["title"], message, "")
+        steem.reply(args.replyto, message, title=post["title"], author=args.author)
 
     elif args.command == "post" or args.command == "yaml":
         post = frontmatter.Post("", **{
@@ -479,10 +477,9 @@ def main() :
                 return
 
         steem.post(
-            meta["author"],
-            meta["permlink"],
             meta["title"],
             body,
+            author=meta["author"],
             category=meta["category"]
         )
 
@@ -537,20 +534,11 @@ def main() :
             dump_recursive_comments(rpc, post_author, post_permlink)
 
     elif args.command == "categories":
-
-        if args.sort == "trending":
-            func = steem.get_trending_categories
-        elif args.sort == "best":
-            func = steem.get_best_categories
-        elif args.sort == "active":
-            func = steem.get_active_categories
-        elif args.sort == "recent":
-            func = steem.get_recent_categories
-        else:
-            print("Invalid choice of '--sort'!")
-            return
-
-        categories = func(args.category, args.limit)
+        categories = steem.get_categories(
+            args.sort,
+            begin=args.category,
+            limit=args.limit
+        )
         t = PrettyTable(["name", "discussions", "payouts"])
         t.align = "l"
         for category in categories:
