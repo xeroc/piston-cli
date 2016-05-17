@@ -16,7 +16,33 @@ config = Configuration()
 if "node" not in config or not config["node"]:
     config["node"] = "wss://steemit.com/ws"
 
+
 class Steem(object):
+    """ The purpose of this class it to simplify posting and dealing
+        with accounts, posts and categories in Steem.
+
+        The idea is to have a class that allows to do this:
+
+        .. code-block:: python
+
+            from piston.steem import Steem
+            steem = Steem()
+            steem.post("Testing piston-libs", "I am testing piston-libs", category="spam")
+
+        All that is requires is for the user to have added a posting key with
+
+        .. code-block:: bash
+
+            piston addkey
+
+        and setting a default author:
+
+        .. code-block:: bash
+
+            piston set default_author xeroc
+
+        This class also deals with edits, votes and reading content.
+    """
 
     def __init__(self, *args, **kwargs):
         self.connect(*args, **kwargs)
@@ -33,11 +59,11 @@ class Steem(object):
             SteemIT.com. It is **highly** recommended that you pick your own
             node instead. Default settings can be changed with:
 
-            ```
-            piston set node <host>
-            ```
+            .. code-block:: python
 
-            where `<host>` starts with `ws://` or `wss://`.
+                piston set node <host>
+
+            where ``<host>`` starts with ``ws://`` or ``wss://``.
         """
         self.nobroadcast = nobroadcast
         if not node:
@@ -54,13 +80,12 @@ class Steem(object):
 
         self.rpc = SteemNodeRPC(node, rpcuser, rpcpassword)
 
-
     def executeOp(self, op, wif=None):
-        """ Execute an operation by signing it with the `wif` key and
+        """ Execute an operation by signing it with the ``wif`` key and
             broadcasting it to the Steem network
 
             :param Object op: The operation to be signed and broadcasts as
-                              provided by the `transactions` class.
+                              provided by the ``transactions`` class.
             :param string wif: The wif key to use for signing a transaction
 
             **TODO**: The full node could, given the operations, give us a
@@ -97,33 +122,31 @@ class Steem(object):
 
         return tx
 
-
     def reply(self, identifier, body, title="", author="", meta=None):
         """ Reply to an existing post
 
             :param str identifier: Identifier of the post to reply to. Takes the
-                             form `@author/permlink`
+                             form ``@author/permlink``
             :param str body: Body of the reply
             :param str title: Title of the reply post
             :param str author: Author of reply (optional) if not provided
-                               `default_user` will be used, if present, else
-                               a `ValueError` will be raised.
+                               ``default_user`` will be used, if present, else
+                               a ``ValueError`` will be raised.
             :param json meta: JSON meta object that can be attached to the
                               post. (optional)
         """
         self.post(title, body, meta=meta, author=author, reply_identifier=identifier)
 
-
     def edit(self, identifier, body, meta=None, replace=False):
         """ Edit an existing post
 
             :param str identifier: Identifier of the post to reply to. Takes the
-                             form `@author/permlink`
+                             form ``@author/permlink``
             :param str body: Body of the reply
             :param json meta: JSON meta object that can be attached to the
                               post. (optional)
             :param bool replace: Instead of calculating a *diff*, replace
-                                 the post entirely (defaults to `False`)
+                                 the post entirely (defaults to ``False``)
         """
         post_author, post_permlink = resolveIdentifier(identifier)
         original_post = self.rpc.get_content(post_author, post_permlink)
@@ -145,13 +168,14 @@ class Steem(object):
             original_post["parent_permlink"]
         )
 
-        self.post(original_post["title"],
-             newbody,
-             reply_identifier=reply_identifier,
-             author=original_post["author"],
-             permlink=original_post["permlink"],
-             meta=original_post["json_metadata"])
-
+        self.post(
+            original_post["title"],
+            newbody,
+            reply_identifier=reply_identifier,
+            author=original_post["author"],
+            permlink=original_post["permlink"],
+            meta=original_post["json_metadata"]
+        )
 
     def post(self,
              title,
@@ -166,15 +190,15 @@ class Steem(object):
             :param str title: Title of the reply post
             :param str body: Body of the reply
             :param str author: Author of reply (optional) if not provided
-                               `default_user` will be used, if present, else
-                               a `ValueError` will be raised.
+                               ``default_user`` will be used, if present, else
+                               a ``ValueError`` will be raised.
             :param json meta: JSON meta object that can be attached to the
                               post.
             :param str reply_identifier: Identifier of the post to reply to. Takes the
-                                         form `@author/permlink`
+                                         form ``@author/permlink``
             :param str category: Allows to define a category for new posts.
                                  It is highly recommended to provide a
-                                 category as posts end up in `spam`
+                                 category as posts end up in ``spam``
                                  otherwise.
         """
 
@@ -214,22 +238,21 @@ class Steem(object):
         wif = Wallet(self.rpc).getPostingKeyForAccount(author)
         self.executeOp(op, wif)
 
-
     def vote(self, identifier, weight, voter=None):
         """ Vote for a post
 
             :param str identifier: Identifier for the post to upvote Takes
-                                   the form `@author/permlink`
+                                   the form ``@author/permlink``
             :param float weight: Voting weight. Range: -100.0 - +100.0. May
                                  not be 0.0
             :param str voter: Voter to use for voting. (Optional)
-            
-            If `voter` is not defines, the `default_voter` will be taken or
+
+            If ``voter`` is not defines, the ``default_voter`` will be taken or
             a ValueError will be raised
 
-            ```
-            piston set default_voter <account>
-            ```
+            .. code-block:: python
+
+                piston set default_voter <account>
         """
 
         STEEMIT_100_PERCENT = 10000
@@ -252,16 +275,14 @@ class Steem(object):
         wif = Wallet(self.rpc).getPostingKeyForAccount(voter)
         self.executeOp(op, wif)
 
-
     def get_content(self, identifier):
         """ Get the full content of a post.
 
             :param str identifier: Identifier for the post to upvote Takes
-                                   the form `@author/permlink`
+                                   the form ``@author/permlink``
         """
         post_author, post_permlink = resolveIdentifier(identifier)
         return self.rpc.get_content(post_author, post_permlink)
-
 
     def get_replies(self, author, skipown=True):
         """ Get replies for an author
@@ -279,18 +300,17 @@ class Steem(object):
             discussions.append(post)
         return discussions
 
-
     def get_posts(self, limit=10,
                   sort="recent",
                   category=None,
                   start=None,):
         """ Get multiple posts in an array.
 
-            :param int limit: Limit the list of posts by `limit`
+            :param int limit: Limit the list of posts by ``limit``
             :param str sort: Sort the list by "recent" or "payout"
             :param str category: Only show posts in this category
             :param str start: Show posts after this post. Takes an
-                              identifier of the form `@author/permlink`
+                              identifier of the form ``@author/permlink``
         """
         from functools import partial
         if sort == "recent":
@@ -314,14 +334,13 @@ class Steem(object):
 
         return func(author, permlink, limit)
 
-
     def get_categories(self, sort, begin="", limit=10):
         """ List categories
 
             :param str sort: Sort categories by "trending", "best",
                              "active", or "recent"
             :param str begin: Show categories after this
-            :param int limit: Limit categories by `x`
+            :param int limit: Limit categories by ``x``
         """
         if sort == "trending":
             func = self.rpc.get_trending_categories
