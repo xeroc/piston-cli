@@ -455,7 +455,6 @@ def main() :
     elif args.command == "post" or args.command == "yaml":
         post = frontmatter.Post("", **{
             "title": args.title if args.title else "required",
-            "permlink": args.permlink if args.permlink else "required",
             "author": args.author if args.author else "required",
             "category": args.category if args.category else "required",
         })
@@ -466,7 +465,7 @@ def main() :
             print("Empty body! Not posting!")
             return
 
-        for required in ["author", "permlink", "title", "category"]:
+        for required in ["author", "title", "category"]:
             if (required not in meta or
                     not meta[required] or
                     meta[required] == "required"):
@@ -492,7 +491,6 @@ def main() :
 
         post = frontmatter.Post(original_post["body"], **{
             "title": original_post["title"] + " (immutable)",
-            "permlink": original_post["permlink"] + " (immutable)",
             "author": original_post["author"] + " (immutable)"
         })
 
