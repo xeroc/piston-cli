@@ -214,7 +214,7 @@ class Steem(object):
             parent_author, parent_permlink = resolveIdentifier(reply_identifier)
             permlink = derivePermlink(title, parent_permlink)
         elif category and not reply_identifier:
-            parent_permlink = category
+            parent_permlink = derivePermlink(category)
             parent_author = ""
             permlink = derivePermlink(title)
         elif not category and not reply_identifier:
