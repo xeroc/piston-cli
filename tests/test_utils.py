@@ -17,9 +17,12 @@ class Testcases(unittest.TestCase) :
 
     def test_sanitizePermlink(self):
         self.assertEqual(sanitizePermlink("aAf_0.12"), "aaf-0-12")
+        self.assertEqual(sanitizePermlink("[](){}"), "")
 
     def test_derivePermlink(self):
         self.assertEqual(derivePermlink("Hello World"), "hello-world")
+        self.assertEqual(derivePermlink("aAf_0.12"), "aaf-0-12")
+        self.assertEqual(derivePermlink("[](){}"), "")
 
     def test_resolveIdentifier(self):
         self.assertEqual(resolveIdentifier("@A/B"), ("A", "B"))

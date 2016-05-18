@@ -12,6 +12,7 @@ def constructIdentifier(a, p):
 def sanitizePermlink(permlink):
     import re
     permlink = re.sub("_|\s|\.", "-", permlink)
+    permlink = re.sub("[^\w-]", "", permlink)
     permlink = permlink.lower()
     return permlink
 
