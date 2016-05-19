@@ -17,6 +17,7 @@ if "node" not in config or not config["node"]:
     config["node"] = "wss://steemit.com/ws"
 
 prefix = "STM"
+# prefix = "TST"
 
 
 class Steem(object):
@@ -277,44 +278,125 @@ class Steem(object):
         wif = Wallet(self.rpc).getPostingKeyForAccount(voter)
         self.executeOp(op, wif)
 
-    def create_account(self, creator, account_name, json_meta=""):
+    def create_account(self,
+                       account_name,
+                       json_meta="",
+                       creator=None,
+                       additional_owner_keys=[],
+                       additional_active_keys=[],
+                       additional_posting_keys=[],
+                       additional_owner_accounts=[],
+                       additional_active_accounts=[],
+                       additional_posting_accounts=[],
+                       storekeys=True,
+                       ):
+        """ Create new account in Steem and store new keys in the wallet
+            automatically and return the brain key.
+
+            The brainkey can be used to recover all generated keys (see
+            `graphenebase.account` for more details.
+
+            By default, this call will use ``default_author`` to
+            register a new name ``account_name`` with all keys being
+            derived from a new brain key that will be returned. The
+            corresponding keys will automatically be installed in the
+            wallet.
+
+            :param str account_name: (**required**) new account name
+            :param str json_meta: Optional meta data for the account
+            :param str creator: which account should pay the registration fee
+                                (defaults to ``default_author``)
+            :param array additional_owner_keys:  Additional owner public keys
+            :param array additional_active_keys: Additional active public keys
+            :param array additional_posting_keys: Additional posting public keys
+            :param array additional_owner_accounts: Additional owner account names
+            :param array additional_active_accounts: Additional acctive account names
+            :param array additional_posting_accounts: Additional posting account names
+            :param bool storekeys: Store new keys in the wallet (default: ``True``)
+
+        """
+        if not creator and config["default_author"]:
+            creator = config["default_author"]
+        if not creator:
+            raise ValueError(
+                "Not creator account given. Define it with " +
+                "creator=x, or set the default_author in piston")
+
         wallet = Wallet(self.rpc)
+
+        " Generate new keys "
         from graphenebase.account import BrainKey
+        # owner
         key = BrainKey()
+        brain_key = key.get_brainkey()
         wallet.addPrivateKey(key.get_private_key())
         owner = format(key.get_public_key(), prefix)
 
+        # active
         key = key.next_sequence()
-        wallet.addPrivateKey(key.get_private_key())
+        if storekeys:
+            wallet.addPrivateKey(key.get_private_key())
         active = format(key.get_public_key(), prefix)
 
+        # posting
         key = key.next_sequence()
-        wallet.addPrivateKey(key.get_private_key())
+        if storekeys:
+            wallet.addPrivateKey(key.get_private_key())
         posting = format(key.get_public_key(), prefix)
 
+        # memo
         key = key.next_sequence()
-        wallet.addPrivateKey(key.get_private_key())
+        if storekeys:
+            wallet.addPrivateKey(key.get_private_key())
         memo = format(key.get_public_key(), prefix)
+
+        owner_key_authority = [[owner, 1]]
+        active_key_authority = [[active, 1]]
+        posting_key_authority = [[posting, 1]]
+        owner_accounts_authority = []
+        active_accounts_authority = []
+        posting_accounts_authority = []
+
+        # additional authorities
+        for k in additional_owner_keys:
+            owner_key_authority.append([k, 1])
+        for k in additional_active_keys:
+            active_key_authority.append([k, 1])
+        for k in additional_posting_keys:
+            posting_key_authority.append([k, 1])
+
+        for k in additional_owner_accounts:
+            owner_accounts_authority.append([k, 1])
+        for k in additional_active_accounts:
+            active_accounts_authority.append([k, 1])
+        for k in additional_posting_accounts:
+            posting_accounts_authority.append([k, 1])
 
         props = self.rpc.get_chain_properties()
         fee = props["account_creation_fee"]
         s = {'creator': creator,
-               'fee': fee,
-               'json_metadata': json_meta,
-               'memo_key': memo,
-               'new_account_name': account_name,
-               'owner': {'account_auths': [],
-                         'key_auths': [[owner, 1]],
-                         'weight_threshold': 1},
-               'active': {'account_auths': [],
-                         'key_auths': [[active, 1]],
-                         'weight_threshold': 1},
-               'posting': {'account_auths': [],
-                           'key_auths': [[posting, 1]],
-                           'weight_threshold': 1}}
+             'fee': fee,
+             'json_metadata': json_meta,
+             'memo_key': memo,
+             'new_account_name': account_name,
+             'owner': {'account_auths': owner_accounts_authority,
+                       'key_auths': owner_key_authority,
+                       'weight_threshold': 1},
+             'active': {'account_auths': active_accounts_authority,
+                        'key_auths': active_key_authority,
+                        'weight_threshold': 1},
+             'posting': {'account_auths': posting_accounts_authority,
+                         'key_auths': posting_key_authority,
+                         'weight_threshold': 1}}
+
+        from pprint import pprint
+        pprint(s)
+
         op = transactions.Account_create(**s)
         wif = Wallet(self.rpc).getPostingKeyForAccount(creator)
         self.executeOp(op, wif)
+
+        return brain_key
 
     def get_content(self, identifier):
         """ Get the full content of a post.

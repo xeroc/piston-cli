@@ -11,6 +11,7 @@ appauthor = "Fabian Schuh"
 walletFile = "wallet.dat"
 
 prefix = "STM"
+# prefix = "TST"
 
 
 class Wallet(object):
