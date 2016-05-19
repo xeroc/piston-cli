@@ -17,6 +17,7 @@ from piston.ui import (
     dump_recursive_parents,
     dump_recursive_comments,
     list_posts,
+    markdownify,
 )
 from piston.steem import Steem
 import frontmatter
@@ -523,9 +524,9 @@ def main() :
                 meta = post.copy()
                 meta.pop("body", None)
                 yaml = frontmatter.Post(post["body"], **meta)
-                print(frontmatter.dumps(yaml))
+                print(markdownify(frontmatter.dumps(yaml)))
             else:
-                print(post["body"])
+                print(markdownify(post["body"]))
 
         if args.comments:
             dump_recursive_comments(steem.rpc, post_author, post_permlink)

@@ -20,6 +20,14 @@ prefix = "STM"
 # prefix = "TST"
 
 
+class MissingKeyError(Exception):
+    pass
+
+
+class BroadcastingError(Exception):
+    pass
+
+
 class Steem(object):
     """ The purpose of this class it to simplify posting and dealing
         with accounts, posts and categories in Steem.
@@ -97,8 +105,7 @@ class Steem(object):
 
         """
         if not wif:
-            print("Missing required key")
-            return
+            raise MissingKeyError
 
         ops = [transactions.Operation(op)]
         expiration = transactions.formatTimeFromNow(30)
@@ -110,18 +117,18 @@ class Steem(object):
             operations=ops
         )
         tx = tx.sign([wif])
-        from pprint import pprint
-        pprint(transactions.JsonObj(tx))
+        # from pprint import pprint
+        # pprint(transactions.JsonObj(tx))
 
         if not self.nobroadcast:
             if isinstance(tx, transactions.Signed_Transaction):
                 tx = transactions.JsonObj(tx)
-            reply = self.rpc.broadcast_transaction(tx, api="network_broadcast")
-            if reply:
-                print(reply)
+            try:
+                self.rpc.broadcast_transaction(tx, api="network_broadcast")
+            except:
+                raise BroadcastingError
         else:
             print("Not broadcasting anything!")
-            reply = None
 
         return tx
 
@@ -392,9 +399,12 @@ class Steem(object):
         from pprint import pprint
         pprint(s)
 
-        op = transactions.Account_create(**s)
-        wif = Wallet(self.rpc).getPostingKeyForAccount(creator)
-        self.executeOp(op, wif)
+        try:
+            op = transactions.Account_create(**s)
+            wif = Wallet(self.rpc).getPostingKeyForAccount(creator)
+            self.executeOp(op, wif)
+        except:
+            return None
 
         return brain_key
 
