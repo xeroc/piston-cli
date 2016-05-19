@@ -16,6 +16,8 @@ config = Configuration()
 if "node" not in config or not config["node"]:
     config["node"] = "wss://steemit.com/ws"
 
+prefix = "STM"
+
 
 class Steem(object):
     """ The purpose of this class it to simplify posting and dealing
@@ -273,6 +275,45 @@ class Steem(object):
                "weight": int(weight * STEEMIT_1_PERCENT)}
         )
         wif = Wallet(self.rpc).getPostingKeyForAccount(voter)
+        self.executeOp(op, wif)
+
+    def create_account(self, creator, account_name, json_meta=""):
+        wallet = Wallet(self.rpc)
+        from graphenebase.account import BrainKey
+        key = BrainKey()
+        wallet.addPrivateKey(key.get_private_key())
+        owner = format(key.get_public_key(), prefix)
+
+        key = key.next_sequence()
+        wallet.addPrivateKey(key.get_private_key())
+        active = format(key.get_public_key(), prefix)
+
+        key = key.next_sequence()
+        wallet.addPrivateKey(key.get_private_key())
+        posting = format(key.get_public_key(), prefix)
+
+        key = key.next_sequence()
+        wallet.addPrivateKey(key.get_private_key())
+        memo = format(key.get_public_key(), prefix)
+
+        props = self.rpc.get_chain_properties()
+        fee = props["account_creation_fee"]
+        s = {'creator': creator,
+               'fee': fee,
+               'json_metadata': json_meta,
+               'memo_key': memo,
+               'new_account_name': account_name,
+               'owner': {'account_auths': [],
+                         'key_auths': [[owner, 1]],
+                         'weight_threshold': 1},
+               'active': {'account_auths': [],
+                         'key_auths': [[active, 1]],
+                         'weight_threshold': 1},
+               'posting': {'account_auths': [],
+                           'key_auths': [[posting, 1]],
+                           'weight_threshold': 1}}
+        op = transactions.Account_create(**s)
+        wif = Wallet(self.rpc).getPostingKeyForAccount(creator)
         self.executeOp(op, wif)
 
     def get_content(self, identifier):
