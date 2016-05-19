@@ -10,6 +10,8 @@ appname = "piston"
 appauthor = "Fabian Schuh"
 walletFile = "wallet.dat"
 
+prefix = "STM"
+
 
 class Wallet(object):
     keys = []
@@ -80,12 +82,21 @@ class Wallet(object):
         f = os.path.join(data_dir, walletFile)
         print("Your encrypted wallet file is located at " + f)
         self.mkdir_p(data_dir)
-        with open(f, 'w') as fp:
+        try:
+            # Test if ciphertext can be constructed
             if self.aes:
-                ciphertext = self.aes.encrypt(json.dumps(self.keys))
-                fp.write(ciphertext)
+                self.aes.encrypt(json.dumps(self.keys))
             else:
-                json.dump(self.keys, fp)
+                json.dumps(self.keys)
+
+            with open(f, 'w') as fp:
+                if self.aes:
+                    ciphertext = self.aes.encrypt(json.dumps(self.keys))
+                    fp.write(ciphertext)
+                else:
+                    json.dump(self.keys, fp)
+        except:
+            raise Exception("Error formating wallet. Skipping ..")
 
     def _loadPrivateKeys(self):
         data_dir = user_data_dir(appname, appauthor)
@@ -107,7 +118,7 @@ class Wallet(object):
 
     def getPrivateKeyForPublicKey(self, pub):
         for key in self.keys:
-            if format(PrivateKey(key).pubkey, "STM") == pub:
+            if format(PrivateKey(key).pubkey, prefix) == pub:
                 return (key)
 
     def getPostingKeyForAccount(self, name):
@@ -120,17 +131,21 @@ class Wallet(object):
 
     def removePrivateKeyFromPublicKey(self, pub):
         for key in self.keys:
-            if format(PrivateKey(key).pubkey, "STM") == pub:
+            if format(PrivateKey(key).pubkey, prefix) == pub:
                 self.keys.remove(key)
         self._storeWallet()
 
     def addPrivateKey(self, wif):
         try:
-            pub = format(PrivateKey(wif).pubkey, "STM")
+            if isinstance(wif, PrivateKey):
+                pub = format(wif.pubkey, prefix)
+                self.keys.append(str(wif))
+            else:
+                pub = format(PrivateKey(wif).pubkey, prefix)
+                self.keys.append(wif)
         except:
             print("Invalid Private Key Format. Please use WIF!")
             return
-        self.keys.append(wif)
         self.keys = list(set(self.keys))
         self._storeWallet()
         return pub
@@ -149,7 +164,7 @@ class Wallet(object):
         pub = []
         for key in self.keys:
             try:
-                pub.append(format(PrivateKey(key).pubkey, "STM"))
+                pub.append(format(PrivateKey(key).pubkey, prefix))
             except:
                 continue
         return pub
