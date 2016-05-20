@@ -505,7 +505,7 @@ def main() :
         if not args.voter:
             print("Not voter provided!")
             return
-        steem.vote(args.post, weight)
+        steem.vote(args.post, weight, voter=args.voter)
 
     elif args.command == "read":
         post_author, post_permlink = resolveIdentifier(args.post)
