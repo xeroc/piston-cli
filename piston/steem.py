@@ -58,7 +58,16 @@ class Steem(object):
     def __init__(self, *args, **kwargs):
         self.connect(*args, **kwargs)
 
-    def connect(self, node=None, rpcuser=None, rpcpassword=None, nobroadcast=False):
+        self.debug = False
+        if "debug" in kwargs:
+            self.debug = kwargs["debug"]
+
+    def connect(self, *args,
+                node=None,
+                rpcuser=None,
+                rpcpassword=None,
+                nobroadcast=False,
+                **kwargs):
         """ Connect to the Steem network.
 
             :param str node: Node to connect to *(optional)*
@@ -117,8 +126,10 @@ class Steem(object):
             operations=ops
         )
         tx = tx.sign([wif])
-        # from pprint import pprint
-        # pprint(transactions.JsonObj(tx))
+
+        if self.debug:
+            from pprint import pprint
+            pprint(transactions.JsonObj(tx))
 
         if not self.nobroadcast:
             if isinstance(tx, transactions.Signed_Transaction):
@@ -145,7 +156,7 @@ class Steem(object):
             :param json meta: JSON meta object that can be attached to the
                               post. (optional)
         """
-        self.post(title, body, meta=meta, author=author, reply_identifier=identifier)
+        return self.post(title, body, meta=meta, author=author, reply_identifier=identifier)
 
     def edit(self, identifier, body, meta=None, replace=False):
         """ Edit an existing post
@@ -178,7 +189,7 @@ class Steem(object):
             original_post["parent_permlink"]
         )
 
-        self.post(
+        return self.post(
             original_post["title"],
             newbody,
             reply_identifier=reply_identifier,
@@ -246,7 +257,7 @@ class Steem(object):
                "json_metadata": ""}  # fixme: allow for posting of metadata
         )
         wif = Wallet(self.rpc).getPostingKeyForAccount(author)
-        self.executeOp(op, wif)
+        return self.executeOp(op, wif)
 
     def vote(self, identifier, weight, voter=None):
         """ Vote for a post
@@ -283,7 +294,7 @@ class Steem(object):
                "weight": int(weight * STEEMIT_1_PERCENT)}
         )
         wif = Wallet(self.rpc).getPostingKeyForAccount(voter)
-        self.executeOp(op, wif)
+        return self.executeOp(op, wif)
 
     def create_account(self,
                        account_name,
@@ -395,9 +406,6 @@ class Steem(object):
              'posting': {'account_auths': posting_accounts_authority,
                          'key_auths': posting_key_authority,
                          'weight_threshold': 1}}
-
-        from pprint import pprint
-        pprint(s)
 
         try:
             op = transactions.Account_create(**s)
