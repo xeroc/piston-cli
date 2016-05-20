@@ -143,7 +143,7 @@ class Steem(object):
 
         return tx
 
-    def reply(self, identifier, body, title="", author="", meta=None):
+    def reply(self, identifier, body, title="", author="", meta=None, wif=None):
         """ Reply to an existing post
 
             :param str identifier: Identifier of the post to reply to. Takes the
@@ -155,10 +155,22 @@ class Steem(object):
                                a ``ValueError`` will be raised.
             :param json meta: JSON meta object that can be attached to the
                               post. (optional)
+            :param wif wif: WIF private key for signing. If provided,
+                            will not load from wallet (optional)
         """
-        return self.post(title, body, meta=meta, author=author, reply_identifier=identifier)
+        return self.post(title,
+                         body,
+                         meta=meta,
+                         author=author,
+                         reply_identifier=identifier,
+                         wif=wif)
 
-    def edit(self, identifier, body, meta=None, replace=False):
+    def edit(self,
+             identifier,
+             body,
+             meta=None,
+             replace=False,
+             wif=None):
         """ Edit an existing post
 
             :param str identifier: Identifier of the post to reply to. Takes the
@@ -168,6 +180,8 @@ class Steem(object):
                               post. (optional)
             :param bool replace: Instead of calculating a *diff*, replace
                                  the post entirely (defaults to ``False``)
+            :param wif wif: WIF private key for signing. If provided,
+                            will not load from wallet (optional)
         """
         post_author, post_permlink = resolveIdentifier(identifier)
         original_post = self.rpc.get_content(post_author, post_permlink)
@@ -195,7 +209,8 @@ class Steem(object):
             reply_identifier=reply_identifier,
             author=original_post["author"],
             permlink=original_post["permlink"],
-            meta=original_post["json_metadata"]
+            meta=original_post["json_metadata"],
+            wif=wif
         )
 
     def post(self,
@@ -205,7 +220,8 @@ class Steem(object):
              permlink=None,
              meta="",
              reply_identifier=None,
-             category=""):
+             category="",
+             wif=None):
         """ New post
 
             :param str title: Title of the reply post
@@ -221,6 +237,8 @@ class Steem(object):
                                  It is highly recommended to provide a
                                  category as posts end up in ``spam``
                                  otherwise.
+            :param wif wif: WIF private key for signing. If provided,
+                            will not load from wallet (optional)
         """
 
         if not author and config["default_author"]:
@@ -256,10 +274,15 @@ class Steem(object):
                "body": body,
                "json_metadata": ""}  # fixme: allow for posting of metadata
         )
-        wif = Wallet(self.rpc).getPostingKeyForAccount(author)
+        if not wif:
+            wif = Wallet(self.rpc).getPostingKeyForAccount(author)
         return self.executeOp(op, wif)
 
-    def vote(self, identifier, weight, voter=None):
+    def vote(self,
+             identifier,
+             weight,
+             voter=None,
+             wif=None):
         """ Vote for a post
 
             :param str identifier: Identifier for the post to upvote Takes
@@ -267,6 +290,8 @@ class Steem(object):
             :param float weight: Voting weight. Range: -100.0 - +100.0. May
                                  not be 0.0
             :param str voter: Voter to use for voting. (Optional)
+            :param wif wif: WIF private key for signing. If provided,
+                            will not load from wallet (optional)
 
             If ``voter`` is not defines, the ``default_voter`` will be taken or
             a ValueError will be raised
@@ -293,7 +318,8 @@ class Steem(object):
                "permlink": post_permlink,
                "weight": int(weight * STEEMIT_1_PERCENT)}
         )
-        wif = Wallet(self.rpc).getPostingKeyForAccount(voter)
+        if not wif:
+            wif = Wallet(self.rpc).getPostingKeyForAccount(voter)
         return self.executeOp(op, wif)
 
     def create_account(self,
@@ -307,6 +333,7 @@ class Steem(object):
                        additional_active_accounts=[],
                        additional_posting_accounts=[],
                        storekeys=True,
+                       wif=None
                        ):
         """ Create new account in Steem and store new keys in the wallet
             automatically and return the brain key.
@@ -331,6 +358,8 @@ class Steem(object):
             :param array additional_active_accounts: Additional acctive account names
             :param array additional_posting_accounts: Additional posting account names
             :param bool storekeys: Store new keys in the wallet (default: ``True``)
+            :param wif wif: WIF private key for signing. If provided,
+                            will not load from wallet (optional)
 
         """
         if not creator and config["default_author"]:
@@ -409,7 +438,8 @@ class Steem(object):
 
         try:
             op = transactions.Account_create(**s)
-            wif = Wallet(self.rpc).getPostingKeyForAccount(creator)
+            if not wif:
+                wif = Wallet(self.rpc).getPostingKeyForAccount(creator)
             self.executeOp(op, wif)
         except:
             return None
