@@ -73,7 +73,6 @@ def main() :
         help='Do not broadcast anything'
     )
     subparsers = parser.add_subparsers(help='sub-command help')
-    parser.set_defaults(command=None)
 
     """
         Command "set"
