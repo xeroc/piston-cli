@@ -157,9 +157,8 @@ def dump_recursive_parents(rpc, post_author, post_permlink, limit=1):
     for key in ["author", "permlink"]:
         meta[key] = post[key]
     meta["reply"] = "@{author}/{permlink}".format(**post)
-    yaml = frontmatter.Post(post["body"], **meta)
-    d = frontmatter.dumps(yaml)
-    print("\n".join(postWrapper.fill(l) for l in d.splitlines()))
+    yaml = frontmatter.Post(markdownify(post["body"]), **meta)
+    print(frontmatter.dumps(yaml))
 
 
 def dump_recursive_comments(rpc, post_author, post_permlink, depth=0):
@@ -177,9 +176,8 @@ def dump_recursive_comments(rpc, post_author, post_permlink, depth=0):
         for key in ["author", "permlink"]:
             meta[key] = post[key]
         meta["reply"] = "@{author}/{permlink}".format(**post)
-        yaml = frontmatter.Post(post["body"], **meta)
-        d = frontmatter.dumps(yaml)
-        print("\n".join(postWrapper.fill(l) for l in d.splitlines()))
+        yaml = frontmatter.Post(markdownify(post["body"]), **meta)
+        print(frontmatter.dumps(yaml))
         reply = rpc.get_content_replies(post["author"], post["permlink"])
         if len(reply):
             dump_recursive_comments(rpc, post["author"], post["permlink"], depth + 1)

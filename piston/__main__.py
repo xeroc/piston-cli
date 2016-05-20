@@ -522,8 +522,8 @@ def main() :
             if args.full:
                 meta = post.copy()
                 meta.pop("body", None)
-                yaml = frontmatter.Post(post["body"], **meta)
-                print(markdownify(frontmatter.dumps(yaml)))
+                yaml = frontmatter.Post(markdownify(post["body"]), **meta)
+                print(frontmatter.dumps(yaml))
             else:
                 print(markdownify(post["body"]))
 
