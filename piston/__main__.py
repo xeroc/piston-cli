@@ -450,7 +450,12 @@ def main() :
                 # to the EDITOR
                 return
 
-        steem.reply(args.replyto, message, title=post["title"], author=args.author)
+        pprint(steem.reply(
+            args.replyto,
+            message,
+            title=post["title"],
+            author=args.author
+        ))
 
     elif args.command == "post" or args.command == "yaml":
         post = frontmatter.Post("", **{
@@ -474,12 +479,12 @@ def main() :
                 # to the EDITOR
                 return
 
-        steem.post(
+        pprint(steem.post(
             meta["title"],
             body,
             author=meta["author"],
             category=meta["category"]
-        )
+        ))
 
     elif args.command == "edit":
         original_post = steem.get_content(args.post)
@@ -495,7 +500,11 @@ def main() :
         })
 
         meta, edited_message = yaml_parse_file(args, initial_content=post)
-        steem.edit(args.post, edited_message, replace=args.replace)
+        pprint(steem.edit(
+            args.post,
+            edited_message,
+            replace=args.replace
+        ))
 
     elif args.command == "upvote" or args.command == "downvote":
         if args.command == "downvote":
@@ -505,7 +514,11 @@ def main() :
         if not args.voter:
             print("Not voter provided!")
             return
-        steem.vote(args.post, weight, voter=args.voter)
+        pprint(steem.vote(
+            args.post,
+            weight,
+            voter=args.voter
+        ))
 
     elif args.command == "read":
         post_author, post_permlink = resolveIdentifier(args.post)
