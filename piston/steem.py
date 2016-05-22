@@ -251,15 +251,18 @@ class Steem(object):
 
         if reply_identifier and not category:
             parent_author, parent_permlink = resolveIdentifier(reply_identifier)
-            permlink = derivePermlink(title, parent_permlink)
+            if not permlink :
+                permlink = derivePermlink(title, parent_permlink)
         elif category and not reply_identifier:
             parent_permlink = derivePermlink(category)
             parent_author = ""
-            permlink = derivePermlink(title)
+            if not permlink :
+                permlink = derivePermlink(title)
         elif not category and not reply_identifier:
             parent_author = ""
             parent_permlink = ""
-            permlink = derivePermlink(title)
+            if not permlink :
+                permlink = derivePermlink(title)
         else:
             raise ValueError(
                 "You can't provide a category while replying to a post"
