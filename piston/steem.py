@@ -126,14 +126,13 @@ class Steem(object):
             operations=ops
         )
         tx = tx.sign([wif])
+        tx = transactions.JsonObj(tx)
 
         if self.debug:
             from pprint import pprint
-            pprint(transactions.JsonObj(tx))
+            pprint(tx)
 
         if not self.nobroadcast:
-            if isinstance(tx, transactions.Signed_Transaction):
-                tx = transactions.JsonObj(tx)
             try:
                 self.rpc.broadcast_transaction(tx, api="network_broadcast")
             except:
