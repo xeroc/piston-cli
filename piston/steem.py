@@ -371,7 +371,8 @@ class Steem(object):
                 "Not creator account given. Define it with " +
                 "creator=x, or set the default_author in piston")
 
-        wallet = Wallet(self.rpc)
+        if storekeys:
+            wallet = Wallet(self.rpc)
 
         " Generate new keys "
         from graphenebase.account import BrainKey
