@@ -589,3 +589,16 @@ class Steem(object):
             return
 
         return func(begin, limit)
+
+    def get_balances(self, account=None):
+        if not account:
+            if "default_account" in config:
+                account = config["default_account"]
+        if not account:
+            raise ValueError("You need to provide an account")
+        a = self.rpc.get_account(account)
+        return {
+            "balance": a["balance"],
+            "vesting_shares" : a["vesting_shares"],
+            "sbd_balance": a["sbd_balance"]
+        }

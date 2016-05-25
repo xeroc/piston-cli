@@ -408,21 +408,21 @@ def main() :
     """
         Command "powerup"
     """
-    parser_transfer = subparsers.add_parser('powerup', help='Power up (vest STEEM as STEEM POWER)')
-    parser_transfer.set_defaults(command="powerup")
-    parser_transfer.add_argument(
+    parser_powerup = subparsers.add_parser('powerup', help='Power up (vest STEEM as STEEM POWER)')
+    parser_powerup.set_defaults(command="powerup")
+    parser_powerup.add_argument(
         'amount',
         type=str,
         help='Amount to powerup including asset (e.g.: 100.000 STEEM)'
     )
-    parser_transfer.add_argument(
+    parser_powerup.add_argument(
         '--account',
         type=str,
         required=False,
         default=config["default_author"],
         help='Powerup from this account'
     )
-    parser_transfer.add_argument(
+    parser_powerup.add_argument(
         '--to',
         type=str,
         required=False,
@@ -433,19 +433,32 @@ def main() :
     """
         Command "powerdown"
     """
-    parser_transfer = subparsers.add_parser('powerdown', help='Power down (start withdrawing STEEM from STEEM POWER)')
-    parser_transfer.set_defaults(command="powerdown")
-    parser_transfer.add_argument(
+    parser_powerdown = subparsers.add_parser('powerdown', help='Power down (start withdrawing STEEM from STEEM POWER)')
+    parser_powerdown.set_defaults(command="powerdown")
+    parser_powerdown.add_argument(
         'amount',
         type=str,
         help='Amount to powerdown including asset (e.g.: 100.000 VESTS)'
     )
-    parser_transfer.add_argument(
+    parser_powerdown.add_argument(
         '--account',
         type=str,
         required=False,
         default=config["default_author"],
         help='powerdown from this account'
+    )
+
+    """
+        Command "balance"
+    """
+    parser_balance = subparsers.add_parser('balance', help='Power down (start withdrawing STEEM from STEEM POWER)')
+    parser_balance.set_defaults(command="balance")
+    parser_balance.add_argument(
+        'account',
+        type=str,
+        nargs="*",
+        default=config["default_author"],
+        help='balance from this account'
     )
 
     """
@@ -666,6 +679,21 @@ def main() :
             args.amount,
             account=args.account,
         ))
+
+    elif args.command == "balance":
+        t = PrettyTable(["Account", "STEEM", "SBD", "VESTS"])
+        t.align = "r"
+        if isinstance(args.account, str):
+            args.account = [args.account]
+        for a in args.account:
+            b = steem.get_balances(a)
+            t.add_row([
+                a,
+                b["balance"],
+                b["sbd_balance"],
+                b["vesting_shares"],
+            ])
+        print(t)
 
     else:
         print("No valid command given")

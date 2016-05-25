@@ -223,3 +223,11 @@ You can powerup/down your account with piston using:
 
 If `--author`/`--to` are not provided, the *default* account as defined with
 `piston set author` will be taken.
+
+### Balances
+
+Get an account's balance with
+
+    piston balance <account>
+
+If `<account>` is not provided, the *default* account will be taken.
