@@ -447,6 +447,68 @@ class Steem(object):
 
         return brain_key
 
+    def transfer(self, to, amount, memo=None, account=None):
+        if not account:
+            if "default_account" in config:
+                account = config["default_account"]
+        if not account:
+            raise ValueError("You need to provide a 'from' account")
+
+        op = transactions.Transfer(
+            **{"from": account,
+               "to": to,
+               "amount": amount,
+               "memo": memo
+               }
+        )
+        if not self.wif:
+            wif = Wallet(self.rpc).getPostingKeyForAccount(account)
+            return self.executeOp(op, wif)
+        else:
+            return self.executeOp(op)
+
+    def withdraw_vesting(self, amount, account=None):
+        if not account:
+            if "default_account" in config:
+                account = config["default_account"]
+        if not account:
+            raise ValueError("You need to provide a 'from' account")
+
+        op = transactions.Withdraw_vesting(
+            **{"account": account,
+               "vesting_shares": amount,
+               }
+        )
+        if not self.wif:
+            wif = Wallet(self.rpc).getPostingKeyForAccount(account)
+            return self.executeOp(op, wif)
+        else:
+            return self.executeOp(op)
+
+    def transfer_to_vesting(self, amount, to=None, account=None):
+        if not account:
+            if "default_account" in config:
+                account = config["default_account"]
+        if not account:
+            raise ValueError("You need to provide a 'from' account")
+        if not to:
+            if "default_account" in config:
+                to = config["default_account"]
+        if not account:
+            raise ValueError("You need to provide a 'to' account")
+
+        op = transactions.Transfer_to_vesting(
+            **{"from": account,
+               "to": to,
+               "amount": amount,
+               }
+        )
+        if not self.wif:
+            wif = Wallet(self.rpc).getPostingKeyForAccount(account)
+            return self.executeOp(op, wif)
+        else:
+            return self.executeOp(op)
+
     def get_content(self, identifier):
         """ Get the full content of a post.
 
