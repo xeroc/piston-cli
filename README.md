@@ -204,3 +204,22 @@ You can further define the weight (default 100%) manually with `--weight`.
 
 If `--author` is not provided, the *default* author as defined with
 `piston set author` will be taken. Further options are: `--limit`.
+
+### Transfer Steem
+
+STEEM can be transfered via
+
+    piston transfer receipient "100.000 STEEM"
+
+If `--author` is not provided, the *default* account as defined with
+`piston set author` will be taken.
+
+### Powerup/Powerdown
+
+You can powerup/down your account with piston using:
+
+    piston powerup "100 STEEM"
+    piston powerdown "10000 VESTS"
+
+If `--author`/`--to` are not provided, the *default* account as defined with
+`piston set author` will be taken.

@@ -376,6 +376,79 @@ def main() :
     )
 
     """
+        Command "transfer"
+    """
+    parser_transfer = subparsers.add_parser('transfer', help='Transfer STEEM')
+    parser_transfer.set_defaults(command="transfer")
+    parser_transfer.add_argument(
+        'to',
+        type=str,
+        help='Recepient'
+    )
+    parser_transfer.add_argument(
+        'amount',
+        type=str,
+        help='Amount to transfer including asset (e.g.: 100.000 STEEM)'
+    )
+    parser_transfer.add_argument(
+        'memo',
+        type=str,
+        nargs="?",
+        default="",
+        help='Optional memo'
+    )
+    parser_transfer.add_argument(
+        '--account',
+        type=str,
+        required=False,
+        default=config["default_author"],
+        help='Transfer from this account'
+    )
+
+    """
+        Command "powerup"
+    """
+    parser_transfer = subparsers.add_parser('powerup', help='Power up (vest STEEM as STEEM POWER)')
+    parser_transfer.set_defaults(command="powerup")
+    parser_transfer.add_argument(
+        'amount',
+        type=str,
+        help='Amount to powerup including asset (e.g.: 100.000 STEEM)'
+    )
+    parser_transfer.add_argument(
+        '--account',
+        type=str,
+        required=False,
+        default=config["default_author"],
+        help='Powerup from this account'
+    )
+    parser_transfer.add_argument(
+        '--to',
+        type=str,
+        required=False,
+        default=config["default_author"],
+        help='Powerup this account'
+    )
+
+    """
+        Command "powerdown"
+    """
+    parser_transfer = subparsers.add_parser('powerdown', help='Power down (start withdrawing STEEM from STEEM POWER)')
+    parser_transfer.set_defaults(command="powerdown")
+    parser_transfer.add_argument(
+        'amount',
+        type=str,
+        help='Amount to powerdown including asset (e.g.: 100.000 VESTS)'
+    )
+    parser_transfer.add_argument(
+        '--account',
+        type=str,
+        required=False,
+        default=config["default_author"],
+        help='powerdown from this account'
+    )
+
+    """
         Parse Arguments
     """
     args = parser.parse_args()
@@ -572,6 +645,27 @@ def main() :
     elif args.command == "replies":
         discussions = steem.get_replies(args.author)
         list_posts(discussions[0:args.limit])
+
+    elif args.command == "transfer":
+        pprint(steem.transfer(
+            args.to,
+            args.amount,
+            memo=args.memo,
+            account=args.account
+        ))
+
+    elif args.command == "powerup":
+        pprint(steem.transfer_to_vesting(
+            args.amount,
+            account=args.account,
+            to=args.to
+        ))
+
+    elif args.command == "powerdown":
+        pprint(steem.withdraw_vesting(
+            args.amount,
+            account=args.account,
+        ))
 
     else:
         print("No valid command given")
