@@ -80,7 +80,7 @@ class Comment(object):
         return self.vote(weight, voter=voter)
 
     def vote(self, weight, voter=None):
-        return self.steem.vote(self.identifier, weight)
+        return self.steem.vote(self.identifier, weight, voter=voter)
 
 
 class MissingKeyError(Exception):
