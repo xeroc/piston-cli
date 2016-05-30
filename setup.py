@@ -33,6 +33,7 @@ setup(name='steem-piston',
                         "graphenelib>0.3.9",
                         "appdirs",
                         "prettytable",
+                        "unidecode",  # FIXME, temporary
                         ],
       setup_requires=['pytest-runner'],
       tests_require=['pytest'],
