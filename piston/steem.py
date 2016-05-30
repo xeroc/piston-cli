@@ -47,6 +47,23 @@ class Comment(object):
                 comment["permlink"]
             )
 
+        self.openingPostIdentifier, self.category = self._getOpeningPost()
+
+    def _getOpeningPost(self):
+        post = self
+        while True:
+            if post["parent_author"] and self["parent_permlink"]:
+                post = self.steem.rpc.get_content(
+                    post["parent_author"],
+                    post["parent_permlink"]
+                )
+            else:
+                return constructIdentifier(
+                    post["author"],
+                    post["permlink"]
+                ), post["parent_permlink"]
+                break
+
     def __getitem__(self, key):
         if hasattr(self, key):
             return getattr(self, key)
