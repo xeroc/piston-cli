@@ -20,6 +20,52 @@ prefix = "STM"
 # prefix = "TST"
 
 
+class Comment(object):
+
+    def __init__(self, steem, comment):
+        if not isinstance(steem, Steem):
+            raise ValueError(
+                "First argument must be instance of Steem()"
+            )
+        self.steem = steem
+
+        if isinstance(comment, str):
+            # identifier
+            self.identifier = comment
+            post_author, post_permlink = resolveIdentifier(comment)
+            post = self.steem.rpc.get_content(post_author, post_permlink)
+            for key in post:
+                setattr(self, key, post[key])
+
+        elif (isinstance(comment, dict) and
+                "id" in comment and
+                comment["id"].split(".")[1] == "8"):
+            for key in post:
+                setattr(self, key, comment[key])
+            self.identifier = constructIdentifier(
+                comment["author"],
+                comment["permlink"]
+            )
+
+    def __getitem__(self, key):
+        if hasattr(self, key):
+            return getattr(self, key)
+        else:
+            return None
+
+    def reply(self, body, title="", author="", meta=None):
+        return self.steem.reply(self.identifier, body, title, author, meta)
+
+    def upvote(self):
+        return self.vote(100.0)
+
+    def downvote(self):
+        return self.vote(-100.0)
+
+    def vote(self, weight, voter=None):
+        return self.steem.vote(self.identifier, weight)
+
+
 class MissingKeyError(Exception):
     pass
 
@@ -603,3 +649,7 @@ class Steem(object):
             "vesting_shares" : a["vesting_shares"],
             "sbd_balance": a["sbd_balance"]
         }
+
+    def stream_comments(self, *args, **kwargs):
+        for c in self.rpc.stream("comment", *args, **kwargs):
+            yield Comment(self, "@{author}/{permlink}".format(**c))
