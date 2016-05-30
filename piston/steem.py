@@ -56,11 +56,11 @@ class Comment(object):
     def reply(self, body, title="", author="", meta=None):
         return self.steem.reply(self.identifier, body, title, author, meta)
 
-    def upvote(self):
-        return self.vote(100.0)
+    def upvote(self, weight=+100, voter=None):
+        return self.vote(weight, voter=voter)
 
-    def downvote(self):
-        return self.vote(-100.0)
+    def downvote(self, weight=-100, voter=None):
+        return self.vote(weight, voter=voter)
 
     def vote(self, weight, voter=None):
         return self.steem.vote(self.identifier, weight)
