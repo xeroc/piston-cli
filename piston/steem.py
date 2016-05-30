@@ -442,7 +442,8 @@ class Steem(object):
         # owner
         key = BrainKey()
         brain_key = key.get_brainkey()
-        wallet.addPrivateKey(key.get_private_key())
+        if storekeys:
+            wallet.addPrivateKey(key.get_private_key())
         owner = format(key.get_public_key(), prefix)
 
         # active

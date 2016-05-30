@@ -10,7 +10,7 @@ sg = sendgrid.SendGridClient(
 message = sendgrid.Mail()
 addresses = {"xeroc": "mail@xeroc.org"}
 # addresses = os.environ["ADDRESSES"]
-for c in steem.stream_comments(start=1898900):
+for c in steem.stream_comments():
     for user in addresses.keys():
         if "@%s" % user in c["body"]:
             message.add_to(addresses[user])
@@ -18,12 +18,12 @@ for c in steem.stream_comments(start=1898900):
             message.set_text(
                 "You have been messaged by %s " % (c["author"]) +
                 "in the post @%s/%s" % (c["author"], c["permlink"]) +
-                "\n\n" + 
+                "\n\n" +
                 "You can read the post on Steemit.com:\n" +
                 "http://steemit.com/%s/%s#@%s/%s"
-                    % (c["category"],
-                       c["openingPostIdentifier"],
-                       c["author"], c["permlink"])
+                % (c["category"],
+                    c["openingPostIdentifier"],
+                    c["author"], c["permlink"])
             )
             message.set_from('notify@steem')
             status, msg = sg.send(message)
