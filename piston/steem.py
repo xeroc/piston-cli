@@ -527,7 +527,7 @@ class Steem(object):
                }
         )
         if not self.wif:
-            wif = Wallet(self.rpc).getPostingKeyForAccount(account)
+            wif = Wallet(self.rpc).getActiveKeyForAccount(account)
             return self.executeOp(op, wif)
         else:
             return self.executeOp(op)
@@ -545,7 +545,7 @@ class Steem(object):
                }
         )
         if not self.wif:
-            wif = Wallet(self.rpc).getPostingKeyForAccount(account)
+            wif = Wallet(self.rpc).getActiveKeyForAccount(account)
             return self.executeOp(op, wif)
         else:
             return self.executeOp(op)
@@ -569,7 +569,7 @@ class Steem(object):
                }
         )
         if not self.wif:
-            wif = Wallet(self.rpc).getPostingKeyForAccount(account)
+            wif = Wallet(self.rpc).getActiveKeyForAccount(account)
             return self.executeOp(op, wif)
         else:
             return self.executeOp(op)

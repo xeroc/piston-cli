@@ -130,6 +130,14 @@ class Wallet(object):
                     return key
             return False
 
+    def getActiveKeyForAccount(self, name):
+            account = self.rpc.get_account(name)
+            for authority in account["active"]["key_auths"]:
+                key = self.getPrivateKeyForPublicKey(authority[0])
+                if key:
+                    return key
+            return False
+
     def removePrivateKeyFromPublicKey(self, pub):
         for key in self.keys:
             if format(PrivateKey(key).pubkey, prefix) == pub:
