@@ -109,12 +109,12 @@ def list_posts(discussions):
             "title",
             "category",
             "replies",
-            "votes",
+            # "votes",
             "payouts",
         ])
         t.align = "l"
         t.align["payouts"] = "r"
-        t.align["votes"] = "r"
+        # t.align["votes"] = "r"
         t.align["replies"] = "c"
         for d in discussions:
             identifier = "@%s/%s" % (d["author"], d["permlink"])
@@ -127,13 +127,17 @@ def list_posts(discussions):
                 identifier_wrapper.fill(d["title"]),
                 d["category"],
                 d["children"],
-                d["net_rshares"],
+                # d["net_rshares"],
                 d["pending_payout_value"],
             ])
         print(t)
 
 
-def dump_recursive_parents(rpc, post_author, post_permlink, limit=1):
+def dump_recursive_parents(rpc,
+                           post_author,
+                           post_permlink,
+                           limit=1,
+                           format="markdown"):
     global currentThreadDepth
 
     limit = int(limit)
@@ -157,11 +161,19 @@ def dump_recursive_parents(rpc, post_author, post_permlink, limit=1):
     for key in ["author", "permlink"]:
         meta[key] = post[key]
     meta["reply"] = "@{author}/{permlink}".format(**post)
-    yaml = frontmatter.Post(markdownify(post["body"]), **meta)
+    if format == "markdown":
+        body = markdownify(post["body"])
+    else:
+        body = post["body"]
+    yaml = frontmatter.Post(body, **meta)
     print(frontmatter.dumps(yaml))
 
 
-def dump_recursive_comments(rpc, post_author, post_permlink, depth=0):
+def dump_recursive_comments(rpc,
+                            post_author,
+                            post_permlink,
+                            depth=0,
+                            format="markdown"):
     global currentThreadDepth
     postWrapper = TextWrapper()
     postWrapper.width = 120
@@ -176,7 +188,11 @@ def dump_recursive_comments(rpc, post_author, post_permlink, depth=0):
         for key in ["author", "permlink"]:
             meta[key] = post[key]
         meta["reply"] = "@{author}/{permlink}".format(**post)
-        yaml = frontmatter.Post(markdownify(post["body"]), **meta)
+        if format == "markdown":
+            body = markdownify(post["body"])
+        else:
+            body = post["body"]
+        yaml = frontmatter.Post(body, **meta)
         print(frontmatter.dumps(yaml))
         reply = rpc.get_content_replies(post["author"], post["permlink"])
         if len(reply):

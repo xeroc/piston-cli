@@ -129,6 +129,9 @@ See examples:
 
      This is great work xeroc!  Thanks for supporting steem!
 
+Further options are: `--parents=x` to show parent posts, and `--format`
+to print the output in `markdown` format, or `raw`.
+
 ### Categories
 
 Existing categories can be listed via:

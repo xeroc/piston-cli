@@ -41,6 +41,9 @@ def main() :
     if "limit" not in config:
         config["limit"] = 10
 
+    if "format" not in config:
+        config["format"] = "markdown"
+
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="Command line tool to interact with the Steem network"
@@ -203,6 +206,13 @@ def main() :
         type=int,
         default=0,
         help='Show x parents for the reply'
+    )
+    parser_read.add_argument(
+        '--format',
+        type=str,
+        default=config["format"],
+        help='Format post',
+        choices=["markdown", "raw"],
     )
 
     """
@@ -611,23 +621,40 @@ def main() :
 
         if args.parents:
             # FIXME inconsistency, use @author/permlink instead!
-            dump_recursive_parents(steem.rpc, post_author, post_permlink, args.parents)
+            dump_recursive_parents(
+                steem.rpc,
+                post_author,
+                post_permlink,
+                args.parents,
+                format=args.format
+            )
 
         if not args.comments and not args.parents:
             post = steem.get_content(args.post)
+
             if post["id"] == "0.0.0":
                 print("Can't find post %s" % args.post)
                 return
+            if args.format == "markdown":
+                body = markdownify(post["body"])
+            else:
+                body = post["body"]
+
             if args.full:
                 meta = post.copy()
-                meta.pop("body", None)
-                yaml = frontmatter.Post(markdownify(post["body"]), **meta)
+                meta.pop("body", None)  # remove body from meta
+                yaml = frontmatter.Post(body, **meta)
                 print(frontmatter.dumps(yaml))
             else:
-                print(markdownify(post["body"]))
+                print(body)
 
         if args.comments:
-            dump_recursive_comments(steem.rpc, post_author, post_permlink)
+            dump_recursive_comments(
+                steem.rpc,
+                post_author,
+                post_permlink,
+                format=args.format
+            )
 
     elif args.command == "categories":
         categories = steem.get_categories(
