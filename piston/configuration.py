@@ -47,6 +47,8 @@ class Configuration(collections.MutableMapping):
         else:
             try:
                 os.makedirs(path)
+            except FileExistsError:
+                return
             except OSError:
                 raise
 
