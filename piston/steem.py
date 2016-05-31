@@ -600,7 +600,7 @@ class Steem(object):
         return discussions
 
     def get_posts(self, limit=10,
-                  sort="recent",
+                  sort="hot",
                   category=None,
                   start=None,):
         """ Get multiple posts in an array.
@@ -611,27 +611,32 @@ class Steem(object):
             :param str start: Show posts after this post. Takes an
                               identifier of the form ``@author/permlink``
         """
-        from functools import partial
-        if sort == "recent":
-            if category:
-                func = partial(self.rpc.get_discussions_in_category_by_last_update, category)
-            else:
-                func = self.rpc.get_discussions_by_last_update
-        elif sort == "payout":
-            if category:
-                func = partial(self.rpc.get_discussions_in_category_by_total_pending_payout, category)
-            else:
-                func = self.rpc.get_discussions_by_total_pending_payout
-        else:
-            print("Invalid choice of '--sort'!")
-            return
-
-        author = ""
-        permlink = ""
         if start:
             author, permlink = resolveIdentifier(start)
+        else:
+            author = None
+            permlink = None
+        discussion_query = {"tag": None,
+                            "limit": limit,
+                            "start_author": author,
+                            "start_permlink": permlink,
+                            "parent_author": None,
+                            "parent_permlink": category,
+                            }
+        if sort not in ["trending",
+                        "created",
+                        "active",
+                        "cashout",
+                        "payout",
+                        "votes",
+                        "children",
+                        "hot"
+                        ]:
+            raise Exception("Invalid choice of '--sort'!")
+            return
 
-        return func(author, permlink, limit)
+        func = getattr(self.rpc, "get_discussions_by_%s" % sort)
+        return func(discussion_query)
 
     def get_categories(self, sort, begin="", limit=10):
         """ List categories

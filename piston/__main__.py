@@ -143,7 +143,7 @@ def main() :
         '--sort',
         type=str,
         default=config["list_sorting"],
-        choices=["recent", "payout"],
+        choices=["trending", "created", "active", "cashout", "payout", "votes", "children", "hot"],
         help='Sort posts'
     )
     parser_list.add_argument(
