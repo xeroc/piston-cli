@@ -19,8 +19,10 @@ class Wallet(object):
     rpc = None
     aes = None
 
-    def __init__(self, rpc, password=None, *args, **kwargs):
+    def __init__(self, rpc, *args, **kwargs):
         self.rpc = rpc
+
+    def open(self, password=None):
         if not password:
             # try to load the file without password
             import getpass
@@ -62,6 +64,13 @@ class Wallet(object):
         else:
             self._storeWallet()
             return True
+
+    def isOpen(self):
+        return self.keys
+
+    def ensureOpen(self):
+        if not self.isOpen():
+            self.open()
 
     @staticmethod
     def exists():
@@ -118,33 +127,37 @@ class Wallet(object):
             return []
 
     def getPrivateKeyForPublicKey(self, pub):
+        self.ensureOpen()
         for key in self.keys:
             if format(PrivateKey(key).pubkey, prefix) == pub:
                 return (key)
 
     def getPostingKeyForAccount(self, name):
-            account = self.rpc.get_account(name)
-            for authority in account["posting"]["key_auths"]:
-                key = self.getPrivateKeyForPublicKey(authority[0])
-                if key:
-                    return key
-            return False
+        account = self.rpc.get_account(name)
+        for authority in account["posting"]["key_auths"]:
+            key = self.getPrivateKeyForPublicKey(authority[0])
+            if key:
+                return key
+        return False
 
     def getActiveKeyForAccount(self, name):
-            account = self.rpc.get_account(name)
-            for authority in account["active"]["key_auths"]:
-                key = self.getPrivateKeyForPublicKey(authority[0])
-                if key:
-                    return key
-            return False
+        self.ensureOpen()
+        account = self.rpc.get_account(name)
+        for authority in account["active"]["key_auths"]:
+            key = self.getPrivateKeyForPublicKey(authority[0])
+            if key:
+                return key
+        return False
 
     def removePrivateKeyFromPublicKey(self, pub):
+        self.ensureOpen()
         for key in self.keys:
             if format(PrivateKey(key).pubkey, prefix) == pub:
                 self.keys.remove(key)
         self._storeWallet()
 
     def addPrivateKey(self, wif):
+        self.ensureOpen()
         try:
             if isinstance(wif, PrivateKey):
                 pub = format(wif.pubkey, prefix)
@@ -159,6 +172,10 @@ class Wallet(object):
         self._storeWallet()
         return pub
 
+    def getAccountFromPrivateKey(self, wif):
+        pub = format(PrivateKey(wif).pubkey, prefix)
+        return self.rpc.get_key_references([pub])[0][0]
+
     def getAccount(self, pub):
             name = self.rpc.get_key_references([pub])[0]
             if not name:
@@ -170,6 +187,7 @@ class Wallet(object):
         return [self.getAccount(a) for a in self.getPublicKeys()]
 
     def getPublicKeys(self):
+        self.ensureOpen()
         pub = []
         for key in self.keys:
             try:

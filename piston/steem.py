@@ -125,6 +125,7 @@ class Steem(object):
                             will not load from wallet (optional)
         """
         self.connect(*args, **kwargs)
+        self.wallet = Wallet(self.rpc)
 
         self.debug = False
         if "debug" in kwargs:
@@ -133,6 +134,10 @@ class Steem(object):
         self.wif = None
         if "wif" in kwargs:
             self.wif = kwargs["wif"]
+        if "default_author" not in config and self.wif:
+            config["default_author"] = self.wallet.getAccountFromPrivateKey(self.wif)
+        if "default_voter" not in config and self.wif:
+            config["default_author"] = self.wallet.getAccountFromPrivateKey(self.wif)
 
     def connect(self, *args,
                 node=None,
@@ -342,7 +347,7 @@ class Steem(object):
                "json_metadata": ""}  # fixme: allow for posting of metadata
         )
         if not self.wif:
-            wif = Wallet(self.rpc).getPostingKeyForAccount(author)
+            wif = self.wallet.getPostingKeyForAccount(author)
             return self.executeOp(op, wif)
         else:
             return self.executeOp(op)
@@ -385,7 +390,7 @@ class Steem(object):
                "weight": int(weight * STEEMIT_1_PERCENT)}
         )
         if not self.wif:
-            wif = Wallet(self.rpc).getPostingKeyForAccount(voter)
+            wif = self.wallet.getPostingKeyForAccount(voter)
             return self.executeOp(op, wif)
         else:
             return self.executeOp(op)
@@ -434,34 +439,31 @@ class Steem(object):
                 "Not creator account given. Define it with " +
                 "creator=x, or set the default_author in piston")
 
-        if storekeys:
-            wallet = Wallet(self.rpc)
-
         " Generate new keys "
         from graphenebase.account import BrainKey
         # owner
         key = BrainKey()
         brain_key = key.get_brainkey()
         if storekeys:
-            wallet.addPrivateKey(key.get_private_key())
+            self.wallet.addPrivateKey(key.get_private_key())
         owner = format(key.get_public_key(), prefix)
 
         # active
         key = key.next_sequence()
         if storekeys:
-            wallet.addPrivateKey(key.get_private_key())
+            self.wallet.addPrivateKey(key.get_private_key())
         active = format(key.get_public_key(), prefix)
 
         # posting
         key = key.next_sequence()
         if storekeys:
-            wallet.addPrivateKey(key.get_private_key())
+            self.wallet.addPrivateKey(key.get_private_key())
         posting = format(key.get_public_key(), prefix)
 
         # memo
         key = key.next_sequence()
         if storekeys:
-            wallet.addPrivateKey(key.get_private_key())
+            self.wallet.addPrivateKey(key.get_private_key())
         memo = format(key.get_public_key(), prefix)
 
         owner_key_authority = [[owner, 1]]
@@ -505,7 +507,7 @@ class Steem(object):
 
         op = transactions.Account_create(**s)
         if not self.wif:
-            wif = Wallet(self.rpc).getPostingKeyForAccount(creator)
+            wif = self.wallet.getPostingKeyForAccount(creator)
             self.executeOp(op, wif)
         else:
             self.executeOp(op)
@@ -527,7 +529,7 @@ class Steem(object):
                }
         )
         if not self.wif:
-            wif = Wallet(self.rpc).getActiveKeyForAccount(account)
+            wif = self.wallet.getActiveKeyForAccount(account)
             return self.executeOp(op, wif)
         else:
             return self.executeOp(op)
@@ -545,7 +547,7 @@ class Steem(object):
                }
         )
         if not self.wif:
-            wif = Wallet(self.rpc).getActiveKeyForAccount(account)
+            wif = self.wallet.getActiveKeyForAccount(account)
             return self.executeOp(op, wif)
         else:
             return self.executeOp(op)
@@ -569,7 +571,7 @@ class Steem(object):
                }
         )
         if not self.wif:
-            wif = Wallet(self.rpc).getActiveKeyForAccount(account)
+            wif = self.wallet.getActiveKeyForAccount(account)
             return self.executeOp(op, wif)
         else:
             return self.executeOp(op)
