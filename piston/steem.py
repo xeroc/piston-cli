@@ -29,23 +29,33 @@ class Comment(object):
             )
         self.steem = steem
 
+        self._patch = False
+
         if isinstance(comment, str):
             # identifier
             self.identifier = comment
             post_author, post_permlink = resolveIdentifier(comment)
             post = self.steem.rpc.get_content(post_author, post_permlink)
-            for key in post:
-                setattr(self, key, post[key])
 
         elif (isinstance(comment, dict) and
-                "id" in comment and
-                comment["id"].split(".")[1] == "8"):
-            for key in post:
-                setattr(self, key, comment[key])
+                "author" in comment and
+                "permlink" in comment):
             self.identifier = constructIdentifier(
                 comment["author"],
                 comment["permlink"]
             )
+            import re
+            if re.match("^@@", comment["body"]):
+                self._patched = True
+                self._patch = comment["body"]
+
+            post = self.steem.rpc.get_content(
+                comment["author"],
+                comment["permlink"]
+            )
+
+            for key in post:
+                setattr(self, key, post[key])
 
         self.openingPostIdentifier, self.category = self._getOpeningPost()
 
@@ -677,4 +687,4 @@ class Steem(object):
 
     def stream_comments(self, *args, **kwargs):
         for c in self.rpc.stream("comment", *args, **kwargs):
-            yield Comment(self, "@{author}/{permlink}".format(**c))
+            yield Comment(self, c)
