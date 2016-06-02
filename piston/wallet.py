@@ -6,6 +6,8 @@ from Crypto import Random
 from Crypto.Cipher import AES
 from steembase import PrivateKey
 from appdirs import user_data_dir
+import logging
+log = logging.getLogger("piston.wallet")
 appname = "piston"
 appauthor = "Fabian Schuh"
 walletFile = "wallet.dat"
@@ -90,7 +92,7 @@ class Wallet(object):
     def _storeWallet(self):
         data_dir = user_data_dir(appname, appauthor)
         f = os.path.join(data_dir, walletFile)
-        print("Your encrypted wallet file is located at " + f)
+        log.info("Your encrypted wallet file is located at " + f)
         self.mkdir_p(data_dir)
         try:
             # Test if ciphertext can be constructed
@@ -166,7 +168,7 @@ class Wallet(object):
                 pub = format(PrivateKey(wif).pubkey, prefix)
                 self.keys.append(wif)
         except:
-            print("Invalid Private Key Format. Please use WIF!")
+            log.error("Invalid Private Key Format. Please use WIF!")
             return
         self.keys = list(set(self.keys))
         self._storeWallet()

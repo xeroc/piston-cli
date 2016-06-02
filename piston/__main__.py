@@ -24,6 +24,11 @@ import frontmatter
 import time
 from prettytable import PrettyTable
 
+import logging
+log = logging.getLogger("piston")
+log.setLevel(logging.WARNING)
+log.addHandler(logging.StreamHandler())
+
 
 def main() :
     global args

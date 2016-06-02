@@ -8,6 +8,8 @@ from piston.utils import (
 )
 from piston.wallet import Wallet
 from piston.configuration import Configuration
+import logging
+log = logging.getLogger("piston.steem")
 
 #: Configuration from local user settings
 config = Configuration()
@@ -219,8 +221,7 @@ class Steem(object):
         tx = transactions.JsonObj(tx)
 
         if self.debug:
-            from pprint import pprint
-            pprint(tx)
+            log.debug(str(tx))
 
         if not self.nobroadcast:
             try:
@@ -228,7 +229,7 @@ class Steem(object):
             except:
                 raise BroadcastingError
         else:
-            print("Not broadcasting anything!")
+            log.warning("Not broadcasting anything!")
 
         return tx
 
@@ -278,7 +279,7 @@ class Steem(object):
             newbody = dmp.patch_toText(patch)
 
             if not newbody:
-                print("No changes made! Skipping ...")
+                log.info("No changes made! Skipping ...")
                 return
 
         reply_identifier = constructIdentifier(
@@ -667,7 +668,7 @@ class Steem(object):
         elif sort == "recent":
             func = self.rpc.get_recent_categories
         else:
-            print("Invalid choice of 'sort'!")
+            log.error("Invalid choice of 'sort'!")
             return
 
         return func(begin, limit)
