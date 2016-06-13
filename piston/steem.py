@@ -1,3 +1,5 @@
+import string
+import random
 from steemapi.steemclient import SteemNodeRPC
 from steembase import PrivateKey, PublicKey, Address
 import steembase.transactions as transactions
@@ -451,31 +453,23 @@ class Steem(object):
                 "creator=x, or set the default_author in piston")
 
         " Generate new keys "
-        from graphenebase.account import BrainKey
+        from graphenebase.account import PasswordKey
+        password = ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(16))
+        posting_key = PasswordKey(account_name, password, role="posting")
+        active_key  = PasswordKey(account_name, password, role="active")
+        owner_key   = PasswordKey(account_name, password, role="owner")
+        memo_key    = PasswordKey(account_name, password, role="memo")
+
+        owner   = format(owner_key.get_public_key(), prefix)
+        active  = format(active_key.get_public_key(), prefix)
+        posting = format(posting_key.get_public_key(), prefix)
+        memo    = format(memo_key.get_public_key(), prefix)
         # owner
-        key = BrainKey()
-        brain_key = key.get_brainkey()
         if storekeys:
-            self.wallet.addPrivateKey(key.get_private_key())
-        owner = format(key.get_public_key(), prefix)
-
-        # active
-        key = key.next_sequence()
-        if storekeys:
-            self.wallet.addPrivateKey(key.get_private_key())
-        active = format(key.get_public_key(), prefix)
-
-        # posting
-        key = key.next_sequence()
-        if storekeys:
-            self.wallet.addPrivateKey(key.get_private_key())
-        posting = format(key.get_public_key(), prefix)
-
-        # memo
-        key = key.next_sequence()
-        if storekeys:
-            self.wallet.addPrivateKey(key.get_private_key())
-        memo = format(key.get_public_key(), prefix)
+            self.wallet.addPrivateKey(owner_key.get_private_key())
+            self.wallet.addPrivateKey(active_key.get_private_key())
+            self.wallet.addPrivateKey(posting_key.get_private_key())
+            self.wallet.addPrivateKey(memo_key.get_private_key())
 
         owner_key_authority = [[owner, 1]]
         active_key_authority = [[active, 1]]
@@ -523,7 +517,7 @@ class Steem(object):
         else:
             self.executeOp(op)
 
-        return brain_key
+        return password
 
     def transfer(self, to, amount, memo=None, account=None):
         if not account:
