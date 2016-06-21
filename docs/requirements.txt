@@ -1,0 +1,2 @@
+websockets==2.0
+steem-piston
