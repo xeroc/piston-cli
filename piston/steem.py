@@ -24,9 +24,15 @@ prefix = "STM"
 # prefix = "TST"
 
 
-class Comment(object):
+class Post(object):
+    """ This object gets instanciated by Steem.streams and is used as an
+        abstraction layer for Comments in Steam
 
-    def __init__(self, steem, comment):
+        :param Steem steem: An instance of the Steem() object
+        :param object post: The post as obtained by `get_content`
+    """
+
+    def __init__(self, steem, post):
         if not isinstance(steem, Steem):
             raise ValueError(
                 "First argument must be instance of Steem()"
@@ -35,27 +41,27 @@ class Comment(object):
 
         self._patch = False
 
-        if isinstance(comment, str):
+        if isinstance(post, str):
             # identifier
-            self.identifier = comment
-            post_author, post_permlink = resolveIdentifier(comment)
+            self.identifier = post
+            post_author, post_permlink = resolveIdentifier(post)
             post = self.steem.rpc.get_content(post_author, post_permlink)
 
-        elif (isinstance(comment, dict) and
-                "author" in comment and
-                "permlink" in comment):
+        elif (isinstance(post, dict) and
+                "author" in post and
+                "permlink" in post):
             self.identifier = constructIdentifier(
-                comment["author"],
-                comment["permlink"]
+                post["author"],
+                post["permlink"]
             )
             import re
-            if re.match("^@@", comment["body"]):
+            if re.match("^@@", post["body"]):
                 self._patched = True
-                self._patch = comment["body"]
+                self._patch = post["body"]
 
             post = self.steem.rpc.get_content(
-                comment["author"],
-                comment["permlink"]
+                post["author"],
+                post["permlink"]
             )
 
             for key in post:
@@ -64,18 +70,17 @@ class Comment(object):
         self.openingPostIdentifier, self.category = self._getOpeningPost()
 
     def _getOpeningPost(self):
-        post = self
         while True:
-            if post["parent_author"] and self["parent_permlink"]:
-                post = self.steem.rpc.get_content(
-                    post["parent_author"],
-                    post["parent_permlink"]
+            if self["parent_author"] and self["parent_permlink"]:
+                self = self.steem.rpc.get_content(
+                    self["parent_author"],
+                    self["parent_permlink"]
                 )
             else:
                 return constructIdentifier(
-                    post["author"],
-                    post["permlink"]
-                ), post["parent_permlink"]
+                    self["author"],
+                    self["permlink"]
+                ), self["parent_permlink"]
                 break
 
     def __getitem__(self, key):
@@ -85,15 +90,37 @@ class Comment(object):
             return None
 
     def reply(self, body, title="", author="", meta=None):
+        """ Reply to the post
+
+            :param str body: (required) body of the reply
+            :param str title: Title of the reply
+            :param str author: Author of reply
+            :param json meta: JSON Meta data
+        """
         return self.steem.reply(self.identifier, body, title, author, meta)
 
     def upvote(self, weight=+100, voter=None):
+        """ Upvote the post
+
+            :param float weight: (optional) Weight for posting (-100.0 - +100.0) defaults to +100.0
+            :param str voter: (optional) Voting account
+        """
         return self.vote(weight, voter=voter)
 
     def downvote(self, weight=-100, voter=None):
+        """ Downvote the post
+
+            :param float weight: (optional) Weight for posting (-100.0 - +100.0) defaults to -100.0
+            :param str voter: (optional) Voting account
+        """
         return self.vote(weight, voter=voter)
 
     def vote(self, weight, voter=None):
+        """ Vote the post
+
+            :param float weight: Weight for posting (-100.0 - +100.0)
+            :param str voter: Voting account
+        """
         return self.steem.vote(self.identifier, weight, voter=voter)
 
 
@@ -588,7 +615,7 @@ class Steem(object):
                                    the form ``@author/permlink``
         """
         post_author, post_permlink = resolveIdentifier(identifier)
-        return self.rpc.get_content(post_author, post_permlink)
+        return Post(self, self.rpc.get_content(post_author, post_permlink))
 
     def get_replies(self, author, skipown=True):
         """ Get replies for an author
@@ -682,4 +709,4 @@ class Steem(object):
 
     def stream_comments(self, *args, **kwargs):
         for c in self.rpc.stream("comment", *args, **kwargs):
-            yield Comment(self, c)
+            yield Post(self, c)
