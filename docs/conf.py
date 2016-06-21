@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
-# python-steem documentation build configuration file, created by
+# piston documentation build configuration file, created by
 # sphinx-quickstart on Fri Jun  5 14:06:38 2015.
 #
 # This file is execfile()d with the current directory set to its
@@ -21,7 +21,6 @@ import shlex
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 sys.path.insert(0, os.path.abspath('..'))
-sys.path.insert(0, os.path.abspath('../scripts/'))
 
 # -- General configuration ------------------------------------------------
 
@@ -48,7 +47,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = 'python-steem'
+project = 'piston'
 copyright = '2015, Fabian Schuh'
 author = 'Fabian Schuh'
 
@@ -110,7 +109,7 @@ todo_include_todos = False
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = 'pyramid'
+html_theme = 'nature'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -122,7 +121,7 @@ html_theme = 'pyramid'
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
-#html_title = None
+html_title = "piston - swiss army knife for the Steem network"
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
 #html_short_title = None
@@ -202,7 +201,7 @@ html_static_path = ['_static']
 #html_search_scorer = 'scorer.js'
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'python-steemdoc'
+htmlhelp_basename = 'pistondoc'
 
 # -- Options for LaTeX output ---------------------------------------------
 
@@ -224,7 +223,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-  (master_doc, 'python-steem.tex', 'python-steem Documentation',
+  (master_doc, 'piston.tex', 'piston',
    'Fabian Schuh', 'manual'),
 ]
 
@@ -254,7 +253,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'python-steem', 'python-steem Documentation',
+    (master_doc, 'piston', 'piston',
      [author], 1)
 ]
 
@@ -268,8 +267,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-  (master_doc, 'python-steem', 'python-steem Documentation',
-   author, 'python-steem', 'One line description of project.',
+  (master_doc, 'piston', 'piston',
+   author, 'piston', 'One line description of project.',
    'Miscellaneous'),
 ]
 
