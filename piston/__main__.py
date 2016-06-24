@@ -38,7 +38,7 @@ def main() :
         config["default_vote_weight"] = 100.0
 
     if "list_sorting" not in config:
-        config["list_sorting"] = "recent"
+        config["list_sorting"] = "hot"
 
     if "categories_sorting" not in config:
         config["categories_sorting"] = "trending"
@@ -61,7 +61,7 @@ def main() :
         '--node',
         type=str,
         default=config["node"],
-        help='Websocket URL for public Steem API (default: "wss://steemit.com/ws")'
+        help='Websocket URL for public Steem API (default: "wss://this.piston.rocks/")'
     )
     parser.add_argument(
         '--rpcuser',
@@ -79,6 +79,12 @@ def main() :
         '--nobroadcast',
         action='store_true',
         help='Do not broadcast anything'
+    )
+    parser.add_argument(
+        '--verbose', '-v',
+        type=int,
+        default=3,
+        help='Verbosity'
     )
     subparsers = parser.add_subparsers(help='sub-command help')
 
@@ -480,6 +486,40 @@ def main() :
         Parse Arguments
     """
     args = parser.parse_args()
+
+    # Logging
+    log = logging.getLogger("piston")
+    verbosity = ["critical",
+                 "error",
+                 "warn",
+                 "info",
+                 "debug"][int(min(args.verbose, 4))]
+    log.setLevel(getattr(logging, verbosity.upper()))
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    ch = logging.StreamHandler()
+    ch.setLevel(getattr(logging, verbosity.upper()))
+    ch.setFormatter(formatter)
+    log.addHandler(ch)
+
+    # GrapheneAPI logging
+    if args.verbose > 4:
+        verbosity = ["critical",
+                     "error",
+                     "warn",
+                     "info",
+                     "debug"][int(min((args.verbose - 4), 4))]
+        gphlog = logging.getLogger("graphenebase")
+        gphlog.setLevel(getattr(logging, verbosity.upper()))
+        gphlog.addHandler(ch)
+    if args.verbose > 8:
+        verbosity = ["critical",
+                     "error",
+                     "warn",
+                     "info",
+                     "debug"][int(min((args.verbose - 8), 4))]
+        gphlog = logging.getLogger("grapheneapi")
+        gphlog.setLevel(getattr(logging, verbosity.upper()))
+        gphlog.addHandler(ch)
 
     rpc_not_required = ["set", ""]
     if args.command not in rpc_not_required and args.command:
