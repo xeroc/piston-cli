@@ -27,7 +27,7 @@ Library
 Piston can be used as a library and thus helps you
 
 * deal with configuration settings (node, prefered options, ..)
-* accounts and private kes (with integrated wallet)
+* accounts and private keys (with integrated wallet)
 * presentation of Steem content
 
 It further can be used to easily deploy bots on steem. The most easy
