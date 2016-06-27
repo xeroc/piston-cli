@@ -18,7 +18,7 @@ config = Configuration()
 
 #: Default settings
 if "node" not in config or not config["node"]:
-    config["node"] = "wss://steemit.com/ws"
+    config["node"] = "wss://this.piston.rocks/"
 
 prefix = "STM"
 # prefix = "TST"
@@ -284,7 +284,7 @@ class Steem(object):
     def edit(self,
              identifier,
              body,
-             meta=None,
+             meta={},
              replace=False):
         """ Edit an existing post
 
@@ -316,13 +316,21 @@ class Steem(object):
             original_post["parent_permlink"]
         )
 
+        new_meta = {}
+        if meta:
+            if original_post["json_metadata"]:
+                import json
+                new_meta = json.loads(original_post["json_metadata"]).update(meta)
+            else:
+                new_meta = meta
+
         return self.post(
             original_post["title"],
             newbody,
             reply_identifier=reply_identifier,
             author=original_post["author"],
             permlink=original_post["permlink"],
-            meta=original_post["json_metadata"],
+            meta=new_meta,
         )
 
     def post(self,
@@ -330,7 +338,7 @@ class Steem(object):
              body,
              author=None,
              permlink=None,
-             meta="",
+             meta={},
              reply_identifier=None,
              category=""):
         """ New post
@@ -384,7 +392,7 @@ class Steem(object):
                "permlink": permlink,
                "title": title,
                "body": body,
-               "json_metadata": ""}  # fixme: allow for posting of metadata
+               "json_metadata": meta}
         )
         if not self.wif:
             wif = self.wallet.getPostingKeyForAccount(author)
@@ -437,7 +445,7 @@ class Steem(object):
 
     def create_account(self,
                        account_name,
-                       json_meta="",
+                       json_meta={},
                        creator=None,
                        additional_owner_keys=[],
                        additional_active_keys=[],
@@ -546,12 +554,18 @@ class Steem(object):
 
         return password
 
-    def transfer(self, to, amount, memo=None, account=None):
+    def transfer(self, to, amount, memo="", account=None):
         if not account:
             if "default_account" in config:
                 account = config["default_account"]
         if not account:
-            raise ValueError("You need to provide a 'from' account")
+            raise ValueError("You need to provide an account")
+
+        if not to:
+            if "default_account" in config:
+                to = config["default_account"]
+        if not to:
+            raise ValueError("You need to provide a 'to' account")
 
         op = transactions.Transfer(
             **{"from": account,
@@ -571,7 +585,7 @@ class Steem(object):
             if "default_account" in config:
                 account = config["default_account"]
         if not account:
-            raise ValueError("You need to provide a 'from' account")
+            raise ValueError("You need to provide an account")
 
         op = transactions.Withdraw_vesting(
             **{"account": account,
@@ -589,11 +603,12 @@ class Steem(object):
             if "default_account" in config:
                 account = config["default_account"]
         if not account:
-            raise ValueError("You need to provide a 'from' account")
+            raise ValueError("You need to provide an account")
+
         if not to:
             if "default_account" in config:
                 to = config["default_account"]
-        if not account:
+        if not to:
             raise ValueError("You need to provide a 'to' account")
 
         op = transactions.Transfer_to_vesting(
@@ -645,27 +660,19 @@ class Steem(object):
             :param str start: Show posts after this post. Takes an
                               identifier of the form ``@author/permlink``
         """
-        if start:
-            author, permlink = resolveIdentifier(start)
-        else:
-            author = None
-            permlink = None
+
         discussion_query = {"tag": None,
                             "limit": limit,
-                            "start_author": author,
-                            "start_permlink": permlink,
-                            "parent_author": None,
-                            "parent_permlink": category,
                             }
-        if sort not in ["trending",
-                        "created",
-                        "active",
-                        "cashout",
-                        "payout",
-                        "votes",
-                        "children",
-                        "hot"
-                        ]:
+        if start:
+            author, permlink = resolveIdentifier(start)
+            discussion_query["start_author"] = author
+            discussion_query["start_permlink"] = permlink
+        if category:
+            discussion_query["parent_permlink"] = category
+
+        if sort not in ["trending", "created", "active", "cashout",
+                        "payout", "votes", "children", "hot"]:
             raise Exception("Invalid choice of '--sort'!")
             return
 
@@ -689,7 +696,7 @@ class Steem(object):
         elif sort == "recent":
             func = self.rpc.get_recent_categories
         else:
-            log.error("Invalid choice of 'sort'!")
+            log.error("Invalid choice of '--sort' (%s)!" % sort)
             return
 
         return func(begin, limit)
