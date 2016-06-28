@@ -104,33 +104,37 @@ def markdownify(t):
 
 
 def list_posts(discussions):
-        t = PrettyTable([
-            "identifier",
-            "title",
-            "category",
-            "replies",
-            # "votes",
-            "payouts",
-        ])
-        t.align = "l"
-        t.align["payouts"] = "r"
-        # t.align["votes"] = "r"
-        t.align["replies"] = "c"
-        for d in discussions:
-            identifier = "@%s/%s" % (d["author"], d["permlink"])
-            identifier_wrapper = TextWrapper()
-            identifier_wrapper.width = 60
-            identifier_wrapper.subsequent_indent = " "
+    t = PrettyTable([
+        "identifier",
+        "title",
+        "category",
+        "replies",
+        # "votes",
+        "payouts",
+    ])
+    t.align = "l"
+    t.align["payouts"] = "r"
+    # t.align["votes"] = "r"
+    t.align["replies"] = "c"
+    for d in discussions:
+        # Some discussions are dicts or identifiers
+        if isinstance(d, str):
+            d = discussions[d]
 
-            t.add_row([
-                identifier_wrapper.fill(identifier),
-                identifier_wrapper.fill(d["title"]),
-                d["category"],
-                d["children"],
-                # d["net_rshares"],
-                d["pending_payout_value"],
-            ])
-        print(t)
+        identifier = "@%s/%s" % (d["author"], d["permlink"])
+        identifier_wrapper = TextWrapper()
+        identifier_wrapper.width = 60
+        identifier_wrapper.subsequent_indent = " "
+
+        t.add_row([
+            identifier_wrapper.fill(identifier),
+            identifier_wrapper.fill(d["title"]),
+            d["category"],
+            d["children"],
+            # d["net_rshares"],
+            d["pending_payout_value"],
+        ])
+    print(t)
 
 
 def dump_recursive_parents(rpc,

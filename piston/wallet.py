@@ -6,6 +6,8 @@ from Crypto import Random
 from Crypto.Cipher import AES
 from steembase import PrivateKey
 from appdirs import user_data_dir
+import logging
+log = logging.getLogger("piston.wallet")
 appname = "piston"
 appauthor = "Fabian Schuh"
 walletFile = "wallet.dat"
@@ -19,8 +21,10 @@ class Wallet(object):
     rpc = None
     aes = None
 
-    def __init__(self, rpc, password=None, *args, **kwargs):
+    def __init__(self, rpc, *args, **kwargs):
         self.rpc = rpc
+
+    def open(self, password=None):
         if not password:
             # try to load the file without password
             import getpass
@@ -63,6 +67,13 @@ class Wallet(object):
             self._storeWallet()
             return True
 
+    def isOpen(self):
+        return self.keys
+
+    def ensureOpen(self):
+        if not self.isOpen():
+            self.open()
+
     @staticmethod
     def exists():
         data_dir = user_data_dir(appname, appauthor)
@@ -81,7 +92,7 @@ class Wallet(object):
     def _storeWallet(self):
         data_dir = user_data_dir(appname, appauthor)
         f = os.path.join(data_dir, walletFile)
-        print("Your encrypted wallet file is located at " + f)
+        log.info("Your encrypted wallet file is located at " + f)
         self.mkdir_p(data_dir)
         try:
             # Test if ciphertext can be constructed
@@ -118,33 +129,37 @@ class Wallet(object):
             return []
 
     def getPrivateKeyForPublicKey(self, pub):
+        self.ensureOpen()
         for key in self.keys:
             if format(PrivateKey(key).pubkey, prefix) == pub:
                 return (key)
 
     def getPostingKeyForAccount(self, name):
-            account = self.rpc.get_account(name)
-            for authority in account["posting"]["key_auths"]:
-                key = self.getPrivateKeyForPublicKey(authority[0])
-                if key:
-                    return key
-            return False
+        account = self.rpc.get_account(name)
+        for authority in account["posting"]["key_auths"]:
+            key = self.getPrivateKeyForPublicKey(authority[0])
+            if key:
+                return key
+        return False
 
     def getActiveKeyForAccount(self, name):
-            account = self.rpc.get_account(name)
-            for authority in account["active"]["key_auths"]:
-                key = self.getPrivateKeyForPublicKey(authority[0])
-                if key:
-                    return key
-            return False
+        self.ensureOpen()
+        account = self.rpc.get_account(name)
+        for authority in account["active"]["key_auths"]:
+            key = self.getPrivateKeyForPublicKey(authority[0])
+            if key:
+                return key
+        return False
 
     def removePrivateKeyFromPublicKey(self, pub):
+        self.ensureOpen()
         for key in self.keys:
             if format(PrivateKey(key).pubkey, prefix) == pub:
                 self.keys.remove(key)
         self._storeWallet()
 
     def addPrivateKey(self, wif):
+        self.ensureOpen()
         try:
             if isinstance(wif, PrivateKey):
                 pub = format(wif.pubkey, prefix)
@@ -153,11 +168,15 @@ class Wallet(object):
                 pub = format(PrivateKey(wif).pubkey, prefix)
                 self.keys.append(wif)
         except:
-            print("Invalid Private Key Format. Please use WIF!")
+            log.error("Invalid Private Key Format. Please use WIF!")
             return
         self.keys = list(set(self.keys))
         self._storeWallet()
         return pub
+
+    def getAccountFromPrivateKey(self, wif):
+        pub = format(PrivateKey(wif).pubkey, prefix)
+        return self.rpc.get_key_references([pub])[0][0]
 
     def getAccount(self, pub):
             name = self.rpc.get_key_references([pub])[0]
@@ -170,6 +189,7 @@ class Wallet(object):
         return [self.getAccount(a) for a in self.getPublicKeys()]
 
     def getPublicKeys(self):
+        self.ensureOpen()
         pub = []
         for key in self.keys:
             try:

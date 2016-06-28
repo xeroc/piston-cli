@@ -1,3 +1,5 @@
+import string
+import random
 from steemapi.steemclient import SteemNodeRPC
 from steembase import PrivateKey, PublicKey, Address
 import steembase.transactions as transactions
@@ -8,60 +10,77 @@ from piston.utils import (
 )
 from piston.wallet import Wallet
 from piston.configuration import Configuration
+import logging
+log = logging.getLogger("piston.steem")
 
 #: Configuration from local user settings
 config = Configuration()
 
 #: Default settings
 if "node" not in config or not config["node"]:
-    config["node"] = "wss://steemit.com/ws"
+    config["node"] = "wss://this.piston.rocks/"
 
 prefix = "STM"
 # prefix = "TST"
 
 
-class Comment(object):
+class Post(object):
+    """ This object gets instanciated by Steem.streams and is used as an
+        abstraction layer for Comments in Steam
 
-    def __init__(self, steem, comment):
+        :param Steem steem: An instance of the Steem() object
+        :param object post: The post as obtained by `get_content`
+    """
+
+    def __init__(self, steem, post):
         if not isinstance(steem, Steem):
             raise ValueError(
                 "First argument must be instance of Steem()"
             )
         self.steem = steem
 
-        if isinstance(comment, str):
+        self._patch = False
+
+        if isinstance(post, str):
             # identifier
-            self.identifier = comment
-            post_author, post_permlink = resolveIdentifier(comment)
+            self.identifier = post
+            post_author, post_permlink = resolveIdentifier(post)
             post = self.steem.rpc.get_content(post_author, post_permlink)
+
+        elif (isinstance(post, dict) and
+                "author" in post and
+                "permlink" in post):
+            self.identifier = constructIdentifier(
+                post["author"],
+                post["permlink"]
+            )
+            import re
+            if re.match("^@@", post["body"]):
+                self._patched = True
+                self._patch = post["body"]
+
+            post = self.steem.rpc.get_content(
+                post["author"],
+                post["permlink"]
+            )
+
             for key in post:
                 setattr(self, key, post[key])
-
-        elif (isinstance(comment, dict) and
-                "id" in comment and
-                comment["id"].split(".")[1] == "8"):
-            for key in post:
-                setattr(self, key, comment[key])
-            self.identifier = constructIdentifier(
-                comment["author"],
-                comment["permlink"]
-            )
 
         self.openingPostIdentifier, self.category = self._getOpeningPost()
 
     def _getOpeningPost(self):
-        post = self
         while True:
-            if post["parent_author"] and self["parent_permlink"]:
-                post = self.steem.rpc.get_content(
-                    post["parent_author"],
-                    post["parent_permlink"]
+            if self["parent_author"] and self["parent_permlink"]:
+                self = self.steem.rpc.get_content(
+                    self["parent_author"],
+                    self["parent_permlink"]
                 )
             else:
                 return constructIdentifier(
-                    post["author"],
-                    post["permlink"]
-                ), post["parent_permlink"]
+                    self["author"],
+                    self["permlink"]
+                ), self["parent_permlink"]
                 break
 
     def __getitem__(self, key):
@@ -71,15 +90,37 @@ class Comment(object):
             return None
 
     def reply(self, body, title="", author="", meta=None):
+        """ Reply to the post
+
+            :param str body: (required) body of the reply
+            :param str title: Title of the reply
+            :param str author: Author of reply
+            :param json meta: JSON Meta data
+        """
         return self.steem.reply(self.identifier, body, title, author, meta)
 
     def upvote(self, weight=+100, voter=None):
+        """ Upvote the post
+
+            :param float weight: (optional) Weight for posting (-100.0 - +100.0) defaults to +100.0
+            :param str voter: (optional) Voting account
+        """
         return self.vote(weight, voter=voter)
 
     def downvote(self, weight=-100, voter=None):
+        """ Downvote the post
+
+            :param float weight: (optional) Weight for posting (-100.0 - +100.0) defaults to -100.0
+            :param str voter: (optional) Voting account
+        """
         return self.vote(weight, voter=voter)
 
     def vote(self, weight, voter=None):
+        """ Vote the post
+
+            :param float weight: Weight for posting (-100.0 - +100.0)
+            :param str voter: Voting account
+        """
         return self.steem.vote(self.identifier, weight, voter=voter)
 
 
@@ -125,6 +166,7 @@ class Steem(object):
                             will not load from wallet (optional)
         """
         self.connect(*args, **kwargs)
+        self.wallet = Wallet(self.rpc)
 
         self.debug = False
         if "debug" in kwargs:
@@ -133,6 +175,10 @@ class Steem(object):
         self.wif = None
         if "wif" in kwargs:
             self.wif = kwargs["wif"]
+        if "default_author" not in config and self.wif:
+            config["default_author"] = self.wallet.getAccountFromPrivateKey(self.wif)
+        if "default_voter" not in config and self.wif:
+            config["default_author"] = self.wallet.getAccountFromPrivateKey(self.wif)
 
     def connect(self, *args,
                 node=None,
@@ -204,8 +250,7 @@ class Steem(object):
         tx = transactions.JsonObj(tx)
 
         if self.debug:
-            from pprint import pprint
-            pprint(tx)
+            log.debug(str(tx))
 
         if not self.nobroadcast:
             try:
@@ -213,7 +258,7 @@ class Steem(object):
             except:
                 raise BroadcastingError
         else:
-            print("Not broadcasting anything!")
+            log.warning("Not broadcasting anything!")
 
         return tx
 
@@ -239,7 +284,7 @@ class Steem(object):
     def edit(self,
              identifier,
              body,
-             meta=None,
+             meta={},
              replace=False):
         """ Edit an existing post
 
@@ -263,7 +308,7 @@ class Steem(object):
             newbody = dmp.patch_toText(patch)
 
             if not newbody:
-                print("No changes made! Skipping ...")
+                log.info("No changes made! Skipping ...")
                 return
 
         reply_identifier = constructIdentifier(
@@ -271,13 +316,21 @@ class Steem(object):
             original_post["parent_permlink"]
         )
 
+        new_meta = {}
+        if meta:
+            if original_post["json_metadata"]:
+                import json
+                new_meta = json.loads(original_post["json_metadata"]).update(meta)
+            else:
+                new_meta = meta
+
         return self.post(
             original_post["title"],
             newbody,
             reply_identifier=reply_identifier,
             author=original_post["author"],
             permlink=original_post["permlink"],
-            meta=original_post["json_metadata"],
+            meta=new_meta,
         )
 
     def post(self,
@@ -285,7 +338,7 @@ class Steem(object):
              body,
              author=None,
              permlink=None,
-             meta="",
+             meta={},
              reply_identifier=None,
              category=""):
         """ New post
@@ -339,10 +392,10 @@ class Steem(object):
                "permlink": permlink,
                "title": title,
                "body": body,
-               "json_metadata": ""}  # fixme: allow for posting of metadata
+               "json_metadata": meta}
         )
         if not self.wif:
-            wif = Wallet(self.rpc).getPostingKeyForAccount(author)
+            wif = self.wallet.getPostingKeyForAccount(author)
             return self.executeOp(op, wif)
         else:
             return self.executeOp(op)
@@ -385,14 +438,14 @@ class Steem(object):
                "weight": int(weight * STEEMIT_1_PERCENT)}
         )
         if not self.wif:
-            wif = Wallet(self.rpc).getPostingKeyForAccount(voter)
+            wif = self.wallet.getPostingKeyForAccount(voter)
             return self.executeOp(op, wif)
         else:
             return self.executeOp(op)
 
     def create_account(self,
                        account_name,
-                       json_meta="",
+                       json_meta={},
                        creator=None,
                        additional_owner_keys=[],
                        additional_active_keys=[],
@@ -434,35 +487,24 @@ class Steem(object):
                 "Not creator account given. Define it with " +
                 "creator=x, or set the default_author in piston")
 
-        if storekeys:
-            wallet = Wallet(self.rpc)
-
         " Generate new keys "
-        from graphenebase.account import BrainKey
+        from graphenebase.account import PasswordKey
+        password = ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(16))
+        posting_key = PasswordKey(account_name, password, role="posting")
+        active_key  = PasswordKey(account_name, password, role="active")
+        owner_key   = PasswordKey(account_name, password, role="owner")
+        memo_key    = PasswordKey(account_name, password, role="memo")
+
+        owner   = format(owner_key.get_public_key(), prefix)
+        active  = format(active_key.get_public_key(), prefix)
+        posting = format(posting_key.get_public_key(), prefix)
+        memo    = format(memo_key.get_public_key(), prefix)
         # owner
-        key = BrainKey()
-        brain_key = key.get_brainkey()
         if storekeys:
-            wallet.addPrivateKey(key.get_private_key())
-        owner = format(key.get_public_key(), prefix)
-
-        # active
-        key = key.next_sequence()
-        if storekeys:
-            wallet.addPrivateKey(key.get_private_key())
-        active = format(key.get_public_key(), prefix)
-
-        # posting
-        key = key.next_sequence()
-        if storekeys:
-            wallet.addPrivateKey(key.get_private_key())
-        posting = format(key.get_public_key(), prefix)
-
-        # memo
-        key = key.next_sequence()
-        if storekeys:
-            wallet.addPrivateKey(key.get_private_key())
-        memo = format(key.get_public_key(), prefix)
+            self.wallet.addPrivateKey(owner_key.get_private_key())
+            self.wallet.addPrivateKey(active_key.get_private_key())
+            self.wallet.addPrivateKey(posting_key.get_private_key())
+            self.wallet.addPrivateKey(memo_key.get_private_key())
 
         owner_key_authority = [[owner, 1]]
         active_key_authority = [[active, 1]]
@@ -505,19 +547,25 @@ class Steem(object):
 
         op = transactions.Account_create(**s)
         if not self.wif:
-            wif = Wallet(self.rpc).getPostingKeyForAccount(creator)
+            wif = self.wallet.getPostingKeyForAccount(creator)
             self.executeOp(op, wif)
         else:
             self.executeOp(op)
 
-        return brain_key
+        return password
 
-    def transfer(self, to, amount, memo=None, account=None):
+    def transfer(self, to, amount, memo="", account=None):
         if not account:
             if "default_account" in config:
                 account = config["default_account"]
         if not account:
-            raise ValueError("You need to provide a 'from' account")
+            raise ValueError("You need to provide an account")
+
+        if not to:
+            if "default_account" in config:
+                to = config["default_account"]
+        if not to:
+            raise ValueError("You need to provide a 'to' account")
 
         op = transactions.Transfer(
             **{"from": account,
@@ -527,7 +575,7 @@ class Steem(object):
                }
         )
         if not self.wif:
-            wif = Wallet(self.rpc).getActiveKeyForAccount(account)
+            wif = self.wallet.getActiveKeyForAccount(account)
             return self.executeOp(op, wif)
         else:
             return self.executeOp(op)
@@ -537,7 +585,7 @@ class Steem(object):
             if "default_account" in config:
                 account = config["default_account"]
         if not account:
-            raise ValueError("You need to provide a 'from' account")
+            raise ValueError("You need to provide an account")
 
         op = transactions.Withdraw_vesting(
             **{"account": account,
@@ -545,7 +593,7 @@ class Steem(object):
                }
         )
         if not self.wif:
-            wif = Wallet(self.rpc).getActiveKeyForAccount(account)
+            wif = self.wallet.getActiveKeyForAccount(account)
             return self.executeOp(op, wif)
         else:
             return self.executeOp(op)
@@ -555,11 +603,12 @@ class Steem(object):
             if "default_account" in config:
                 account = config["default_account"]
         if not account:
-            raise ValueError("You need to provide a 'from' account")
+            raise ValueError("You need to provide an account")
+
         if not to:
             if "default_account" in config:
                 to = config["default_account"]
-        if not account:
+        if not to:
             raise ValueError("You need to provide a 'to' account")
 
         op = transactions.Transfer_to_vesting(
@@ -569,7 +618,7 @@ class Steem(object):
                }
         )
         if not self.wif:
-            wif = Wallet(self.rpc).getActiveKeyForAccount(account)
+            wif = self.wallet.getActiveKeyForAccount(account)
             return self.executeOp(op, wif)
         else:
             return self.executeOp(op)
@@ -581,7 +630,7 @@ class Steem(object):
                                    the form ``@author/permlink``
         """
         post_author, post_permlink = resolveIdentifier(identifier)
-        return self.rpc.get_content(post_author, post_permlink)
+        return Post(self, self.rpc.get_content(post_author, post_permlink))
 
     def get_replies(self, author, skipown=True):
         """ Get replies for an author
@@ -611,27 +660,19 @@ class Steem(object):
             :param str start: Show posts after this post. Takes an
                               identifier of the form ``@author/permlink``
         """
-        if start:
-            author, permlink = resolveIdentifier(start)
-        else:
-            author = None
-            permlink = None
+
         discussion_query = {"tag": None,
                             "limit": limit,
-                            "start_author": author,
-                            "start_permlink": permlink,
-                            "parent_author": None,
-                            "parent_permlink": category,
                             }
-        if sort not in ["trending",
-                        "created",
-                        "active",
-                        "cashout",
-                        "payout",
-                        "votes",
-                        "children",
-                        "hot"
-                        ]:
+        if start:
+            author, permlink = resolveIdentifier(start)
+            discussion_query["start_author"] = author
+            discussion_query["start_permlink"] = permlink
+        if category:
+            discussion_query["parent_permlink"] = category
+
+        if sort not in ["trending", "created", "active", "cashout",
+                        "payout", "votes", "children", "hot"]:
             raise Exception("Invalid choice of '--sort'!")
             return
 
@@ -655,7 +696,7 @@ class Steem(object):
         elif sort == "recent":
             func = self.rpc.get_recent_categories
         else:
-            print("Invalid choice of 'sort'!")
+            log.error("Invalid choice of '--sort' (%s)!" % sort)
             return
 
         return func(begin, limit)
@@ -675,4 +716,4 @@ class Steem(object):
 
     def stream_comments(self, *args, **kwargs):
         for c in self.rpc.stream("comment", *args, **kwargs):
-            yield Comment(self, "@{author}/{permlink}".format(**c))
+            yield Post(self, c)

@@ -3,6 +3,8 @@ import sys
 import frontmatter
 import time
 from datetime import datetime
+import logging
+log = logging.getLogger("piston.utils")
 
 
 def constructIdentifier(a, p):
@@ -33,7 +35,7 @@ def resolveIdentifier(identifier):
     import re
     match = re.match("@?([\w\-\.]*)/([\w\-]*)", identifier)
     if not hasattr(match, "group"):
-        print("Invalid identifier")
+        log.error("Invalid identifier")
         sys.exit(1)
     return match.group(1), match.group(2)
 

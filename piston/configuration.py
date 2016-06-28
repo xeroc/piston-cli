@@ -2,6 +2,8 @@ import os
 import json
 import collections
 from appdirs import user_data_dir
+import logging
+log = logging.getLogger("piston.configuration")
 appname = "piston"
 appauthor = "Fabian Schuh"
 configFile = "config.json"
@@ -55,7 +57,7 @@ class Configuration(collections.MutableMapping):
     def _storeConfig(self):
         data_dir = user_data_dir(appname, appauthor)
         f = os.path.join(data_dir, configFile)
-        # print("Your configuration file is located at " + f)
+        log.info("Your configuration file is located at " + f)
         self.mkdir_p(data_dir)
         with open(f, 'w') as fp:
             json.dump(self.store, fp)
