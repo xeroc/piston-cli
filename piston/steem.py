@@ -180,12 +180,7 @@ class Steem(object):
         if "default_voter" not in config and self.wif:
             config["default_author"] = self.wallet.getAccountFromPrivateKey(self.wif)
 
-    def connect(self, *args,
-                node=None,
-                rpcuser=None,
-                rpcpassword=None,
-                nobroadcast=False,
-                **kwargs):
+    def connect(self, *args, **kwargs):
         """ Connect to the Steem network.
 
             :param str node: Node to connect to *(optional)*
@@ -203,7 +198,11 @@ class Steem(object):
 
             where ``<host>`` starts with ``ws://`` or ``wss://``.
         """
-        self.nobroadcast = nobroadcast
+
+        node = kwargs.pop("node", False)
+        rpcuser = kwargs.pop("rpcuser", "")
+        rpcpassword = kwargs.pop("rpcpassword", "")
+
         if not node:
             if "node" in config:
                 node = config["node"]
@@ -216,7 +215,7 @@ class Steem(object):
         if not rpcpassword and "rpcpassword" in config:
             rpcpassword = config["rpcpassword"]
 
-        self.rpc = SteemNodeRPC(node, rpcuser, rpcpassword)
+        self.rpc = SteemNodeRPC(node, rpcuser, rpcpassword, **kwargs)
 
     def executeOp(self, op, wif=None):
         """ Execute an operation by signing it with the ``wif`` key and
