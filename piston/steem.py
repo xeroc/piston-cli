@@ -179,6 +179,7 @@ class Steem(object):
             config["default_author"] = self.wallet.getAccountFromPrivateKey(self.wif)
         if "default_voter" not in config and self.wif:
             config["default_author"] = self.wallet.getAccountFromPrivateKey(self.wif)
+        self.nobroadcast = kwargs.get("nobroadcast", False)
 
     def connect(self, *args, **kwargs):
         """ Connect to the Steem network.
