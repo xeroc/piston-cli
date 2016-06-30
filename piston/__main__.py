@@ -578,23 +578,24 @@ def main() :
         post = frontmatter.Post(reply_message, **{
             "title": args.title if args.title else "Re: " + parent["title"],
             "author": args.author if args.author else "required",
+            "replyto": args.replyto,
         })
 
-        post, message = yaml_parse_file(args, initial_content=post)
+        meta, message = yaml_parse_file(args, initial_content=post)
 
         for required in ["author", "title"]:
-            if (required not in post or
-                    not post[required] or
-                    post[required] == "required"):
+            if (required not in meta or
+                    not meta[required] or
+                    meta[required] == "required"):
                 print("'%s' required!" % required)
                 # TODO, instead of terminating here, send the user back
                 # to the EDITOR
                 return
 
         pprint(steem.reply(
-            args.replyto,
+            meta["replyto"],
             message,
-            title=post["title"],
+            title=meta["title"],
             author=args.author
         ))
 
