@@ -1,3 +1,4 @@
+import json
 import string
 import random
 from steemapi.steemclient import SteemNodeRPC
@@ -66,6 +67,17 @@ class Post(object):
 
             for key in post:
                 setattr(self, key, post[key])
+
+        # Try to properly format json meta data
+        meta_str = post.get("json_metadata", {})
+        setattr(self, "_json_metadata", meta_str)
+        setattr(self, "_tags", [])
+        try:
+            j = json.loads(meta_str)
+            setattr(self, "json_metadata", j)
+            setattr(self, "_tags", j.get("tags", []))
+        except:
+            pass
 
         self.openingPostIdentifier, self.category = self._getOpeningPost()
 
@@ -677,7 +689,10 @@ class Steem(object):
             return
 
         func = getattr(self.rpc, "get_discussions_by_%s" % sort)
-        return func(discussion_query)
+        r = []
+        for p in func(discussion_query):
+            r.append(Post(self, p))
+        return r
 
     def get_categories(self, sort, begin="", limit=10):
         """ List categories
