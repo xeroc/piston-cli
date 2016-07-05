@@ -673,15 +673,13 @@ class Steem(object):
                               identifier of the form ``@author/permlink``
         """
 
-        discussion_query = {"tag": None,
+        discussion_query = {"tag": category,
                             "limit": limit,
                             }
         if start:
             author, permlink = resolveIdentifier(start)
             discussion_query["start_author"] = author
             discussion_query["start_permlink"] = permlink
-        if category:
-            discussion_query["parent_permlink"] = category
 
         if sort not in ["trending", "created", "active", "cashout",
                         "payout", "votes", "children", "hot"]:
