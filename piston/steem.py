@@ -1,3 +1,4 @@
+import re
 import json
 import string
 import random
@@ -32,6 +33,7 @@ class Post(object):
         :param Steem steem: An instance of the Steem() object
         :param object post: The post as obtained by `get_content`
     """
+    steem = None
 
     def __init__(self, steem, post):
         if not isinstance(steem, Steem):
@@ -39,7 +41,6 @@ class Post(object):
                 "First argument must be instance of Steem()"
             )
         self.steem = steem
-
         self._patch = False
 
         if isinstance(post, str):
@@ -55,15 +56,9 @@ class Post(object):
                 post["author"],
                 post["permlink"]
             )
-            import re
             if re.match("^@@", post["body"]):
                 self._patched = True
                 self._patch = post["body"]
-
-            post = self.steem.rpc.get_content(
-                post["author"],
-                post["permlink"]
-            )
 
             for key in post:
                 setattr(self, key, post[key])
@@ -82,24 +77,25 @@ class Post(object):
         self.openingPostIdentifier, self.category = self._getOpeningPost()
 
     def _getOpeningPost(self):
-        while True:
-            if self["parent_author"] and self["parent_permlink"]:
-                self = self.steem.rpc.get_content(
-                    self["parent_author"],
-                    self["parent_permlink"]
-                )
-            else:
-                return constructIdentifier(
-                    self["author"],
-                    self["permlink"]
-                ), self["parent_permlink"]
-                break
+        m = re.match("/([^/]*)/@([^/]*)/([^#]*).*", self.url)
+        if not m:
+            return None
+        else:
+            category = m.group(1)
+            author = m.group(2)
+            permlink = m.group(3)
+            return constructIdentifier(
+                author, permlink
+            ), category
 
     def __getitem__(self, key):
         if hasattr(self, key):
             return getattr(self, key)
         else:
             return None
+
+    def __repr__(self):
+        return "<Steem.Post-%s>" % constructIdentifier(self["author"], self["permlink"])
 
     def reply(self, body, title="", author="", meta=None):
         """ Reply to the post
@@ -644,6 +640,34 @@ class Steem(object):
         post_author, post_permlink = resolveIdentifier(identifier)
         return Post(self, self.rpc.get_content(post_author, post_permlink))
 
+    def get_recommended(self, user):
+        """ Get recommended posts for user
+
+            :param str user: Show recommendations for this author
+        """
+        state = self.rpc.get_state("/@%s/recommended" % user)
+        posts = state["accounts"][user]["recommended"]
+        r = []
+        for p in posts:
+            post = state["content"][p]
+            r.append(Post(self, post))
+        return r
+
+    def get_blog(self, user):
+        """ Get blog posts of a user
+
+            :param str user: Show recommendations for this author
+        """
+        state = self.rpc.get_state("/@%s/blog" % user)
+        posts = state["accounts"][user]["blog"]
+        r = []
+        for p in posts:
+            post = state["content"]["%s/%s" % (
+                user, p   # FIXME, this is a inconsistency in steem backend
+            )]
+            r.append(Post(self, post))
+        return r
+
     def get_replies(self, author, skipown=True):
         """ Get replies for an author
 
@@ -657,7 +681,7 @@ class Steem(object):
             post = state["content"][reply]
             if skipown and post["author"] == author:
                 continue
-            discussions.append(post)
+            discussions.append(Post(self, post))
         return discussions
 
     def get_posts(self, limit=10,
