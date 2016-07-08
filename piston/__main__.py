@@ -34,21 +34,6 @@ def main() :
     global args
     config = Configuration()
 
-    if "default_vote_weight" not in config:
-        config["default_vote_weight"] = 100.0
-
-    if "list_sorting" not in config:
-        config["list_sorting"] = "hot"
-
-    if "categories_sorting" not in config:
-        config["categories_sorting"] = "trending"
-
-    if "limit" not in config:
-        config["limit"] = 10
-
-    if "format" not in config:
-        config["format"] = "markdown"
-
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="Command line tool to interact with the Steem network"
@@ -113,6 +98,12 @@ def main() :
         help='Configuration value'
     )
     setconfig.set_defaults(command="set")
+
+    """
+        Command "config"
+    """
+    configconfig = subparsers.add_parser('config', help='show local configuration')
+    configconfig.set_defaults(command="config")
 
     """
         Command "addkey"
@@ -521,7 +512,7 @@ def main() :
         gphlog.setLevel(getattr(logging, verbosity.upper()))
         gphlog.addHandler(ch)
 
-    rpc_not_required = ["set", ""]
+    rpc_not_required = ["set", "config", ""]
     if args.command not in rpc_not_required and args.command:
         steem = Steem(
             args.node,
@@ -532,6 +523,13 @@ def main() :
 
     if args.command == "set":
         config[args.key] = args.value
+
+    if args.command == "config":
+        t = PrettyTable(["Key", "Value"])
+        t.align = "l"
+        for key in config.store:
+            t.add_row([key, config[key]])
+        print(t)
 
     elif args.command == "addkey":
         wallet = Wallet(steem.rpc)
@@ -550,6 +548,14 @@ def main() :
                 pub = (wallet.addPrivateKey(wifkey))
                 if pub:
                     print(pub)
+
+        name = wallet.getAccountFromPublicKey(pub)
+        print("Setting new default user: %s" % name)
+        print("You can change these settings with:")
+        print("    piston set default_author x")
+        print("    piston set default_voter x")
+        config["default_author"] = name
+        config["default_voter"] = name
 
     elif args.command == "listkeys":
         t = PrettyTable(["Available Key"])

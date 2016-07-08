@@ -60,6 +60,11 @@ Configuration
     piston set default_author <account-name>
 
 All configuration variables are provided with ``piston set --help``
+You can see your local configuration by calling
+
+::
+
+    piston config
 
 Listing
 ~~~~~~~

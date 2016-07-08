@@ -178,6 +178,9 @@ class Wallet(object):
         pub = format(PrivateKey(wif).pubkey, prefix)
         return self.rpc.get_key_references([pub])[0][0]
 
+    def getAccountFromPublicKey(self, pub):
+        return self.rpc.get_key_references([pub])[0][0]
+
     def getAccount(self, pub):
             name = self.rpc.get_key_references([pub])[0]
             if not name:
