@@ -18,13 +18,13 @@ class Testcases(unittest.TestCase) :
         self.post._getOpeningPost()
 
     def test_reply(self):
-        self.post.reply(body="foobar", title="", author="", meta=None)
+        self.post.reply(body="foobar", title="", author=testaccount, meta=None)
 
     def test_upvote(self):
-        self.post.upvote()
+        self.post.upvote(voter=testaccount)
 
-    def test_downvote(self, weight=-100, voter=None):
-        self.post.downvote()
+    def test_downvote(self, weight=-100, voter=testaccount):
+        self.post.downvote(voter=testaccount)
 
     def test_edit(self):
         steem.edit(identifier, "Foobar")
@@ -33,7 +33,7 @@ class Testcases(unittest.TestCase) :
         steem.post("title", "body", meta={"foo": "bar"}, author=testaccount)
 
     def test_create_account(self):
-        steem.create_account("xeroc-create")
+        steem.create_account("xeroc-create", creator=testaccount, storekeys=False)
 
     def test_transfer(self):
         steem.transfer(account=testaccount, to="fabian", amount="10 STEEM")
@@ -54,7 +54,7 @@ class Testcases(unittest.TestCase) :
         steem.get_categories(sort="trending")
 
     def test_get_balances(self):
-        steem.get_balances("xeroc")
+        steem.get_balances(testaccount)
 
 if __name__ == '__main__':
     unittest.main()
