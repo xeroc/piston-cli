@@ -1,3 +1,5 @@
+import re
+import json
 import string
 import random
 from steemapi.steemclient import SteemNodeRPC
@@ -31,6 +33,7 @@ class Post(object):
         :param Steem steem: An instance of the Steem() object
         :param object post: The post as obtained by `get_content`
     """
+    steem = None
 
     def __init__(self, steem, post):
         if not isinstance(steem, Steem):
@@ -38,7 +41,6 @@ class Post(object):
                 "First argument must be instance of Steem()"
             )
         self.steem = steem
-
         self._patch = False
 
         if isinstance(post, str):
@@ -54,40 +56,46 @@ class Post(object):
                 post["author"],
                 post["permlink"]
             )
-            import re
             if re.match("^@@", post["body"]):
                 self._patched = True
                 self._patch = post["body"]
 
-            post = self.steem.rpc.get_content(
-                post["author"],
-                post["permlink"]
-            )
-
             for key in post:
                 setattr(self, key, post[key])
+
+        # Try to properly format json meta data
+        meta_str = post.get("json_metadata", {})
+        setattr(self, "_json_metadata", meta_str)
+        setattr(self, "_tags", [])
+        try:
+            j = json.loads(meta_str)
+            setattr(self, "json_metadata", j)
+            setattr(self, "_tags", j.get("tags", []))
+        except:
+            pass
 
         self.openingPostIdentifier, self.category = self._getOpeningPost()
 
     def _getOpeningPost(self):
-        while True:
-            if self["parent_author"] and self["parent_permlink"]:
-                self = self.steem.rpc.get_content(
-                    self["parent_author"],
-                    self["parent_permlink"]
-                )
-            else:
-                return constructIdentifier(
-                    self["author"],
-                    self["permlink"]
-                ), self["parent_permlink"]
-                break
+        m = re.match("/([^/]*)/@([^/]*)/([^#]*).*", self.url)
+        if not m:
+            return None
+        else:
+            category = m.group(1)
+            author = m.group(2)
+            permlink = m.group(3)
+            return constructIdentifier(
+                author, permlink
+            ), category
 
     def __getitem__(self, key):
         if hasattr(self, key):
             return getattr(self, key)
         else:
             return None
+
+    def __repr__(self):
+        return "<Steem.Post-%s>" % constructIdentifier(self["author"], self["permlink"])
 
     def reply(self, body, title="", author="", meta=None):
         """ Reply to the post
@@ -179,13 +187,9 @@ class Steem(object):
             config["default_author"] = self.wallet.getAccountFromPrivateKey(self.wif)
         if "default_voter" not in config and self.wif:
             config["default_author"] = self.wallet.getAccountFromPrivateKey(self.wif)
+        self.nobroadcast = kwargs.get("nobroadcast", False)
 
-    def connect(self, *args,
-                node=None,
-                rpcuser=None,
-                rpcpassword=None,
-                nobroadcast=False,
-                **kwargs):
+    def connect(self, *args, **kwargs):
         """ Connect to the Steem network.
 
             :param str node: Node to connect to *(optional)*
@@ -203,7 +207,11 @@ class Steem(object):
 
             where ``<host>`` starts with ``ws://`` or ``wss://``.
         """
-        self.nobroadcast = nobroadcast
+
+        node = kwargs.pop("node", False)
+        rpcuser = kwargs.pop("rpcuser", "")
+        rpcpassword = kwargs.pop("rpcpassword", "")
+
         if not node:
             if "node" in config:
                 node = config["node"]
@@ -216,7 +224,7 @@ class Steem(object):
         if not rpcpassword and "rpcpassword" in config:
             rpcpassword = config["rpcpassword"]
 
-        self.rpc = SteemNodeRPC(node, rpcuser, rpcpassword)
+        self.rpc = SteemNodeRPC(node, rpcuser, rpcpassword, **kwargs)
 
     def executeOp(self, op, wif=None):
         """ Execute an operation by signing it with the ``wif`` key and
@@ -632,6 +640,34 @@ class Steem(object):
         post_author, post_permlink = resolveIdentifier(identifier)
         return Post(self, self.rpc.get_content(post_author, post_permlink))
 
+    def get_recommended(self, user):
+        """ Get recommended posts for user
+
+            :param str user: Show recommendations for this author
+        """
+        state = self.rpc.get_state("/@%s/recommended" % user)
+        posts = state["accounts"][user]["recommended"]
+        r = []
+        for p in posts:
+            post = state["content"][p]
+            r.append(Post(self, post))
+        return r
+
+    def get_blog(self, user):
+        """ Get blog posts of a user
+
+            :param str user: Show recommendations for this author
+        """
+        state = self.rpc.get_state("/@%s/blog" % user)
+        posts = state["accounts"][user]["blog"]
+        r = []
+        for p in posts:
+            post = state["content"]["%s/%s" % (
+                user, p   # FIXME, this is a inconsistency in steem backend
+            )]
+            r.append(Post(self, post))
+        return r
+
     def get_replies(self, author, skipown=True):
         """ Get replies for an author
 
@@ -645,7 +681,7 @@ class Steem(object):
             post = state["content"][reply]
             if skipown and post["author"] == author:
                 continue
-            discussions.append(post)
+            discussions.append(Post(self, post))
         return discussions
 
     def get_posts(self, limit=10,
@@ -661,15 +697,13 @@ class Steem(object):
                               identifier of the form ``@author/permlink``
         """
 
-        discussion_query = {"tag": None,
+        discussion_query = {"tag": category,
                             "limit": limit,
                             }
         if start:
             author, permlink = resolveIdentifier(start)
             discussion_query["start_author"] = author
             discussion_query["start_permlink"] = permlink
-        if category:
-            discussion_query["parent_permlink"] = category
 
         if sort not in ["trending", "created", "active", "cashout",
                         "payout", "votes", "children", "hot"]:
@@ -677,7 +711,10 @@ class Steem(object):
             return
 
         func = getattr(self.rpc, "get_discussions_by_%s" % sort)
-        return func(discussion_query)
+        r = []
+        for p in func(discussion_query):
+            r.append(Post(self, p))
+        return r
 
     def get_categories(self, sort, begin="", limit=10):
         """ List categories

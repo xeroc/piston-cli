@@ -8,6 +8,20 @@ appname = "piston"
 appauthor = "Fabian Schuh"
 configFile = "config.json"
 
+defaults = {
+    "categories_sorting": "trending",
+    "default_vote_weight": 100.0,
+    #"default_author": "xeroc",
+    #"default_voter": "xeroc",
+    "format": "markdown",
+    "limit": 10,
+    "list_sorting": "hot",
+    "node": "wss://this.piston.rocks",
+    "post_category": "steem",
+    "rpcpassword": "",
+    "rpcuser": "",
+}
+
 
 class Configuration(collections.MutableMapping):
 
@@ -24,7 +38,10 @@ class Configuration(collections.MutableMapping):
         if internalKey in self.store:
             return self.store[internalKey]
         else:
-            return None
+            if key in defaults:
+                return defaults[key]
+            else:
+                return None
 
     def __setitem__(self, key, value):
         self.store[self.__keytransform__(key)] = value

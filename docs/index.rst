@@ -1,5 +1,11 @@
+.. image:: _static/ico-piston-typo.svg
+   :width: 600 px
+   :alt: alternate text
+   :align: center
+
 Piston - The Swiss army knife for the Steem network
 ===================================================
+
 
 Piston is a command line tool and library to interact with the STEEM network using Python 3.
 
