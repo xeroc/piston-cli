@@ -77,9 +77,11 @@ class Post(object):
         self.openingPostIdentifier, self.category = self._getOpeningPost()
 
     def _getOpeningPost(self):
+        if not hasattr(self, "url"):
+            return None, None
         m = re.match("/([^/]*)/@([^/]*)/([^#]*).*", self.url)
         if not m:
-            return None
+            return None, None
         else:
             category = m.group(1)
             author = m.group(2)
