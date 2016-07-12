@@ -82,6 +82,7 @@ def main() :
         type=str,
         choices=["default_author",
                  "default_voter",
+                 "default_account",
                  "node",
                  "rpcuser",
                  "rpcpassword",
@@ -533,6 +534,7 @@ def main() :
 
     elif args.command == "addkey":
         wallet = Wallet(steem.rpc)
+        pub = None
         if len(args.wifkeys):
             for wifkey in args.wifkeys:
                 pub = (wallet.addPrivateKey(wifkey))
@@ -549,13 +551,14 @@ def main() :
                 if pub:
                     print(pub)
 
-        name = wallet.getAccountFromPublicKey(pub)
-        print("Setting new default user: %s" % name)
-        print("You can change these settings with:")
-        print("    piston set default_author x")
-        print("    piston set default_voter x")
-        config["default_author"] = name
-        config["default_voter"] = name
+        if pub:
+            name = wallet.getAccountFromPublicKey(pub)
+            print("Setting new default user: %s" % name)
+            print("You can change these settings with:")
+            print("    piston set default_author x")
+            print("    piston set default_voter x")
+            config["default_author"] = name
+            config["default_voter"] = name
 
     elif args.command == "listkeys":
         t = PrettyTable(["Available Key"])
