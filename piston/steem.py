@@ -4,6 +4,7 @@ import string
 import random
 from steemapi.steemclient import SteemNodeRPC
 from steembase import PrivateKey, PublicKey, Address
+from steembase import memo as Memo
 import steembase.transactions as transactions
 from piston.utils import (
     resolveIdentifier,
@@ -571,11 +572,18 @@ class Steem(object):
         if not account:
             raise ValueError("You need to provide an account")
 
-        if not to:
-            if "default_account" in config:
-                to = config["default_account"]
-        if not to:
-            raise ValueError("You need to provide a 'to' account")
+        if memo and memo[0] == "#":
+            from_priv = self.wallet.getMemoKeyForAccount(account)
+            if not from_priv:
+                raise MissingKeyError("Memo key for %s missing!" % account)
+            to_account = self.rpc.get_account(to)
+            nonce = str(random.getrandbits(64))
+            memo = Memo.encode_memo(
+                PrivateKey(from_priv),
+                PublicKey(to_account["memo_key"], prefix=prefix),
+                nonce,
+                memo
+            )
 
         op = transactions.Transfer(
             **{"from": account,

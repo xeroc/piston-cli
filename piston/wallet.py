@@ -142,6 +142,14 @@ class Wallet(object):
                 return key
         return False
 
+    def getMemoKeyForAccount(self, name):
+        self.ensureOpen()
+        account = self.rpc.get_account(name)
+        key = self.getPrivateKeyForPublicKey(account["memo_key"])
+        if key:
+            return key
+        return False
+
     def getActiveKeyForAccount(self, name):
         self.ensureOpen()
         account = self.rpc.get_account(name)
