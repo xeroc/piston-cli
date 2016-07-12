@@ -60,8 +60,8 @@ class Post(object):
                 self._patched = True
                 self._patch = post["body"]
 
-            for key in post:
-                setattr(self, key, post[key])
+        for key in post:
+            setattr(self, key, post[key])
 
         # Try to properly format json meta data
         meta_str = post.get("json_metadata", {})
