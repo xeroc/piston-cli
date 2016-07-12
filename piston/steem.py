@@ -565,7 +565,7 @@ class Steem(object):
 
         return password
 
-    def transfer(self, to, amount, memo="", account=None):
+    def transfer(self, to, amount, memo="", account=None, memo_wif=None):
         if not account:
             if "default_account" in config:
                 account = config["default_account"]
@@ -573,13 +573,14 @@ class Steem(object):
             raise ValueError("You need to provide an account")
 
         if memo and memo[0] == "#":
-            from_priv = self.wallet.getMemoKeyForAccount(account)
-            if not from_priv:
+            if not memo_wif:
+                memo_wif = self.wallet.getMemoKeyForAccount(account)
+            if not memo_wif:
                 raise MissingKeyError("Memo key for %s missing!" % account)
             to_account = self.rpc.get_account(to)
             nonce = str(random.getrandbits(64))
             memo = Memo.encode_memo(
-                PrivateKey(from_priv),
+                PrivateKey(memo_wif),
                 PublicKey(to_account["memo_key"], prefix=prefix),
                 nonce,
                 memo
