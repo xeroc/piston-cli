@@ -174,7 +174,8 @@ class Steem(object):
         """
             :param bool debug: Enable Debugging
             :param wif wif: WIF private key for signing. If provided,
-                            will not load from wallet (optional)
+                            will not load from wallet (optional). Can be
+                            single string, or array of keys.
         """
         self.connect(*args, **kwargs)
         self.wallet = Wallet(self.rpc)
@@ -183,13 +184,12 @@ class Steem(object):
         if "debug" in kwargs:
             self.debug = kwargs["debug"]
 
-        self.wif = None
         if "wif" in kwargs:
-            self.wif = kwargs["wif"]
-        if "default_author" not in config and self.wif:
-            config["default_author"] = self.wallet.getAccountFromPrivateKey(self.wif)
-        if "default_voter" not in config and self.wif:
-            config["default_author"] = self.wallet.getAccountFromPrivateKey(self.wif)
+            if isinstance(kwargs["wif"], str):
+                keys = [kwargs["wif"]]
+            elif isinstance(kwargs["wif"], list):
+                keys = kwargs["wif"]
+            self.wallet.setKeys(keys)
         self.nobroadcast = kwargs.get("nobroadcast", False)
 
     def connect(self, *args, **kwargs):
@@ -243,8 +243,6 @@ class Steem(object):
 
         """
         # overwrite wif with default wif if available
-        if not wif and self.wif:
-            wif = self.wif
         if not wif:
             raise MissingKeyError
 
@@ -405,11 +403,8 @@ class Steem(object):
                "body": body,
                "json_metadata": meta}
         )
-        if not self.wif:
-            wif = self.wallet.getPostingKeyForAccount(author)
-            return self.executeOp(op, wif)
-        else:
-            return self.executeOp(op)
+        wif = self.wallet.getPostingKeyForAccount(author)
+        return self.executeOp(op, wif)
 
     def vote(self,
              identifier,
@@ -448,11 +443,8 @@ class Steem(object):
                "permlink": post_permlink,
                "weight": int(weight * STEEMIT_1_PERCENT)}
         )
-        if not self.wif:
-            wif = self.wallet.getPostingKeyForAccount(voter)
-            return self.executeOp(op, wif)
-        else:
-            return self.executeOp(op)
+        wif = self.wallet.getPostingKeyForAccount(voter)
+        return self.executeOp(op, wif)
 
     def create_account(self,
                        account_name,
@@ -557,15 +549,12 @@ class Steem(object):
                          'weight_threshold': 1}}
 
         op = transactions.Account_create(**s)
-        if not self.wif:
-            wif = self.wallet.getPostingKeyForAccount(creator)
-            self.executeOp(op, wif)
-        else:
-            self.executeOp(op)
+        wif = self.wallet.getPostingKeyForAccount(creator)
+        self.executeOp(op, wif)
 
         return password
 
-    def transfer(self, to, amount, memo="", account=None, memo_wif=None):
+    def transfer(self, to, amount, memo="", account=None):
         if not account:
             if "default_account" in config:
                 account = config["default_account"]
@@ -573,8 +562,7 @@ class Steem(object):
             raise ValueError("You need to provide an account")
 
         if memo and memo[0] == "#":
-            if not memo_wif:
-                memo_wif = self.wallet.getMemoKeyForAccount(account)
+            memo_wif = self.wallet.getMemoKeyForAccount(account)
             if not memo_wif:
                 raise MissingKeyError("Memo key for %s missing!" % account)
             to_account = self.rpc.get_account(to)
@@ -593,11 +581,8 @@ class Steem(object):
                "memo": memo
                }
         )
-        if not self.wif:
-            wif = self.wallet.getActiveKeyForAccount(account)
-            return self.executeOp(op, wif)
-        else:
-            return self.executeOp(op)
+        wif = self.wallet.getActiveKeyForAccount(account)
+        return self.executeOp(op, wif)
 
     def withdraw_vesting(self, amount, account=None):
         if not account:
@@ -611,11 +596,8 @@ class Steem(object):
                "vesting_shares": amount,
                }
         )
-        if not self.wif:
-            wif = self.wallet.getActiveKeyForAccount(account)
-            return self.executeOp(op, wif)
-        else:
-            return self.executeOp(op)
+        wif = self.wallet.getActiveKeyForAccount(account)
+        return self.executeOp(op, wif)
 
     def transfer_to_vesting(self, amount, to=None, account=None):
         if not account:
@@ -636,11 +618,8 @@ class Steem(object):
                "amount": amount,
                }
         )
-        if not self.wif:
-            wif = self.wallet.getActiveKeyForAccount(account)
-            return self.executeOp(op, wif)
-        else:
-            return self.executeOp(op)
+        wif = self.wallet.getActiveKeyForAccount(account)
+        return self.executeOp(op, wif)
 
     def get_content(self, identifier):
         """ Get the full content of a post.

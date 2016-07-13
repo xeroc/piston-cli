@@ -25,7 +25,7 @@ class Wallet(object):
         self.rpc = rpc
 
     def open(self, password=None):
-        if not password:
+        if not password and not self.keys:
             # try to load the file without password
             import getpass
             if self.exists():
@@ -52,6 +52,9 @@ class Wallet(object):
                             break
                         else :
                             print("Given Passphrases do not match!")
+
+    def setKeys(self, keys):
+        self.keys = keys
 
     def _openWallet(self, pw):
         if pw != "":
