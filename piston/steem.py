@@ -554,12 +554,22 @@ class Steem(object):
 
         return password
 
-    def transfer(self, to, amount, memo="", account=None):
+    def transfer(self, to, amount, asset, memo="", account=None):
+        """ Transfer SBD or STEEM to another account.
+
+            :param str to: Recipient
+            :param float amount: Amount to transfer
+            :param str asset: Asset to transfer (``SBD`` or ``STEEM``)
+            :param str memo: (optional) Memo, may begin with `#` for encrypted messaging
+            :param str account: (optional) the source account for the transfer if not ``default_account``
+        """
         if not account:
             if "default_account" in config:
                 account = config["default_account"]
         if not account:
             raise ValueError("You need to provide an account")
+
+        assert asset == "SBD" or asset == "STEEM"
 
         if memo and memo[0] == "#":
             memo_wif = self.wallet.getMemoKeyForAccount(account)
@@ -577,7 +587,11 @@ class Steem(object):
         op = transactions.Transfer(
             **{"from": account,
                "to": to,
-               "amount": amount,
+               "amount": '{:.{prec}f} {asset}'.format(
+                   amount,
+                   prec=3,
+                   asset=asset
+               ),
                "memo": memo
                }
         )
@@ -585,6 +599,11 @@ class Steem(object):
         return self.executeOp(op, wif)
 
     def withdraw_vesting(self, amount, account=None):
+        """ Withdraw VESTS from the vesting account.
+
+            :param float amount: number of VESTS to withdraw over a period of 104 weeks
+            :param str account: (optional) the source account for the transfer if not ``default_account``
+        """
         if not account:
             if "default_account" in config:
                 account = config["default_account"]
@@ -593,13 +612,23 @@ class Steem(object):
 
         op = transactions.Withdraw_vesting(
             **{"account": account,
-               "vesting_shares": amount,
+               "vesting_shares": '{:.{prec}f} {asset}'.format(
+                   amount,
+                   prec=6,
+                   asset="VESTS"
+               ),
                }
         )
         wif = self.wallet.getActiveKeyForAccount(account)
         return self.executeOp(op, wif)
 
     def transfer_to_vesting(self, amount, to=None, account=None):
+        """ Vest STEEM
+
+            :param float amount: number of VESTS to withdraw over a period of 104 weeks
+            :param str to: (optional) the source account for the transfer if not ``default_account``
+            :param str account: (optional) the source account for the transfer if not ``default_account``
+        """
         if not account:
             if "default_account" in config:
                 account = config["default_account"]
@@ -615,7 +644,11 @@ class Steem(object):
         op = transactions.Transfer_to_vesting(
             **{"from": account,
                "to": to,
-               "amount": amount,
+               "amount": '{:.{prec}f} {asset}'.format(
+                   amount,
+                   prec=3,
+                   asset="STEEM"
+               ),
                }
         )
         wif = self.wallet.getActiveKeyForAccount(account)
@@ -729,6 +762,10 @@ class Steem(object):
         return func(begin, limit)
 
     def get_balances(self, account=None):
+        """ Get the balance of an account
+
+            :param str account: (optional) the source account for the transfer if not ``default_account``
+        """
         if not account:
             if "default_account" in config:
                 account = config["default_account"]
@@ -742,5 +779,9 @@ class Steem(object):
         }
 
     def stream_comments(self, *args, **kwargs):
+        """ Generator that yields posts when they come in
+
+            To be used in a for loop that returns an instance of `Post()`.
+        """
         for c in self.rpc.stream("comment", *args, **kwargs):
             yield Post(self, c)
