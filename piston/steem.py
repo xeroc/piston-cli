@@ -4,7 +4,6 @@ import string
 import random
 from steemapi.steemclient import SteemNodeRPC
 from steembase import PrivateKey, PublicKey, Address
-from steembase import memo as Memo
 import steembase.transactions as transactions
 from piston.utils import (
     resolveIdentifier,
@@ -585,6 +584,7 @@ class Steem(object):
         assert asset == "SBD" or asset == "STEEM"
 
         if memo and memo[0] == "#":
+            from steembase import memo as Memo
             memo_wif = self.wallet.getMemoKeyForAccount(account)
             if not memo_wif:
                 raise MissingKeyError("Memo key for %s missing!" % account)

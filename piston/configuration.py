@@ -11,8 +11,8 @@ configFile = "config.json"
 defaults = {
     "categories_sorting": "trending",
     "default_vote_weight": 100.0,
-    #"default_author": "xeroc",
-    #"default_voter": "xeroc",
+    # "default_author": "xeroc",
+    # "default_voter": "xeroc",
     "format": "markdown",
     "limit": 10,
     "list_sorting": "hot",
