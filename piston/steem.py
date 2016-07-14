@@ -44,43 +44,56 @@ class Post(object):
         self.steem = steem
         self._patch = False
 
-        if isinstance(post, str):
-            # identifier
+        # Get full Post
+        if isinstance(post, str):  # From identifier
             self.identifier = post
             post_author, post_permlink = resolveIdentifier(post)
             post = self.steem.rpc.get_content(post_author, post_permlink)
 
-        elif (isinstance(post, dict) and
+        elif (isinstance(post, dict) and  # From dictionary
                 "author" in post and
                 "permlink" in post):
+            # strip leading @
+            if post["author"][0] == "@":
+                post["author"] = post["author"][1:]
             self.identifier = constructIdentifier(
                 post["author"],
                 post["permlink"]
             )
-            if re.match("^@@", post["body"]):
-                self._patched = True
-                self._patch = post["body"]
+            # if there only is an author and a permlink but no body
+            # get the full post via RPC
+            if "body" not in post:
+                post = self.steem.rpc.get_content(
+                    post["author"],
+                    post["permlink"]
+                )
+        else:
+            raise ValueError("Post expects an identifier or a dict "
+                             "with author and permlink!")
 
-        for key in post:
-            setattr(self, key, post[key])
+        if re.match("^@@", post["body"]):
+            self._patched = True
+            self._patch = post["body"]
 
         # Try to properly format json meta data
-        meta_str = post.get("json_metadata", {})
-        setattr(self, "_json_metadata", meta_str)
-        setattr(self, "_tags", [])
+        meta_str = post.get("json_metadata", "")
+        post["_json_metadata"] = meta_str
+        meta = {}
         try:
-            j = json.loads(meta_str)
-            setattr(self, "json_metadata", j)
-            setattr(self, "_tags", j.get("tags", []))
+            meta = json.loads(meta_str)
         except:
             pass
+        post["_tags"] = meta.get("tags", [])
 
         self.openingPostIdentifier, self.category = self._getOpeningPost()
 
+        # Store everything as attribute
+        for key in post:
+            setattr(self, key, post[key])
+
     def _getOpeningPost(self):
-        if not hasattr(self, "url"):
-            return None, None
-        m = re.match("/([^/]*)/@([^/]*)/([^#]*).*", self.url)
+        m = re.match("/([^/]*)/@([^/]*)/([^#]*).*",
+                     getattr(self, "url", ""))
         if not m:
             return None, None
         else:
