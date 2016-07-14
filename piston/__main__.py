@@ -6,20 +6,20 @@ import argparse
 from pprint import pprint
 from steembase import PrivateKey, PublicKey, Address
 import steembase.transactions as transactions
-from piston.wallet import Wallet
-from piston.configuration import Configuration
-from piston.utils import (
+from .wallet import Wallet
+from .configuration import Configuration
+from .utils import (
     resolveIdentifier,
     yaml_parse_file,
     formatTime,
 )
-from piston.ui import (
+from .ui import (
     dump_recursive_parents,
     dump_recursive_comments,
     list_posts,
     markdownify,
 )
-from piston.steem import Steem
+from .steem import Steem
 import frontmatter
 import time
 from prettytable import PrettyTable
@@ -568,7 +568,7 @@ def main() :
         print(t)
 
     elif args.command == "listaccounts":
-        t = PrettyTable(["Name", "Available Key"])
+        t = PrettyTable(["Name", "Type", "Available Key"])
         t.align = "l"
         for account in Wallet(steem.rpc).getAccounts():
             t.add_row(account)

@@ -13,7 +13,7 @@ from piston.utils import (
 from piston.wallet import Wallet
 from piston.configuration import Configuration
 import logging
-log = logging.getLogger("piston.steem")
+log = logging.getLogger(__name__)
 
 #: Configuration from local user settings
 config = Configuration()

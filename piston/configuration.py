@@ -3,7 +3,7 @@ import json
 import collections
 from appdirs import user_data_dir
 import logging
-log = logging.getLogger("piston.configuration")
+log = logging.getLogger(__name__)
 appname = "piston"
 appauthor = "Fabian Schuh"
 configFile = "config.json"

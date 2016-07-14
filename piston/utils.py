@@ -4,7 +4,7 @@ import frontmatter
 import time
 from datetime import datetime
 import logging
-log = logging.getLogger("piston.utils")
+log = logging.getLogger(__name__)
 
 
 def constructIdentifier(a, p):

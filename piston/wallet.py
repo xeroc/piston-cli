@@ -7,7 +7,7 @@ from Crypto.Cipher import AES
 from steembase import PrivateKey
 from appdirs import user_data_dir
 import logging
-log = logging.getLogger("piston.wallet")
+log = logging.getLogger(__name__)
 appname = "piston"
 appauthor = "Fabian Schuh"
 walletFile = "wallet.dat"
@@ -197,7 +197,18 @@ class Wallet(object):
             if not name:
                 return ["UNKNOWN", pub]
             else:
-                return [name[0], pub]
+                account = self.rpc.get_account(name[0])
+                keyType = self.getKeyType(account, pub)
+                return [name[0], keyType, pub]
+
+    def getKeyType(self, account, pub):
+        if pub == account["memo_key"]:
+            return "memo"
+        for authority in ["owner", "posting", "active"]:
+            for key in account[authority]["key_auths"]:
+                if pub == key[0]:
+                    return authority
+        return None
 
     def getAccounts(self):
         return [self.getAccount(a) for a in self.getPublicKeys()]
