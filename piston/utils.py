@@ -3,6 +3,7 @@ import sys
 import frontmatter
 import time
 from datetime import datetime
+import re
 import logging
 log = logging.getLogger(__name__)
 
@@ -12,7 +13,6 @@ def constructIdentifier(a, p):
 
 
 def sanitizePermlink(permlink):
-    import re
     permlink = re.sub("_|\s|\.", "-", permlink)
     permlink = re.sub("[^\w-]", "", permlink)
     permlink = permlink.lower()
@@ -32,7 +32,6 @@ def derivePermlink(title, parent_permlink=None):
 
 
 def resolveIdentifier(identifier):
-    import re
     match = re.match("@?([\w\-\.]*)/([\w\-]*)", identifier)
     if not hasattr(match, "group"):
         log.error("Invalid identifier")
@@ -52,7 +51,7 @@ def yaml_parse_file(args, initial_content):
         message = sys.stdin.read()
     else:
         import tempfile
-        from subprocess import call
+        from subprocess import Popen
         EDITOR = os.environ.get('EDITOR', 'vim')
         prefix = ""
         if "permlink" in initial_content.metadata:
@@ -62,9 +61,17 @@ def yaml_parse_file(args, initial_content):
             prefix=bytes("piston-" + prefix, 'ascii'),
             delete=False
         ) as fp:
+            # Write initial content
             fp.write(bytes(frontmatter.dumps(initial_content), 'utf-8'))
             fp.flush()
-            call([EDITOR, fp.name])
+            # Define parameters for command
+            args = [EDITOR]
+            if re.match("gvim", EDITOR):
+                args.append("-f")
+            args.append(fp.name)
+            # Execute command
+            proc = Popen(args).wait()
+            # Read content of file
             fp.seek(0)
             message = fp.read().decode('utf-8')
 
