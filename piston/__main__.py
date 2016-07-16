@@ -353,7 +353,7 @@ def main() :
     parser_downvote.add_argument(
         '--voter',
         type=str,
-        required=False,
+        default=config["default_voter"],
         help='The voter account name'
     )
     parser_downvote.add_argument(
