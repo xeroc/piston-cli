@@ -514,6 +514,11 @@ def main() :
         gphlog.addHandler(ch)
 
     rpc_not_required = ["set", "config", ""]
+
+    if not hasattr(args, "command"):
+        parser.print_help()
+        sys.exit(2)
+
     if args.command not in rpc_not_required and args.command:
         steem = Steem(
             args.node,
