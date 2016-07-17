@@ -104,10 +104,10 @@ class Post(object):
             ), category
 
     def __getitem__(self, key):
-        if hasattr(self, key):
-            return getattr(self, key)
-        else:
-            return None
+        return getattr(self, key)
+
+    def __contains__(self, key):
+        return hasattr(self, key)
 
     def __repr__(self):
         return "<Steem.Post-%s>" % constructIdentifier(self["author"], self["permlink"])
