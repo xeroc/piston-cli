@@ -6,7 +6,6 @@ import argparse
 from pprint import pprint
 from steembase import PrivateKey, PublicKey, Address
 import steembase.transactions as transactions
-from .wallet import Wallet
 from .configuration import Configuration
 from .utils import (
     resolveIdentifier,
@@ -515,6 +514,7 @@ def main() :
 
     rpc_not_required = ["set", "config", ""]
 
+
     if not hasattr(args, "command"):
         parser.print_help()
         sys.exit(2)
@@ -538,11 +538,10 @@ def main() :
         print(t)
 
     elif args.command == "addkey":
-        wallet = Wallet(steem.rpc)
         pub = None
         if len(args.wifkeys):
             for wifkey in args.wifkeys:
-                pub = (wallet.addPrivateKey(wifkey))
+                pub = (steem.wallet.addPrivateKey(wifkey))
                 if pub:
                     print(pub)
         else:
@@ -566,16 +565,17 @@ def main() :
             config["default_voter"] = name
 
     elif args.command == "listkeys":
+        print("1")
         t = PrettyTable(["Available Key"])
         t.align = "l"
-        for key in Wallet(steem.rpc).getPublicKeys():
+        for key in steem.wallet.getPublicKeys():
             t.add_row([key])
         print(t)
 
     elif args.command == "listaccounts":
         t = PrettyTable(["Name", "Type", "Available Key"])
         t.align = "l"
-        for account in Wallet(steem.rpc).getAccounts():
+        for account in steem.wallet.getAccounts():
             t.add_row(account)
         print(t)
 
@@ -701,8 +701,7 @@ def main() :
                 body = post["body"]
 
             if args.full:
-                meta = post.copy()
-                meta.pop("body", None)  # remove body from meta
+                delattr(meta, "body")  # remove body from meta
                 yaml = frontmatter.Post(body, **meta)
                 print(frontmatter.dumps(yaml))
             else:
