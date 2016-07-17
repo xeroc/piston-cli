@@ -758,6 +758,7 @@ class Steem(object):
             :param str sort: Sort categories by "trending", "best",
                              "active", or "recent"
             :param str begin: Show categories after this
+                              identifier of the form ``@author/permlink``
             :param int limit: Limit categories by ``x``
         """
         if sort == "trending":
