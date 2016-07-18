@@ -1,29 +1,154 @@
-import os
-import json
-import base64
-import hashlib
 from Crypto import Random
 from Crypto.Cipher import AES
+import hashlib
+import base64
 from steembase import PrivateKey
+import os
+import json
 from appdirs import user_data_dir
 import logging
 log = logging.getLogger(__name__)
 appname = "piston"
 appauthor = "Fabian Schuh"
+walletDatabase = "wallet.sqlite"
+
+# legacy wallet
 walletFile = "wallet.dat"
 
 prefix = "STM"
 # prefix = "TST"
+
+from . import wallet_models as models
+
+
+class InvalidWifError(Exception):
+    pass
 
 
 class Wallet(object):
     keys = []
     rpc = None
     aes = None
+    keysDb = None
 
     def __init__(self, rpc, *args, **kwargs):
         self.rpc = rpc
 
+        if models.createTables:
+            models.Base.metadata.create_all(models.engine)
+            # migrate to new SQL based storage
+            if self.exists():
+                log.critical("Migrating old wallet format to new format!")
+                self.migrateFromJSON()
+
+    def unlock(self):
+        if not self.aes:
+            self.aes = AESCipher(self.getPasswordConfirmed())
+
+    def lock(self):
+        self.aes = None
+
+    def migrateFromJSON(self):
+        self.ensureOpen()
+        for key in self.keys:
+            try:
+                pub = format(PrivateKey(key).pubkey, prefix)
+            except:
+                raise InvalidWifError("Invalid Private Key Format. Please use WIF!")
+            models.Key(self.encrypt_data(key), pub)
+        log.critical("Migration completed")
+
+    def encrypt_data(self, data):
+        self.unlock()
+        return self.aes.encrypt(data)
+
+    def dencrypt_data(self, data):
+        self.unlock()
+        return self.aes.decrypt(data)
+
+    def getPasswordConfirmed(self):
+        import getpass
+        while True :
+            pw = getpass.getpass('Passphrase: ')
+            if not pw:
+                print("You have chosen an empty password! " +
+                      "We assume you understand the risks!")
+                self._openWallet(pw)
+                break
+            else:
+                pwck = getpass.getpass('Retype passphrase: ')
+                if (pw == pwck) :
+                    return(pw)
+                    break
+                else :
+                    print("Given Passphrases do not match!")
+
+    def addPrivateKey(self, wif):
+        pass
+
+    def getPrivateKeyForPublicKey(self, pub):
+        return self.dencrypt_data(models.Key.getPrivateKeyForPublicKey(pub))
+
+    def removePrivateKeyFromPublicKey(self, pub):
+        pass
+
+    def getPostingKeyForAccount(self, name):
+        account = self.rpc.get_account(name)
+        for authority in account["posting"]["key_auths"]:
+            key = self.getPrivateKeyForPublicKey(authority[0])
+            if key:
+                return key
+        return False
+
+    def getMemoKeyForAccount(self, name):
+        account = self.rpc.get_account(name)
+        key = self.getPrivateKeyForPublicKey(account["memo_key"])
+        if key:
+            return key
+        return False
+
+    def getActiveKeyForAccount(self, name):
+        account = self.rpc.get_account(name)
+        for authority in account["active"]["key_auths"]:
+            key = self.getPrivateKeyForPublicKey(authority[0])
+            if key:
+                return key
+        return False
+
+    def getAccountFromPrivateKey(self, wif):
+        pub = format(PrivateKey(wif).pubkey, prefix)
+        return self.rpc.get_key_references([pub])[0][0]
+
+    def getAccountFromPublicKey(self, pub):
+        return self.rpc.get_key_references([pub])[0][0]
+
+    def getAccount(self, pub):
+        name = self.rpc.get_key_references([pub])[0]
+        if not name:
+            return ["UNKNOWN", "UNKOWN", pub]
+        else:
+            account = self.rpc.get_account(name[0])
+            keyType = self.getKeyType(account, pub)
+            return [name[0], keyType, pub]
+
+    def getKeyType(self, account, pub):
+        if pub == account["memo_key"]:
+            return "memo"
+        for authority in ["owner", "posting", "active"]:
+            for key in account[authority]["key_auths"]:
+                if pub == key[0]:
+                    return authority
+        return None
+
+    def getAccounts(self):
+        return [self.getAccount(a) for a in self.getPublicKeys()]
+
+    def getPublicKeys(self):
+        return models.Key.getPublicKeys()
+
+    #########################
+    # Legacy Wallet Code
+    #########################
     def open(self, password=None):
         if not password and not self.keys:
             # try to load the file without password
@@ -52,9 +177,6 @@ class Wallet(object):
                             break
                         else :
                             print("Given Passphrases do not match!")
-
-    def setKeys(self, keys):
-        self.keys = keys
 
     def _openWallet(self, pw):
         if pw != "":
@@ -130,98 +252,6 @@ class Wallet(object):
                     raise ValueError("Error decrypting/loading keys! Check passphrase!")
         else:
             return []
-
-    def getPrivateKeyForPublicKey(self, pub):
-        self.ensureOpen()
-        for key in self.keys:
-            if format(PrivateKey(key).pubkey, prefix) == pub:
-                return (key)
-
-    def getPostingKeyForAccount(self, name):
-        account = self.rpc.get_account(name)
-        for authority in account["posting"]["key_auths"]:
-            key = self.getPrivateKeyForPublicKey(authority[0])
-            if key:
-                return key
-        return False
-
-    def getMemoKeyForAccount(self, name):
-        self.ensureOpen()
-        account = self.rpc.get_account(name)
-        key = self.getPrivateKeyForPublicKey(account["memo_key"])
-        if key:
-            return key
-        return False
-
-    def getActiveKeyForAccount(self, name):
-        self.ensureOpen()
-        account = self.rpc.get_account(name)
-        for authority in account["active"]["key_auths"]:
-            key = self.getPrivateKeyForPublicKey(authority[0])
-            if key:
-                return key
-        return False
-
-    def removePrivateKeyFromPublicKey(self, pub):
-        self.ensureOpen()
-        for key in self.keys:
-            if format(PrivateKey(key).pubkey, prefix) == pub:
-                self.keys.remove(key)
-        self._storeWallet()
-
-    def addPrivateKey(self, wif):
-        self.ensureOpen()
-        try:
-            if isinstance(wif, PrivateKey):
-                pub = format(wif.pubkey, prefix)
-                self.keys.append(str(wif))
-            else:
-                pub = format(PrivateKey(wif).pubkey, prefix)
-                self.keys.append(wif)
-        except:
-            log.error("Invalid Private Key Format. Please use WIF!")
-            return
-        self.keys = list(set(self.keys))
-        self._storeWallet()
-        return pub
-
-    def getAccountFromPrivateKey(self, wif):
-        pub = format(PrivateKey(wif).pubkey, prefix)
-        return self.rpc.get_key_references([pub])[0][0]
-
-    def getAccountFromPublicKey(self, pub):
-        return self.rpc.get_key_references([pub])[0][0]
-
-    def getAccount(self, pub):
-            name = self.rpc.get_key_references([pub])[0]
-            if not name:
-                return ["n/a", "n/a", pub]
-            else:
-                account = self.rpc.get_account(name[0])
-                keyType = self.getKeyType(account, pub)
-                return [name[0], keyType, pub]
-
-    def getKeyType(self, account, pub):
-        if pub == account["memo_key"]:
-            return "memo"
-        for authority in ["owner", "posting", "active"]:
-            for key in account[authority]["key_auths"]:
-                if pub == key[0]:
-                    return authority
-        return None
-
-    def getAccounts(self):
-        return [self.getAccount(a) for a in self.getPublicKeys()]
-
-    def getPublicKeys(self):
-        self.ensureOpen()
-        pub = []
-        for key in self.keys:
-            try:
-                pub.append(format(PrivateKey(key).pubkey, prefix))
-            except:
-                continue
-        return pub
 
 
 class AESCipher(object):
