@@ -13,7 +13,7 @@ from piston.utils import (
 from piston.wallet import Wallet
 from piston.configuration import Configuration
 import logging
-log = logging.getLogger("piston.steem")
+log = logging.getLogger(__name__)
 
 #: Configuration from local user settings
 config = Configuration()
@@ -24,6 +24,10 @@ if "node" not in config or not config["node"]:
 
 prefix = "STM"
 # prefix = "TST"
+
+
+class AccountExistsException(Exception):
+    pass
 
 
 class Post(object):
@@ -43,43 +47,58 @@ class Post(object):
         self.steem = steem
         self._patch = False
 
-        if isinstance(post, str):
-            # identifier
+        # Get full Post
+        if isinstance(post, str):  # From identifier
             self.identifier = post
             post_author, post_permlink = resolveIdentifier(post)
             post = self.steem.rpc.get_content(post_author, post_permlink)
 
-        elif (isinstance(post, dict) and
+        elif (isinstance(post, dict) and  # From dictionary
                 "author" in post and
                 "permlink" in post):
+            # strip leading @
+            if post["author"][0] == "@":
+                post["author"] = post["author"][1:]
             self.identifier = constructIdentifier(
                 post["author"],
                 post["permlink"]
             )
-            if re.match("^@@", post["body"]):
-                self._patched = True
-                self._patch = post["body"]
+            # if there only is an author and a permlink but no body
+            # get the full post via RPC
+            if "body" not in post:
+                post = self.steem.rpc.get_content(
+                    post["author"],
+                    post["permlink"]
+                )
+        else:
+            raise ValueError("Post expects an identifier or a dict "
+                             "with author and permlink!")
 
-        for key in post:
-            setattr(self, key, post[key])
+        if re.match("^@@", post["body"]):
+            self._patched = True
+            self._patch = post["body"]
 
         # Try to properly format json meta data
-        meta_str = post.get("json_metadata", {})
-        setattr(self, "_json_metadata", meta_str)
-        setattr(self, "_tags", [])
+        meta_str = post.get("json_metadata", "")
+        post["_json_metadata"] = meta_str
+        meta = {}
         try:
-            j = json.loads(meta_str)
-            setattr(self, "json_metadata", j)
-            setattr(self, "_tags", j.get("tags", []))
+            meta = json.loads(meta_str)
         except:
             pass
+        post["_tags"] = meta.get("tags", [])
 
         self.openingPostIdentifier, self.category = self._getOpeningPost()
 
+        # Store everything as attribute
+        for key in post:
+            setattr(self, key, post[key])
+
     def _getOpeningPost(self):
-        m = re.match("/([^/]*)/@([^/]*)/([^#]*).*", self.url)
+        m = re.match("/([^/]*)/@([^/]*)/([^#]*).*",
+                     getattr(self, "url", ""))
         if not m:
-            return None
+            return None, None
         else:
             category = m.group(1)
             author = m.group(2)
@@ -89,10 +108,10 @@ class Post(object):
             ), category
 
     def __getitem__(self, key):
-        if hasattr(self, key):
-            return getattr(self, key)
-        else:
-            return None
+        return getattr(self, key)
+
+    def __contains__(self, key):
+        return hasattr(self, key)
 
     def __repr__(self):
         return "<Steem.Post-%s>" % constructIdentifier(self["author"], self["permlink"])
@@ -171,7 +190,8 @@ class Steem(object):
         """
             :param bool debug: Enable Debugging
             :param wif wif: WIF private key for signing. If provided,
-                            will not load from wallet (optional)
+                            will not load from wallet (optional). Can be
+                            single string, or array of keys.
         """
         self.connect(*args, **kwargs)
         self.wallet = Wallet(self.rpc)
@@ -180,13 +200,12 @@ class Steem(object):
         if "debug" in kwargs:
             self.debug = kwargs["debug"]
 
-        self.wif = None
         if "wif" in kwargs:
-            self.wif = kwargs["wif"]
-        if "default_author" not in config and self.wif:
-            config["default_author"] = self.wallet.getAccountFromPrivateKey(self.wif)
-        if "default_voter" not in config and self.wif:
-            config["default_author"] = self.wallet.getAccountFromPrivateKey(self.wif)
+            if isinstance(kwargs["wif"], str):
+                keys = [kwargs["wif"]]
+            elif isinstance(kwargs["wif"], list):
+                keys = kwargs["wif"]
+            self.wallet.setKeys(keys)
         self.nobroadcast = kwargs.get("nobroadcast", False)
 
     def connect(self, *args, **kwargs):
@@ -240,8 +259,6 @@ class Steem(object):
 
         """
         # overwrite wif with default wif if available
-        if not wif and self.wif:
-            wif = self.wif
         if not wif:
             raise MissingKeyError
 
@@ -402,11 +419,8 @@ class Steem(object):
                "body": body,
                "json_metadata": meta}
         )
-        if not self.wif:
-            wif = self.wallet.getPostingKeyForAccount(author)
-            return self.executeOp(op, wif)
-        else:
-            return self.executeOp(op)
+        wif = self.wallet.getPostingKeyForAccount(author)
+        return self.executeOp(op, wif)
 
     def vote(self,
              identifier,
@@ -445,11 +459,8 @@ class Steem(object):
                "permlink": post_permlink,
                "weight": int(weight * STEEMIT_1_PERCENT)}
         )
-        if not self.wif:
-            wif = self.wallet.getPostingKeyForAccount(voter)
-            return self.executeOp(op, wif)
-        else:
-            return self.executeOp(op)
+        wif = self.wallet.getPostingKeyForAccount(voter)
+        return self.executeOp(op, wif)
 
     def create_account(self,
                        account_name,
@@ -475,6 +486,15 @@ class Steem(object):
             corresponding keys will automatically be installed in the
             wallet.
 
+            .. note:: Account creations cost a fee that is defined by
+                       the network. If you create an account, you will
+                       need to pay for that fee!
+
+            .. warning:: Don't call this method unless you know what
+                          you are doing! Be sure to understand what this
+                          method does and where to find the private keys
+                          for your account.
+
             :param str account_name: (**required**) new account name
             :param str json_meta: Optional meta data for the account
             :param str creator: which account should pay the registration fee
@@ -486,6 +506,7 @@ class Steem(object):
             :param array additional_active_accounts: Additional acctive account names
             :param array additional_posting_accounts: Additional posting account names
             :param bool storekeys: Store new keys in the wallet (default: ``True``)
+            :raises AccountExistsException: if the account already exists on the blockchain
 
         """
         if not creator and config["default_author"]:
@@ -494,6 +515,14 @@ class Steem(object):
             raise ValueError(
                 "Not creator account given. Define it with " +
                 "creator=x, or set the default_author in piston")
+
+        account = None
+        try:
+            account = self.rpc.get_account(account_name)
+        except:
+            pass
+        if account:
+            raise AccountExistsException
 
         " Generate new keys "
         from graphenebase.account import PasswordKey
@@ -554,41 +583,62 @@ class Steem(object):
                          'weight_threshold': 1}}
 
         op = transactions.Account_create(**s)
-        if not self.wif:
-            wif = self.wallet.getPostingKeyForAccount(creator)
-            self.executeOp(op, wif)
-        else:
-            self.executeOp(op)
+        wif = self.wallet.getPostingKeyForAccount(creator)
+        self.executeOp(op, wif)
 
         return password
 
-    def transfer(self, to, amount, memo="", account=None):
+    def transfer(self, to, amount, asset, memo="", account=None):
+        """ Transfer SBD or STEEM to another account.
+
+            :param str to: Recipient
+            :param float amount: Amount to transfer
+            :param str asset: Asset to transfer (``SBD`` or ``STEEM``)
+            :param str memo: (optional) Memo, may begin with `#` for encrypted messaging
+            :param str account: (optional) the source account for the transfer if not ``default_account``
+        """
         if not account:
             if "default_account" in config:
                 account = config["default_account"]
         if not account:
             raise ValueError("You need to provide an account")
 
-        if not to:
-            if "default_account" in config:
-                to = config["default_account"]
-        if not to:
-            raise ValueError("You need to provide a 'to' account")
+        assert asset == "SBD" or asset == "STEEM"
+
+        if memo and memo[0] == "#":
+            from steembase import memo as Memo
+            memo_wif = self.wallet.getMemoKeyForAccount(account)
+            if not memo_wif:
+                raise MissingKeyError("Memo key for %s missing!" % account)
+            to_account = self.rpc.get_account(to)
+            nonce = str(random.getrandbits(64))
+            memo = Memo.encode_memo(
+                PrivateKey(memo_wif),
+                PublicKey(to_account["memo_key"], prefix=prefix),
+                nonce,
+                memo
+            )
 
         op = transactions.Transfer(
             **{"from": account,
                "to": to,
-               "amount": amount,
+               "amount": '{:.{prec}f} {asset}'.format(
+                   amount,
+                   prec=3,
+                   asset=asset
+               ),
                "memo": memo
                }
         )
-        if not self.wif:
-            wif = self.wallet.getActiveKeyForAccount(account)
-            return self.executeOp(op, wif)
-        else:
-            return self.executeOp(op)
+        wif = self.wallet.getActiveKeyForAccount(account)
+        return self.executeOp(op, wif)
 
     def withdraw_vesting(self, amount, account=None):
+        """ Withdraw VESTS from the vesting account.
+
+            :param float amount: number of VESTS to withdraw over a period of 104 weeks
+            :param str account: (optional) the source account for the transfer if not ``default_account``
+        """
         if not account:
             if "default_account" in config:
                 account = config["default_account"]
@@ -597,16 +647,23 @@ class Steem(object):
 
         op = transactions.Withdraw_vesting(
             **{"account": account,
-               "vesting_shares": amount,
+               "vesting_shares": '{:.{prec}f} {asset}'.format(
+                   amount,
+                   prec=6,
+                   asset="VESTS"
+               ),
                }
         )
-        if not self.wif:
-            wif = self.wallet.getActiveKeyForAccount(account)
-            return self.executeOp(op, wif)
-        else:
-            return self.executeOp(op)
+        wif = self.wallet.getActiveKeyForAccount(account)
+        return self.executeOp(op, wif)
 
     def transfer_to_vesting(self, amount, to=None, account=None):
+        """ Vest STEEM
+
+            :param float amount: number of VESTS to withdraw over a period of 104 weeks
+            :param str to: (optional) the source account for the transfer if not ``default_account``
+            :param str account: (optional) the source account for the transfer if not ``default_account``
+        """
         if not account:
             if "default_account" in config:
                 account = config["default_account"]
@@ -622,14 +679,15 @@ class Steem(object):
         op = transactions.Transfer_to_vesting(
             **{"from": account,
                "to": to,
-               "amount": amount,
+               "amount": '{:.{prec}f} {asset}'.format(
+                   amount,
+                   prec=3,
+                   asset="STEEM"
+               ),
                }
         )
-        if not self.wif:
-            wif = self.wallet.getActiveKeyForAccount(account)
-            return self.executeOp(op, wif)
-        else:
-            return self.executeOp(op)
+        wif = self.wallet.getActiveKeyForAccount(account)
+        return self.executeOp(op, wif)
 
     def get_content(self, identifier):
         """ Get the full content of a post.
@@ -722,6 +780,7 @@ class Steem(object):
             :param str sort: Sort categories by "trending", "best",
                              "active", or "recent"
             :param str begin: Show categories after this
+                              identifier of the form ``@author/permlink``
             :param int limit: Limit categories by ``x``
         """
         if sort == "trending":
@@ -739,6 +798,10 @@ class Steem(object):
         return func(begin, limit)
 
     def get_balances(self, account=None):
+        """ Get the balance of an account
+
+            :param str account: (optional) the source account for the transfer if not ``default_account``
+        """
         if not account:
             if "default_account" in config:
                 account = config["default_account"]
@@ -752,5 +815,9 @@ class Steem(object):
         }
 
     def stream_comments(self, *args, **kwargs):
+        """ Generator that yields posts when they come in
+
+            To be used in a for loop that returns an instance of `Post()`.
+        """
         for c in self.rpc.stream("comment", *args, **kwargs):
             yield Post(self, c)

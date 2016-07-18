@@ -6,20 +6,19 @@ import argparse
 from pprint import pprint
 from steembase import PrivateKey, PublicKey, Address
 import steembase.transactions as transactions
-from piston.wallet import Wallet
-from piston.configuration import Configuration
-from piston.utils import (
+from .configuration import Configuration
+from .utils import (
     resolveIdentifier,
     yaml_parse_file,
     formatTime,
 )
-from piston.ui import (
+from .ui import (
     dump_recursive_parents,
     dump_recursive_comments,
     list_posts,
     markdownify,
 )
-from piston.steem import Steem
+from .steem import Steem
 import frontmatter
 import time
 from prettytable import PrettyTable
@@ -82,6 +81,7 @@ def main() :
         type=str,
         choices=["default_author",
                  "default_voter",
+                 "default_account",
                  "node",
                  "rpcuser",
                  "rpcpassword",
@@ -352,7 +352,7 @@ def main() :
     parser_downvote.add_argument(
         '--voter',
         type=str,
-        required=False,
+        default=config["default_voter"],
         help='The voter account name'
     )
     parser_downvote.add_argument(
@@ -513,6 +513,11 @@ def main() :
         gphlog.addHandler(ch)
 
     rpc_not_required = ["set", "config", ""]
+
+    if not hasattr(args, "command"):
+        parser.print_help()
+        sys.exit(2)
+
     if args.command not in rpc_not_required and args.command:
         steem = Steem(
             args.node,
@@ -532,10 +537,10 @@ def main() :
         print(t)
 
     elif args.command == "addkey":
-        wallet = Wallet(steem.rpc)
+        pub = None
         if len(args.wifkeys):
             for wifkey in args.wifkeys:
-                pub = (wallet.addPrivateKey(wifkey))
+                pub = (steem.wallet.addPrivateKey(wifkey))
                 if pub:
                     print(pub)
         else:
@@ -545,29 +550,30 @@ def main() :
                 wifkey = getpass.getpass('Private Key (wif) [Enter to quit]:')
                 if not wifkey:
                     break
-                pub = (wallet.addPrivateKey(wifkey))
+                pub = (steem.wallet.addPrivateKey(wifkey))
                 if pub:
                     print(pub)
 
-        name = wallet.getAccountFromPublicKey(pub)
-        print("Setting new default user: %s" % name)
-        print("You can change these settings with:")
-        print("    piston set default_author x")
-        print("    piston set default_voter x")
-        config["default_author"] = name
-        config["default_voter"] = name
+        if pub:
+            name = steem.wallet.getAccountFromPublicKey(pub)
+            print("Setting new default user: %s" % name)
+            print("You can change these settings with:")
+            print("    piston set default_author x")
+            print("    piston set default_voter x")
+            config["default_author"] = name
+            config["default_voter"] = name
 
     elif args.command == "listkeys":
         t = PrettyTable(["Available Key"])
         t.align = "l"
-        for key in Wallet(steem.rpc).getPublicKeys():
+        for key in steem.wallet.getPublicKeys():
             t.add_row([key])
         print(t)
 
     elif args.command == "listaccounts":
-        t = PrettyTable(["Name", "Available Key"])
+        t = PrettyTable(["Name", "Type", "Available Key"])
         t.align = "l"
-        for account in Wallet(steem.rpc).getAccounts():
+        for account in steem.wallet.getAccounts():
             t.add_row(account)
         print(t)
 
@@ -692,8 +698,7 @@ def main() :
                 body = post["body"]
 
             if args.full:
-                meta = post.copy()
-                meta.pop("body", None)  # remove body from meta
+                delattr(meta, "body")  # remove body from meta
                 yaml = frontmatter.Post(body, **meta)
                 print(frontmatter.dumps(yaml))
             else:

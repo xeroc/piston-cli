@@ -2,7 +2,7 @@
 
 from setuptools import setup
 
-VERSION = '0.2.2b'
+VERSION = '0.2.3'
 
 setup(name='steem-piston',
       version=VERSION,
@@ -33,6 +33,7 @@ setup(name='steem-piston',
                         "diff-match-patch==20121119",
                         "appdirs==1.4.0",
                         "prettytable==0.7.2",
+                        "colorama==0.3.6",
                         ],
       setup_requires=['pytest-runner'],
       tests_require=['pytest'],

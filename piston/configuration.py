@@ -3,7 +3,7 @@ import json
 import collections
 from appdirs import user_data_dir
 import logging
-log = logging.getLogger("piston.configuration")
+log = logging.getLogger(__name__)
 appname = "piston"
 appauthor = "Fabian Schuh"
 configFile = "config.json"
@@ -11,8 +11,8 @@ configFile = "config.json"
 defaults = {
     "categories_sorting": "trending",
     "default_vote_weight": 100.0,
-    #"default_author": "xeroc",
-    #"default_voter": "xeroc",
+    # "default_author": "xeroc",
+    # "default_voter": "xeroc",
     "format": "markdown",
     "limit": 10,
     "list_sorting": "hot",

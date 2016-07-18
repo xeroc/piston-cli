@@ -7,7 +7,7 @@ from Crypto.Cipher import AES
 from steembase import PrivateKey
 from appdirs import user_data_dir
 import logging
-log = logging.getLogger("piston.wallet")
+log = logging.getLogger(__name__)
 appname = "piston"
 appauthor = "Fabian Schuh"
 walletFile = "wallet.dat"
@@ -25,7 +25,7 @@ class Wallet(object):
         self.rpc = rpc
 
     def open(self, password=None):
-        if not password:
+        if not password and not self.keys:
             # try to load the file without password
             import getpass
             if self.exists():
@@ -52,6 +52,9 @@ class Wallet(object):
                             break
                         else :
                             print("Given Passphrases do not match!")
+
+    def setKeys(self, keys):
+        self.keys = keys
 
     def _openWallet(self, pw):
         if pw != "":
@@ -142,6 +145,14 @@ class Wallet(object):
                 return key
         return False
 
+    def getMemoKeyForAccount(self, name):
+        self.ensureOpen()
+        account = self.rpc.get_account(name)
+        key = self.getPrivateKeyForPublicKey(account["memo_key"])
+        if key:
+            return key
+        return False
+
     def getActiveKeyForAccount(self, name):
         self.ensureOpen()
         account = self.rpc.get_account(name)
@@ -186,7 +197,18 @@ class Wallet(object):
             if not name:
                 return ["UNKNOWN", pub]
             else:
-                return [name[0], pub]
+                account = self.rpc.get_account(name[0])
+                keyType = self.getKeyType(account, pub)
+                return [name[0], keyType, pub]
+
+    def getKeyType(self, account, pub):
+        if pub == account["memo_key"]:
+            return "memo"
+        for authority in ["owner", "posting", "active"]:
+            for key in account[authority]["key_auths"]:
+                if pub == key[0]:
+                    return authority
+        return None
 
     def getAccounts(self):
         return [self.getAccount(a) for a in self.getPublicKeys()]
