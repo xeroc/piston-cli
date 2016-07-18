@@ -8,6 +8,8 @@ import os
 import json
 from appdirs import user_data_dir
 import logging
+from .storage import keyStorage, createTables
+
 log = logging.getLogger(__name__)
 appname = "piston"
 appauthor = "Fabian Schuh"
@@ -17,8 +19,6 @@ walletFile = "wallet.dat"
 
 prefix = "STM"
 # prefix = "TST"
-
-from .storage import keyStorage, createTables
 
 
 class InvalidWifError(Exception):
@@ -79,13 +79,12 @@ class Wallet(object):
             if not pw:
                 print("You have chosen an empty password! " +
                       "We assume you understand the risks!")
-                self._openWallet(pw)
+                return ""
                 break
             else:
                 pwck = getpass.getpass('Retype passphrase: ')
                 if (pw == pwck) :
                     return(pw)
-                    break
                 else :
                     print("Given Passphrases do not match!")
 
