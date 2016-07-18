@@ -2,8 +2,7 @@ from prettytable import PrettyTable
 from textwrap import fill, TextWrapper
 import frontmatter
 import re
-from piston.configuration import Configuration
-config = Configuration()
+from .storage import configStorage as config
 
 # For recursive display of a discussion thread (--comments + --parents)
 currentThreadDepth = 0

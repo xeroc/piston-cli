@@ -3,6 +3,7 @@ from Crypto.Cipher import AES
 import hashlib
 import base64
 from steembase import PrivateKey
+from graphenebase import bip38
 import os
 import json
 from appdirs import user_data_dir
@@ -10,7 +11,6 @@ import logging
 log = logging.getLogger(__name__)
 appname = "piston"
 appauthor = "Fabian Schuh"
-walletDatabase = "wallet.sqlite"
 
 # legacy wallet
 walletFile = "wallet.dat"
@@ -18,7 +18,7 @@ walletFile = "wallet.dat"
 prefix = "STM"
 # prefix = "TST"
 
-from . import wallet_models as models
+from .storage import keyStorage, createTables
 
 
 class InvalidWifError(Exception):
@@ -28,43 +28,49 @@ class InvalidWifError(Exception):
 class Wallet(object):
     keys = []
     rpc = None
-    aes = None
+    password = None
     keysDb = None
+
+    # legacy aes encryption
+    aes = None
 
     def __init__(self, rpc, *args, **kwargs):
         self.rpc = rpc
 
-        if models.createTables:
-            models.Base.metadata.create_all(models.engine)
+        if createTables:
             # migrate to new SQL based storage
             if self.exists():
                 log.critical("Migrating old wallet format to new format!")
                 self.migrateFromJSON()
 
     def unlock(self):
-        if not self.aes:
-            self.aes = AESCipher(self.getPasswordConfirmed())
+        if self.password is None:
+            self.password = self.getPasswordConfirmed()
 
     def lock(self):
-        self.aes = None
+        self.password = None
 
     def migrateFromJSON(self):
         self.ensureOpen()
-        for key in self.keys:
-            try:
-                pub = format(PrivateKey(key).pubkey, prefix)
-            except:
-                raise InvalidWifError("Invalid Private Key Format. Please use WIF!")
-            models.Key(self.encrypt_data(key), pub)
+        numKeys = len(self.keys)
+        for i, key in enumerate(self.keys):
+            self.addPrivateKey(key)
+            log.critical("Migrated key %d of %d" % (i + 1, numKeys))
         log.critical("Migration completed")
 
-    def encrypt_data(self, data):
+    def encrypt_wif(self, wif):
         self.unlock()
-        return self.aes.encrypt(data)
+        if self.password == "":
+            return wif
+        else:
+            return format(bip38.encrypt(PrivateKey(wif), self.password), "encwif")
 
-    def dencrypt_data(self, data):
+    def decrypt_wif(self, encwif):
         self.unlock()
-        return self.aes.decrypt(data)
+        if self.password == "":
+            return encwif
+        else:
+            return format(bip38.decrypt(encwif, self.password), "wif")
 
     def getPasswordConfirmed(self):
         import getpass
@@ -84,13 +90,17 @@ class Wallet(object):
                     print("Given Passphrases do not match!")
 
     def addPrivateKey(self, wif):
-        pass
+        try:
+            pub = format(PrivateKey(wif).pubkey, prefix)
+        except:
+            raise InvalidWifError("Invalid Private Key Format. Please use WIF!")
+        keyStorage.add(self.encrypt_wif(wif), pub)
 
     def getPrivateKeyForPublicKey(self, pub):
-        return self.dencrypt_data(models.Key.getPrivateKeyForPublicKey(pub))
+        return self.decrypt_wif(keyStorage.getPrivateKeyForPublicKey(pub))
 
     def removePrivateKeyFromPublicKey(self, pub):
-        pass
+        keyStorage.delete(pub)
 
     def getPostingKeyForAccount(self, name):
         account = self.rpc.get_account(name)
@@ -125,7 +135,7 @@ class Wallet(object):
     def getAccount(self, pub):
         name = self.rpc.get_key_references([pub])[0]
         if not name:
-            return ["UNKNOWN", "UNKOWN", pub]
+            return ["n/a", "n/a", pub]
         else:
             account = self.rpc.get_account(name[0])
             keyType = self.getKeyType(account, pub)
@@ -144,7 +154,7 @@ class Wallet(object):
         return [self.getAccount(a) for a in self.getPublicKeys()]
 
     def getPublicKeys(self):
-        return models.Key.getPublicKeys()
+        return keyStorage.getPublicKeys()
 
     #########################
     # Legacy Wallet Code

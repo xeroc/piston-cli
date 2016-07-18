@@ -16,9 +16,6 @@ from datetime import datetime
 import logging
 log = logging.getLogger(__name__)
 
-#: Configuration from local user settings
-config = Configuration()
-
 #: Default settings
 if "node" not in config or not config["node"]:
     config["node"] = "wss://this.piston.rocks/"
@@ -251,7 +248,7 @@ class Steem(object):
             :param bool nobroadcast: Do **not** broadcast a transaction!
 
             If no node is provided, it will connect to the node of
-            SteemIT.com. It is **highly** recommended that you pick your own
+            http://piston.rocks. It is **highly** recommended that you pick your own
             node instead. Default settings can be changed with:
 
             .. code-block:: python
@@ -261,9 +258,18 @@ class Steem(object):
             where ``<host>`` starts with ``ws://`` or ``wss://``.
         """
 
-        node = kwargs.pop("node", False)
-        rpcuser = kwargs.pop("rpcuser", "")
-        rpcpassword = kwargs.pop("rpcpassword", "")
+        node = None
+        rpcuser = None
+        rpcpassword = None
+        if len(args):
+            node = args.pop(0)
+        if len(args):
+            rpcuser = args.pop(0)
+        if len(args):
+            rpcpassword = args.pop(0)
+        node = kwargs.pop("node", node)
+        rpcuser = kwargs.pop("rpcuser", rpcuser)
+        rpcpassword = kwargs.pop("rpcpassword", rpcpassword)
 
         if not node:
             if "node" in config:

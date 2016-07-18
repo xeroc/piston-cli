@@ -6,7 +6,7 @@ import argparse
 from pprint import pprint
 from steembase import PrivateKey, PublicKey, Address
 import steembase.transactions as transactions
-from .configuration import Configuration
+from .storage import configStorage as config
 from .utils import (
     resolveIdentifier,
     yaml_parse_file,
@@ -31,7 +31,6 @@ log.addHandler(logging.StreamHandler())
 
 def main() :
     global args
-    config = Configuration()
 
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -520,9 +519,9 @@ def main() :
 
     if args.command not in rpc_not_required and args.command:
         steem = Steem(
-            args.node,
-            args.rpcuser,
-            args.rpcpassword,
+            node=args.node,
+            rpcuser=args.rpcuser,
+            rpcpassword=args.rpcpassword,
             nobroadcast=args.nobroadcast
         )
 
@@ -532,7 +531,7 @@ def main() :
     if args.command == "config":
         t = PrettyTable(["Key", "Value"])
         t.align = "l"
-        for key in config.store:
+        for key in config:
             t.add_row([key, config[key]])
         print(t)
 
