@@ -1,5 +1,4 @@
 import argparse
-import sqlite3
 import shutil
 import time
 import os
@@ -19,16 +18,18 @@ def sqlite3_backup(dbfile, backupdir):
     if not os.path.isdir(backupdir):
         os.mkdir(backupdir)
     backup_file = os.path.join(
-        backupdir, 
+        backupdir,
         os.path.basename(storageDatabase) +
         time.strftime("-%Y%m%d-%H%M%S"))
+    connection = sqlite3.connect(sqlDataBaseFile)
+    cursor = connection.cursor()
     # Lock database before making a backup
-    session.execute('begin immediate')
+    cursor.execute('begin immediate')
     # Make new backup file
     shutil.copyfile(dbfile, backup_file)
     log.info("Creating {}...".format(backup_file))
     # Unlock database
-    engine.rollback()
+    connection.rollback()
     configStorage["lastBackup"] = time.time()
 
 
@@ -40,7 +41,7 @@ def clean_data(backup_dir):
         if os.stat(backup_file).st_ctime < (time.time() - 70 * 86400):
             if os.path.isfile(backup_file):
                 os.remove(backup_file)
-                log.info("Deleting {}...".format(ibackup_file))
+                log.info("Deleting {}...".format(backup_file))
 
 
 class Key():
@@ -52,8 +53,10 @@ class Key():
     def exists_table(self):
         query = ("SELECT name FROM sqlite_master "
                  "WHERE type='table' AND name='%s'" % self.__tablename__)
-        session.execute(query)
-        return True if session.fetchone() else False
+        connection = sqlite3.connect(sqlDataBaseFile)
+        cursor = connection.cursor()
+        cursor.execute(query)
+        return True if cursor.fetchone() else False
 
     def create_table(self):
         query = ('CREATE TABLE %s (' % self.__tablename__ +
@@ -61,20 +64,26 @@ class Key():
                  'pub STRING(256),' +
                  'wif STRING(256)' +
                  ')')
-        session.execute(query)
-        engine.commit()
+        connection = sqlite3.connect(sqlDataBaseFile)
+        cursor = connection.cursor()
+        cursor.execute(query)
+        connection.commit()
 
     def getPublicKeys(self):
         query = ("SELECT pub from %s " % (self.__tablename__))
-        session.execute(query)
-        results = session.fetchall()
+        connection = sqlite3.connect(sqlDataBaseFile)
+        cursor = connection.cursor()
+        cursor.execute(query)
+        results = cursor.fetchall()
         return [x[0] for x in results]
 
     def getPrivateKeyForPublicKey(self, pub):
         query = ("SELECT wif from %s " % (self.__tablename__) +
                  "WHERE pub='%s'" % pub)
-        session.execute(query)
-        key = session.fetchone()
+        connection = sqlite3.connect(sqlDataBaseFile)
+        cursor = connection.cursor()
+        cursor.execute(query)
+        key = cursor.fetchone()
         if key:
             return key[0]
         else:
@@ -85,14 +94,18 @@ class Key():
             raise ValueError("Key already in storage")
         query = ('INSERT INTO %s (pub, wif) ' % self.__tablename__ +
                  'VALUES ("%s", "%s")' % (pub, wif))
-        session.execute(query)
-        engine.commit()
+        connection = sqlite3.connect(sqlDataBaseFile)
+        cursor = connection.cursor()
+        cursor.execute(query)
+        connection.commit()
 
     def delete(self, pub):
         query = ("DELETE FROM %s " % (self.__tablename__) +
                  "WHERE pub='%s'" % pub)
-        session.execute(query)
-        engine.commit()
+        connection = sqlite3.connect(sqlDataBaseFile)
+        cursor = connection.cursor()
+        cursor.execute(query)
+        connection.commit()
 
 
 class Configuration():
@@ -114,8 +127,10 @@ class Configuration():
     def exists_table(self):
         query = ("SELECT name FROM sqlite_master "
                  "WHERE type='table' AND name='%s'" % self.__tablename__)
-        session.execute(query)
-        return True if session.fetchone() else False
+        connection = sqlite3.connect(sqlDataBaseFile)
+        cursor = connection.cursor()
+        cursor.execute(query)
+        return True if cursor.fetchone() else False
 
     def create_table(self):
         query = ('CREATE TABLE %s (' % self.__tablename__ +
@@ -123,8 +138,10 @@ class Configuration():
                  'key STRING(256),' +
                  'value STRING(256)' +
                  ')')
-        session.execute(query)
-        engine.commit()
+        connection = sqlite3.connect(sqlDataBaseFile)
+        cursor = connection.cursor()
+        cursor.execute(query)
+        connection.commit()
 
     def __getitem__(self, key):
         """ This method behaves differently from regular `dict` in that
@@ -133,8 +150,10 @@ class Configuration():
         query = ("SELECT value FROM %s " % (self.__tablename__) +
                  "WHERE key='%s'" % key
                  )
-        session.execute(query)
-        result = session.fetchone()
+        connection = sqlite3.connect(sqlDataBaseFile)
+        cursor = connection.cursor()
+        cursor.execute(query)
+        result = cursor.fetchone()
         if result:
             return result[0]
         else:
@@ -158,27 +177,35 @@ class Configuration():
         else:
             query = ("INSERT INTO %s (key, value) VALUES" % (self.__tablename__) +
                      "('%s', '%s')" % (key, value))
-        session.execute(query)
-        engine.commit()
+        connection = sqlite3.connect(sqlDataBaseFile)
+        cursor = connection.cursor()
+        cursor.execute(query)
+        connection.commit()
 
     def __delitem__(self, key):
         query = ("DELETE FROM %s " % (self.__tablename__) +
                  "WHERE key='%s'" % key)
-        session.execute(query)
-        engine.commit()
+        connection = sqlite3.connect(sqlDataBaseFile)
+        cursor = connection.cursor()
+        cursor.execute(query)
+        connection.commit()
 
     def __iter__(self):
         query = ("SELECT key, value from %s " % (self.__tablename__))
-        session.execute(query)
+        connection = sqlite3.connect(sqlDataBaseFile)
+        cursor = connection.cursor()
+        cursor.execute(query)
         r = {}
-        for key, value in session.fetchall():
+        for key, value in cursor.fetchall():
             r[key] = value
         return iter(r)
 
     def __len__(self):
         query = ("SELECT id from %s " % (self.__tablename__))
-        session.execute(query)
-        return len(session.fetchall())
+        connection = sqlite3.connect(sqlDataBaseFile)
+        cursor = connection.cursor()
+        cursor.execute(query)
+        return len(cursor.fetchall())
 
 
 #: Storage
@@ -187,8 +214,6 @@ data_dir = user_data_dir(appname, appauthor)
 sqlDataBaseFile = os.path.join(data_dir, storageDatabase)
 
 # Connect to Storage via SQLite3
-engine = sqlite3.connect(sqlDataBaseFile)
-session = engine.cursor()
 
 # Create keyStorage
 keyStorage = Key()
@@ -203,7 +228,7 @@ if not keyStorage.exists_table():
     keyStorage.create_table()
 
 # Backup the SQL database every 7 days
-if (not configStorage["lastBackup"] or 
+if (not configStorage["lastBackup"] or
         (time.time() - configStorage["lastBackup"]) > 60 * 60 * 7):
     backupdir = os.path.join(data_dir, "backups")
     sqlite3_backup(sqlDataBaseFile, backupdir)
