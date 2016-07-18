@@ -70,7 +70,7 @@ def yaml_parse_file(args, initial_content):
                 args.append("-f")
             args.append(fp.name)
             # Execute command
-            proc = Popen(args).wait()
+            Popen(args).wait()
             # Read content of file
             fp.seek(0)
             message = fp.read().decode('utf-8')
