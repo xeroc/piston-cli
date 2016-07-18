@@ -699,7 +699,11 @@ def main() :
                 body = post["body"]
 
             if args.full:
-                delattr(meta, "body")  # remove body from meta
+                meta = {}
+                for key in post:
+                    if key in ["steem", "body"]:
+                        continue
+                    meta[key] = post[key]
                 yaml = frontmatter.Post(body, **meta)
                 print(frontmatter.dumps(yaml))
             else:

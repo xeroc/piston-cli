@@ -110,8 +110,23 @@ class Post(object):
     def __getitem__(self, key):
         return getattr(self, key)
 
+    def remove(self, key):
+        delattr(self, key)
+
+    def __delitem__(self, key):
+        delattr(self, key)
+
     def __contains__(self, key):
         return hasattr(self, key)
+
+    def __iter__(self):
+        r = {}
+        for key in vars(self):
+            r[key] = getattr(self, key)
+        return iter(r)
+
+    def __len__(self):
+        return len(vars(self))
 
     def __repr__(self):
         return "<Steem.Post-%s>" % constructIdentifier(self["author"], self["permlink"])
