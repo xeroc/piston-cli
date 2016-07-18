@@ -117,6 +117,29 @@ def main() :
     addkey.set_defaults(command="addkey")
 
     """
+        Command "delkey"
+    """
+    delkey = subparsers.add_parser('delkey', help='Delete keys from the wallet')
+    delkey.add_argument(
+        'pub',
+        nargs='*',
+        type=str,
+        help='the public key to delete from the wallet'
+    )
+    delkey.set_defaults(command="delkey")
+
+    """
+        Command "getkey"
+    """
+    getkey = subparsers.add_parser('getkey', help='Dump the privatekey of a pubkey from the wallet')
+    getkey.add_argument(
+        'pub',
+        type=str,
+        help='the public key for which to show the private key'
+    )
+    getkey.set_defaults(command="getkey")
+
+    """
         Command "listkeys"
     """
     listkeys = subparsers.add_parser('listkeys', help='List available keys in your wallet')
@@ -561,6 +584,13 @@ def main() :
             print("    piston set default_voter x")
             config["default_author"] = name
             config["default_voter"] = name
+
+    elif args.command == "delkey":
+        for pub in args.pub:
+            steem.wallet.removePrivateKeyFromPublicKey(pub)
+
+    elif args.command == "getkey":
+        print(steem.wallet.getPrivateKeyForPublicKey(args.pub))
 
     elif args.command == "listkeys":
         t = PrettyTable(["Available Key"])

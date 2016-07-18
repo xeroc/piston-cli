@@ -35,7 +35,7 @@ class Wallet(LegacyWallet):
 
     def unlock(self):
         if self.password is None:
-            self.password = self.getPasswordConfirmed()
+            self.password = self.getPassword()
 
     def lock(self):
         self.password = None
@@ -44,7 +44,7 @@ class Wallet(LegacyWallet):
         # Open Legacy Wallet and populate self.keys
         self.ensureOpen()
         print("Please provide a password for the new wallet")
-        self.unlock()
+        self.password = self.getPasswordConfirmed()
         numKeys = len(self.keys)
         for i, key in enumerate(self.keys):
             self.addPrivateKey(key)
@@ -59,11 +59,18 @@ class Wallet(LegacyWallet):
             return format(bip38.encrypt(PrivateKey(wif), self.password), "encwif")
 
     def decrypt_wif(self, encwif):
-        self.unlock()
-        if self.password == "":
+        try:
+            # Try to decode as wif
+            PrivateKey(encwif)
             return encwif
-        else:
-            return format(bip38.decrypt(encwif, self.password), "wif")
+        except:
+            pass
+        self.unlock()
+        return format(bip38.decrypt(encwif, self.password), "wif")
+
+    def getPassword(self):
+        import getpass
+        return getpass.getpass('Passphrase: ')
 
     def getPasswordConfirmed(self):
         import getpass
