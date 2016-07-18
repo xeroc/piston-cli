@@ -2,7 +2,7 @@
 
 from setuptools import setup
 
-VERSION = '0.2.3'
+VERSION = '0.2.3a'
 
 setup(name='steem-piston',
       version=VERSION,
@@ -27,7 +27,7 @@ setup(name='steem-piston',
               'piston = piston.__main__:main',
           ],
       },
-      install_requires=["steem>=0.1.7",
+      install_requires=["steem>=0.2",
                         "graphenelib>=0.4.3",
                         "python-frontmatter==0.2.1",
                         "diff-match-patch==20121119",
