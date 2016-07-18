@@ -528,7 +528,7 @@ def main() :
     if args.command == "set":
         config[args.key] = args.value
 
-    if args.command == "config":
+    elif args.command == "config":
         t = PrettyTable(["Key", "Value"])
         t.align = "l"
         for key in config:
@@ -742,8 +742,13 @@ def main() :
         )
 
     elif args.command == "replies":
-        discussions = steem.get_replies(args.author)
-        list_posts(discussions[0:args.limit])
+        if not args.author:
+            print("Please specify an author via --author\n "
+                  "or define your default author with:\n"
+                  "   piston set default_author x")
+        else:
+            discussions = steem.get_replies(args.author)
+            list_posts(discussions[0:args.limit])
 
     elif args.command == "transfer":
         pprint(steem.transfer(
