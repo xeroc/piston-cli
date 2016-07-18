@@ -514,7 +514,6 @@ def main() :
 
     rpc_not_required = ["set", "config", ""]
 
-
     if not hasattr(args, "command"):
         parser.print_help()
         sys.exit(2)
