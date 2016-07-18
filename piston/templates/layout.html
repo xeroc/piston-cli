@@ -1,0 +1,57 @@
+{% extends "bootstrap/base.html" %}
+{% import "bootstrap/google.html" as google %}
+
+{% block title %}piston.web{% endblock %}
+
+
+{% block styles %}
+{{super()}}
+  <link rel='stylesheet' href='//maxcdn.bootstrapcdn.com/font-awesome/4.6.3/css/font-awesome.min.css'>
+  {% assets "css_main" %}
+  <link rel='stylesheet' href='{{ ASSET_URL }}'>
+  {% endassets %}
+  <style>
+  body {
+      padding-top: 70px;
+  }
+  </style>
+{% endblock %}
+
+
+{% block navbar %}
+  <nav class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+   <div class="container">
+    <div class="navbar-header">
+     <a class="navbar-brand" href="/">piston.web</a>
+    </div>
+    <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+     <ul class="nav navbar-nav">
+     <li><a href=""><i class="fa fa-book"></i> Browse</a></li>
+     <li><a href=""><i class="fa fa-pencil"></i> Post</a></li>
+     <li><a href=""><i class="fa fa-exchange"></i> Trade</a></li>
+     <li><a href=""><i class="fa fa-paperplane-o"></i> Transfer</a></li>
+     </ul>
+     <ul class="nav navbar-nav navbar-right">
+       <li><a href=""><i class="fa fa-user"></i> account</a></li>
+       <li><a href=""><i class="fa fa-heartbeat"></i> Status</a></li>
+    </ul>
+    </div>
+   </div>
+  </nav>
+  <div class="container">
+   <div class="row">
+    <div class="col-md-12">
+{% endblock %}
+
+
+{% block scripts %}
+    </div>
+   </div>
+  </div>
+
+{{super()}}
+{% assets "js_main" %}
+<script type="text/javascript" src="{{ ASSET_URL }}"></script>
+{% endassets %}
+{{google.uanalytics(config['GOOGLE_ANALYTICS_ID'])}}
+{% endblock %}

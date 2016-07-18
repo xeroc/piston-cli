@@ -1,0 +1,57 @@
+{% macro show_form_errors(f) %}
+  {% for k in f %}
+   {% if k.errors[0] %}
+    <div class="alert alert-danger">
+    {{k.errors[0]}}
+    </div>
+   {% endif %}
+  {% endfor %}
+{% endmacro %}
+
+
+{% macro render_social_login(type, connections={}) %}
+ <div class="form-group text-center">
+
+  {% for provider in config["STREEMIAN"].authomaticConfig | sort %}
+   {% if provider != "openid" %}
+    <a class="btn btn-block btn-social btn-{{provider}}" href="{{url_for("login", provider=provider)}}">
+      <span class="fa fa-{{provider}}"></span> Sign in with {{provider | capitalize }}
+    </a>
+   {% endif %}
+  {% endfor %}
+
+  <p>
+  <form class="form-inline" action="{{url_for("login", provider="openid")}}" method="GET">
+   <div class="form-group">
+    <div class="input-group openid_identifier">
+     <input name="id" class="form-control" type="text" placeholder="Your OpenID">
+    </div>
+   </div>
+   <button type="submit" class="btn btn-social btn-openid">
+    <span class="fa fa-openid"></span>OpenID
+   </button>
+  </form>
+  </p>
+
+ </div>
+{% endmacro %}
+
+{% macro render_field_with_errors(field) %}
+ <div class="form-group">
+  <div class="col-sm-3 control-label">{{ field.label }}</div>
+  <div class="col-sm-9">
+   {{ field(**kwargs)|safe }}
+  </div>
+ </div>
+  {% if field.errors %}
+    <ul>
+    {% for error in field.errors %}
+      <li>{{ error }}</li>
+    {% endfor %}
+    </ul>
+  {% endif %}
+{% endmacro %}
+
+{% macro render_field(field) %}
+  <p>{{ field(**kwargs)|safe }}</p>
+{% endmacro %}

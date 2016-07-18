@@ -134,11 +134,17 @@ class Wallet(LegacyWallet):
     def getAccount(self, pub):
         name = self.rpc.get_key_references([pub])[0]
         if not name:
-            return ["n/a", "n/a", pub]
+            return {"name": None,
+                    "type": None,
+                    "pubkey": pub
+                    }
         else:
             account = self.rpc.get_account(name[0])
             keyType = self.getKeyType(account, pub)
-            return [name[0], keyType, pub]
+            return {"name": name[0],
+                    "type": keyType,
+                    "pubkey": pub
+                    }
 
     def getKeyType(self, account, pub):
         if pub == account["memo_key"]:
@@ -151,6 +157,21 @@ class Wallet(LegacyWallet):
 
     def getAccounts(self):
         return [self.getAccount(a) for a in self.getPublicKeys()]
+
+    def getAccountsWithPermissions(self):
+        accounts = [self.getAccount(a) for a in self.getPublicKeys()]
+        r = {}
+        for account in accounts:
+            name = account["name"]
+            type = account["type"]
+            if name not in r:
+                r[name] = {"posting": False,
+                           "owner": False,
+                           "active": False,
+                           "memo": False}
+            r[name][type] = True
+        return r
+
 
     def getPublicKeys(self):
         return keyStorage.getPublicKeys()

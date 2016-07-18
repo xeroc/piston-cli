@@ -94,3 +94,15 @@ def formatTime(t) :
     """ Properly Format Time for permlinks
     """
     return datetime.utcfromtimestamp(t).strftime("%Y%m%dt%H%M%S%Z")
+
+
+def strfdelta(tdelta, fmt):
+    """ Format time/age
+    """
+    if not tdelta or not hasattr(tdelta, "days"):  # dirty hack
+        return None
+
+    d = {"days": tdelta.days}
+    d["hours"], rem = divmod(tdelta.seconds, 3600)
+    d["minutes"], d["seconds"] = divmod(rem, 60)
+    return fmt.format(**d)

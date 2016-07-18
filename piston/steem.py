@@ -217,6 +217,9 @@ class Steem(object):
         This class also deals with edits, votes and reading content.
     """
 
+    wallet = None
+    rpc = None
+
     def __init__(self, *args, **kwargs):
         """
             :param bool debug: Enable Debugging

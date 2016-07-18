@@ -496,6 +496,18 @@ def main() :
     )
 
     """
+        Command "web"
+    """
+    webconfig = subparsers.add_parser('web', help='Launch web version of piston')
+    webconfig.set_defaults(command="web")
+    webconfig.add_argument(
+        '--port',
+        type=int,
+        default=5054,
+        help='Port to open for internal web requests'
+    )
+
+    """
         Parse Arguments
     """
     args = parser.parse_args()
@@ -534,12 +546,16 @@ def main() :
         gphlog.setLevel(getattr(logging, verbosity.upper()))
         gphlog.addHandler(ch)
 
-    rpc_not_required = ["set", "config", ""]
-
     if not hasattr(args, "command"):
         parser.print_help()
         sys.exit(2)
 
+    # We don't require RPC for these commands
+    rpc_not_required = [
+        "set",
+        "config",
+        "web",  # comes with it's own Steem connection
+        ""]
     if args.command not in rpc_not_required and args.command:
         steem = Steem(
             node=args.node,
@@ -603,7 +619,11 @@ def main() :
         t = PrettyTable(["Name", "Type", "Available Key"])
         t.align = "l"
         for account in steem.wallet.getAccounts():
-            t.add_row(account)
+            t.add_row([
+                account["name"] or "n/a",
+                account["type"] or "n/a",
+                account["pubkey"]
+            ])
         print(t)
 
     elif args.command == "reply":
@@ -815,6 +835,15 @@ def main() :
                 b["vesting_shares"],
             ])
         print(t)
+
+    elif args.command == "web":
+        from . import web
+        web.app.config["STEEM_NODE"] = args.node
+        web.app.config["STEEM_RPCUSER"] = args.rpcuser
+        web.app.config["STEEM_RPCPASS"] = args.rpcpassword
+        web.app.config["STEEM_NOBROADCAST"] = args.nobroadcast
+        web.app.config["PORT"] = args.port
+        web.run()
 
     else:
         print("No valid command given")
