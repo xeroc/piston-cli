@@ -195,7 +195,7 @@ class Wallet(object):
     def getAccount(self, pub):
             name = self.rpc.get_key_references([pub])[0]
             if not name:
-                return ["UNKNOWN", pub]
+                return ["n/a", "n/a", pub]
             else:
                 account = self.rpc.get_account(name[0])
                 keyType = self.getKeyType(account, pub)

@@ -53,12 +53,12 @@ def yaml_parse_file(args, initial_content):
         import tempfile
         from subprocess import Popen
         EDITOR = os.environ.get('EDITOR', 'vim')
-        prefix = ""
-        if "permlink" in initial_content.metadata:
-            prefix = initial_content.metadata["permlink"]
+        # prefix = ""
+        # if "permlink" in initial_content.metadata:
+        #   prefix = initial_content.metadata["permlink"]
         with tempfile.NamedTemporaryFile(
             suffix=b".md",
-            prefix=bytes("piston-" + prefix, 'ascii'),
+            prefix=b"piston-",
             delete=False
         ) as fp:
             # Write initial content
