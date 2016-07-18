@@ -26,6 +26,10 @@ prefix = "STM"
 # prefix = "TST"
 
 
+class AccountExistsException(Exception):
+    pass
+
+
 class Post(object):
     """ This object gets instanciated by Steem.streams and is used as an
         abstraction layer for Comments in Steam
@@ -482,6 +486,15 @@ class Steem(object):
             corresponding keys will automatically be installed in the
             wallet.
 
+            .. note:: Account creations cost a fee that is defined by
+                       the network. If you create an account, you will
+                       need to pay for that fee!
+
+            .. warning:: Don't call this method unless you know what
+                          you are doing! Be sure to understand what this
+                          method does and where to find the private keys
+                          for your account.
+
             :param str account_name: (**required**) new account name
             :param str json_meta: Optional meta data for the account
             :param str creator: which account should pay the registration fee
@@ -493,6 +506,7 @@ class Steem(object):
             :param array additional_active_accounts: Additional acctive account names
             :param array additional_posting_accounts: Additional posting account names
             :param bool storekeys: Store new keys in the wallet (default: ``True``)
+            :raises AccountExistsException: if the account already exists on the blockchain
 
         """
         if not creator and config["default_author"]:
@@ -501,6 +515,14 @@ class Steem(object):
             raise ValueError(
                 "Not creator account given. Define it with " +
                 "creator=x, or set the default_author in piston")
+
+        account = None
+        try:
+            account = self.rpc.get_account(account_name)
+        except:
+            pass
+        if account:
+            raise AccountExistsException
 
         " Generate new keys "
         from graphenebase.account import PasswordKey

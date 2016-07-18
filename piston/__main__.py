@@ -551,12 +551,12 @@ def main() :
                 wifkey = getpass.getpass('Private Key (wif) [Enter to quit]:')
                 if not wifkey:
                     break
-                pub = (wallet.addPrivateKey(wifkey))
+                pub = (steem.wallet.addPrivateKey(wifkey))
                 if pub:
                     print(pub)
 
         if pub:
-            name = wallet.getAccountFromPublicKey(pub)
+            name = steem.wallet.getAccountFromPublicKey(pub)
             print("Setting new default user: %s" % name)
             print("You can change these settings with:")
             print("    piston set default_author x")
@@ -565,7 +565,6 @@ def main() :
             config["default_voter"] = name
 
     elif args.command == "listkeys":
-        print("1")
         t = PrettyTable(["Available Key"])
         t.align = "l"
         for key in steem.wallet.getPublicKeys():
