@@ -579,7 +579,6 @@ def main() :
 
     elif args.command == "reply":
         from textwrap import indent
-
         parent = steem.get_content(args.replyto)
         if parent["id"] == "0.0.0":
             print("Can't find post %s" % args.replyto)
