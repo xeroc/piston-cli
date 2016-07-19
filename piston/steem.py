@@ -660,7 +660,7 @@ class Steem(object):
     def transfer_to_vesting(self, amount, to=None, account=None):
         """ Vest STEEM
 
-            :param float amount: number of VESTS to withdraw over a period of 104 weeks
+            :param float amount: number of STEEM to vest
             :param str to: (optional) the source account for the transfer if not ``default_account``
             :param str account: (optional) the source account for the transfer if not ``default_account``
         """
