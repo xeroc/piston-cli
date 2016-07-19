@@ -2,11 +2,12 @@ from flask import Flask, redirect, url_for, session, current_app
 from flask_assets import Environment
 from flask_bootstrap import Bootstrap
 from flaskext.markdown import Markdown
-from .utils import strfdelta
+from .utils import strfdelta, strfage
+from flask_socketio import SocketIO
 
-# https://github.com/acoomans/flask-autodoc
 
 app = Flask(__name__)
+socketio = SocketIO(app)
 Bootstrap(app)
 webassets = Environment(app)
 markdown = Markdown(
@@ -20,9 +21,7 @@ markdown = Markdown(
 
 from . import web_assets, web_views
 
-###############################################################################
-# Extras
-###############################################################################
+
 @app.template_filter('datetime')
 def _jinja2_filter_datetime(date, fmt=None):
     if fmt:
@@ -30,11 +29,20 @@ def _jinja2_filter_datetime(date, fmt=None):
     else:
         return strfdelta(date, '{days} days {hours} hours')
 
-###############################################################################
-# Run webserver
-###############################################################################
+
+@app.template_filter('age')
+def _jinja2_filter_age(date, fmt=None):
+    return strfage(date, fmt)
+
+
+@app.template_filter('excert')
+def _jinja2_filter_datetime(data):
+    words = data.split(" ")
+    return " ".join(words[:100])
+
+
 def run():
-    app.run(debug=True, port=app.config.get("PORT", 5054))
+    socketio.run(app, debug=True, port=app.config.get("PORT", 5054))
 
     # FIXME: Don't use .run()
     # from gevent.wsgi import WSGIServer

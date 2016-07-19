@@ -12,27 +12,37 @@ steem = Steem(
     nobroadcast=app.config.get("STEEM_NOBROADCAST", False)
 )
 
+from . import web_socketio
+
 
 @app.route('/')
 def index():
     accounts = steem.wallet.getAccountsWithPermissions()
     return render_template('index.html', **locals())
 
-###############################################################################
-# Views
-###############################################################################
-# steemit compatiblilty!
-##############################
-# /@user
-# /@user/transfer
-# /@user/market
-# /@user/post
-# /replies/@user
-# /blog/@user
-# /recommended/@user
-# /created/<category>
-# /hot/<category>
 
+@app.route('/browse', defaults={"category": "", "sort": "hot"})
+@app.route('/browse/<sort>/<category>')
+def browse(category, sort):
+    accounts = steem.wallet.getAccountsWithPermissions()
+    posts = steem.get_posts(limit=10, category=category, sort=sort)
+    tags = steem.get_categories("trending", limit=25)
+    return render_template('browse.html', **locals())
+
+
+@app.route('/post')
+def post():
+    pass
+
+
+@app.route('/transfer')
+def transfer():
+    pass
+
+
+@app.route('/trade')
+def trade():
+    pass
 
 # http://www.vermilion.com/responsive-comparison/?framework=bootstrap
 # http://v4-alpha.getbootstrap.com/

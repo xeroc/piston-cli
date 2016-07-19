@@ -40,6 +40,9 @@ class Wallet(LegacyWallet):
     def lock(self):
         self.password = None
 
+    def locked(self):
+        return False if self.password else True
+
     def migrateFromJSON(self):
         # Open Legacy Wallet and populate self.keys
         self.ensureOpen()

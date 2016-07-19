@@ -7,7 +7,11 @@
 {% block styles %}
 {{super()}}
   <link rel='stylesheet' href='//maxcdn.bootstrapcdn.com/font-awesome/4.6.3/css/font-awesome.min.css'>
+  <script src="https://cdn.socket.io/socket.io-1.4.5.js"></script>
   {% assets "css_main" %}
+  <link rel='stylesheet' href='{{ ASSET_URL }}'>
+  {% endassets %}
+  {% assets "css_libs" %}
   <link rel='stylesheet' href='{{ ASSET_URL }}'>
   {% endassets %}
   <style>
@@ -19,26 +23,60 @@
 
 
 {% block navbar %}
-  <nav class="navbar navbar-inverse navbar-fixed-top" role="navigation">
-   <div class="container">
+  <div class='notifications top-right' id="notify"></div>
+  <nav class="navbar navbar-default navbar-fixed-top" role="navigation">
+   <div class="container-fluid">
     <div class="navbar-header">
      <a class="navbar-brand" href="/">piston.web</a>
     </div>
-    <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
-     <ul class="nav navbar-nav">
-     <li><a href=""><i class="fa fa-book"></i> Browse</a></li>
-     <li><a href=""><i class="fa fa-pencil"></i> Post</a></li>
-     <li><a href=""><i class="fa fa-exchange"></i> Trade</a></li>
-     <li><a href=""><i class="fa fa-paperplane-o"></i> Transfer</a></li>
+    <div class="collapse navbar-collapse">
+
+     <ul class="nav navbar-nav" role="tablist">
+      <li role="presentation"><a href="{{url_for('browse')}}"><i class="fa fa-book"></i> Browse</a></li>
+      <li role="presentation"><a href="{{url_for('post')}}"><i class="fa fa-pencil"></i> Submit Post</a></li>
+      <li role="presentation"><a href="{{url_for('trade')}}"><i class="fa fa-exchange"></i> Trade</a></li>
+      <li role="presentation"><a href="{{url_for('transfer')}}"><i class="fa fa-credit-card"></i> Transfer</a></li>
      </ul>
+
      <ul class="nav navbar-nav navbar-right">
-       <li><a href=""><i class="fa fa-user"></i> account</a></li>
-       <li><a href=""><i class="fa fa-heartbeat"></i> Status</a></li>
+      <li><a href="#" id="activeAccount"></a></li>
+      <li class="dropdown">
+       <a class="dropdown-toggle" data-toggle="dropdown" href="#" role="button" aria-haspopup="true" aria-expanded="false">
+        Account<span class="caret"></span>
+       </a>
+       <ul class="dropdown-menu">
+       {% for account in accounts %}
+        <li class="accountSelector" id="{{account}}"><a href="#">
+         <i class="fa fa-user"></i> {{ account }}
+                       {% for permission in accounts[account] %}
+                        {% if accounts[account][permission] %}
+                         {% if permission == "owner" %}
+                          <span class="text-dander">
+                         {% elif permission == "active" %}
+                          <span class="text-warning">
+                         {% elif permission == "posting" %}
+                          <span class="text-success">
+                         {% elif permission == "memo" %}
+                          <span class="text-info">
+                         {% endif %}
+                         <i class="fa fa-key" 
+                            data-toggle="tooltip" 
+                            data-placement="bottom" 
+                            title="{{permission}} key is available"></i>
+                         </span>
+                        {% endif %}
+                       {% endfor %}
+         </a></li>
+       {% endfor %}
+       </ul>
+      </li>
+      <li role="presentation"><a href=""><i class="fa fa-heartbeat"></i> Status</a></li>
     </ul>
+
     </div>
    </div>
   </nav>
-  <div class="container">
+  <div class="container-fluid">
    <div class="row">
     <div class="col-md-12">
 {% endblock %}
@@ -51,6 +89,9 @@
 
 {{super()}}
 {% assets "js_main" %}
+<script type="text/javascript" src="{{ ASSET_URL }}"></script>
+{% endassets %}
+{% assets "js_libs" %}
 <script type="text/javascript" src="{{ ASSET_URL }}"></script>
 {% endassets %}
 {{google.uanalytics(config['GOOGLE_ANALYTICS_ID'])}}

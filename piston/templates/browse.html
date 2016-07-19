@@ -1,0 +1,84 @@
+{% from "_macros.html" import formatUser %}
+
+{% extends "layout.html" %}
+{% block content %}
+{% include "_messages.html" %}
+
+<div class="row">
+ <div class="col-md-10">
+
+  {% for post in posts %}
+   {% if post.author in accounts %}
+   <div class="panel panel-danger"> {% else %} <div class="panel panel-default">
+   {% endif %}
+    <div class="panel-heading">{{ post.title }}</div>
+    <div class="panel-body">
+     {{ post.body | excert | markdown }} ...
+    </div>
+    <table class="table">
+     <tr>
+      <td>
+       <a href="#" class="text-danger upvoteButton" identifier="{{post.identifier}}">
+        <i class="fa fa-thumbs-up"></i>
+       </a>
+      </td>
+      <td>
+       <i class="fa fa-money"></i> {{post.total_payout_value}}
+      </td>
+      <td>
+       <i class="fa fa-clock-o"></i>
+       {{post.created | age}}
+       ago
+      </td>
+      <td>
+       by 
+       {{ formatUser(post.author) }}
+      </td>
+      <td>
+       in
+       <i class="fa fa-globe"></i>
+       <a href="{{url_for("browse", category=post.category, sort=sort)}}">
+         {{post.category}}
+        </a>
+      </td>
+      <td>
+       <i class="fa fa-users"></i> {{ post.active_votes | length }}
+      </td>
+      <td>
+       <i class="fa fa-comment"></i> {{ post.children }}
+      </td>
+      <td>
+      </td>
+      <td>
+       <a href="#" class="text-danger downvoteButton" identifier="{{post.identifier}}">
+        <i class="fa fa-flag"></i>
+       </a>
+      </td>
+     </tr>
+    </table>
+   </div>
+  {% endfor %}
+ </div>
+
+ <div class="col-md-2">
+  <div class="panel panel-default">
+   <div class="panel-heading">Tags</div>
+   <ul class="list-group">
+    {% for tag in tags %}
+    <li class="list-group-item">
+     <a href="{{url_for("browse", category=tag.name, sort=sort)}}">
+        {{tag.name}}
+     </a>
+        <span class="badge"
+              data-toogle="tooltip"
+              data-placement="right"
+              title="Payouts: {{tag.total_payouts}}">{{tag.discussions}}</span>
+    </li>
+    {% endfor %}
+   </ul>
+  </div>
+ </div>
+
+</div>
+
+{% endblock %}

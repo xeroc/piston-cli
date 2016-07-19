@@ -767,10 +767,13 @@ def main() :
 
     elif args.command == "categories":
         categories = steem.get_categories(
-            args.sort,
+            sort=args.sort,
             begin=args.category,
             limit=args.limit
         )
+        print(args.sort)
+        print(args.category)
+        print(args.limit)
         t = PrettyTable(["name", "discussions", "payouts"])
         t.align = "l"
         for category in categories:
