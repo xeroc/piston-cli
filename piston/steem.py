@@ -5,13 +5,13 @@ import random
 from steemapi.steemclient import SteemNodeRPC
 from steembase import PrivateKey, PublicKey, Address
 import steembase.transactions as transactions
-from piston.utils import (
+from .utils import (
     resolveIdentifier,
     constructIdentifier,
     derivePermlink,
 )
-from piston.wallet import Wallet
-from piston.configuration import Configuration
+from .wallet import Wallet
+from .storage import configStorage as config
 import logging
 log = logging.getLogger(__name__)
 
@@ -638,7 +638,7 @@ class Steem(object):
             **{"from": account,
                "to": to,
                "amount": '{:.{prec}f} {asset}'.format(
-                   amount,
+                   float(amount),
                    prec=3,
                    asset=asset
                ),
@@ -663,7 +663,7 @@ class Steem(object):
         op = transactions.Withdraw_vesting(
             **{"account": account,
                "vesting_shares": '{:.{prec}f} {asset}'.format(
-                   amount,
+                   float(amount),
                    prec=6,
                    asset="VESTS"
                ),
@@ -695,7 +695,7 @@ class Steem(object):
             **{"from": account,
                "to": to,
                "amount": '{:.{prec}f} {asset}'.format(
-                   amount,
+                   float(amount),
                    prec=3,
                    asset="STEEM"
                ),
@@ -789,7 +789,7 @@ class Steem(object):
             r.append(Post(self, p))
         return r
 
-    def get_categories(self, sort, begin="", limit=10):
+    def get_categories(self, sort="trending", begin=None, limit=10):
         """ List categories
 
             :param str sort: Sort categories by "trending", "best",
