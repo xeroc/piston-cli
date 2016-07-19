@@ -32,7 +32,7 @@ class AccountExistsException(Exception):
 
 class Post(object):
     """ This object gets instanciated by Steem.streams and is used as an
-        abstraction layer for Comments in Steam
+        abstraction layer for Comments in Steem
 
         :param Steem steem: An instance of the Steem() object
         :param object post: The post as obtained by `get_content`
