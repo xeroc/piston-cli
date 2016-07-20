@@ -421,8 +421,14 @@ def main() :
     )
     parser_transfer.add_argument(
         'amount',
+        type=float,
+        help='Amount to transfer'
+    )
+    parser_transfer.add_argument(
+        'asset',
         type=str,
-        help='Amount to transfer including asset (e.g.: 100.000 STEEM)'
+        choices=["STEEM", "SBD"],
+        help='Asset to (i.e. STEEM or SDB)'
     )
     parser_transfer.add_argument(
         'memo',
@@ -807,6 +813,7 @@ def main() :
         pprint(steem.transfer(
             args.to,
             args.amount,
+            args.asset,
             memo=args.memo,
             account=args.account
         ))
