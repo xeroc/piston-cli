@@ -175,6 +175,5 @@ class Wallet(LegacyWallet):
             r[name][type] = True
         return r
 
-
     def getPublicKeys(self):
         return keyStorage.getPublicKeys()
