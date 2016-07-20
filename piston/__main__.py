@@ -105,6 +105,12 @@ def main() :
     configconfig.set_defaults(command="config")
 
     """
+        Command "changewalletpassphrase"
+    """
+    changepasswordconfig = subparsers.add_parser('changewalletpassphrase', help='Change wallet password')
+    changepasswordconfig.set_defaults(command="changewalletpassphrase")
+
+    """
         Command "addkey"
     """
     addkey = subparsers.add_parser('addkey', help='Add a new key to the wallet')
@@ -579,6 +585,9 @@ def main() :
         for key in config:
             t.add_row([key, config[key]])
         print(t)
+
+    elif args.command == "changewalletpassphrase":
+        steem.wallet.changePassphrase()
 
     elif args.command == "addkey":
         pub = None

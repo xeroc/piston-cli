@@ -3,9 +3,13 @@ import shutil
 import time
 import os
 import sqlite3
+from .aes import AESCipher
 from appdirs import user_data_dir
 from datetime import datetime
 import logging
+from binascii import hexlify
+import random
+import hashlib
 log = logging.getLogger(__name__)
 log.setLevel(logging.DEBUG)
 log.addHandler(logging.StreamHandler())
@@ -23,11 +27,12 @@ class Key():
         pass
 
     def exists_table(self):
-        query = ("SELECT name FROM sqlite_master "
-                 "WHERE type='table' AND name='%s'" % self.__tablename__)
+        query = ("SELECT name FROM sqlite_master " +
+                 "WHERE type='table' AND name=?",
+                 (self.__tablename__, ))
         connection = sqlite3.connect(sqlDataBaseFile)
         cursor = connection.cursor()
-        cursor.execute(query)
+        cursor.execute(*query)
         return True if cursor.fetchone() else False
 
     def create_table(self):
@@ -51,32 +56,44 @@ class Key():
 
     def getPrivateKeyForPublicKey(self, pub):
         query = ("SELECT wif from %s " % (self.__tablename__) +
-                 "WHERE pub='%s'" % pub)
+                 "WHERE pub=?",
+                 (pub,))
         connection = sqlite3.connect(sqlDataBaseFile)
         cursor = connection.cursor()
-        cursor.execute(query)
+        cursor.execute(*query)
         key = cursor.fetchone()
         if key:
             return key[0]
         else:
             return None
 
+    def updateWif(self,  pub, wif):
+        query = ("UPDATE %s " % self.__tablename__ +
+                 "SET wif=? WHERE pub=?",
+                 (wif, pub))
+        connection = sqlite3.connect(sqlDataBaseFile)
+        cursor = connection.cursor()
+        cursor.execute(*query)
+        connection.commit()
+
     def add(self, wif, pub):
         if self.getPrivateKeyForPublicKey(pub):
             raise ValueError("Key already in storage")
         query = ('INSERT INTO %s (pub, wif) ' % self.__tablename__ +
-                 'VALUES ("%s", "%s")' % (pub, wif))
+                 'VALUES (?, ?)',
+                 (pub, wif))
         connection = sqlite3.connect(sqlDataBaseFile)
         cursor = connection.cursor()
-        cursor.execute(query)
+        cursor.execute(*query)
         connection.commit()
 
     def delete(self, pub):
         query = ("DELETE FROM %s " % (self.__tablename__) +
-                 "WHERE pub='%s'" % pub)
+                 "WHERE pub=?",
+                 (pub,))
         connection = sqlite3.connect(sqlDataBaseFile)
         cursor = connection.cursor()
-        cursor.execute(query)
+        cursor.execute(*query)
         connection.commit()
 
 
@@ -97,11 +114,12 @@ class Configuration():
     }
 
     def exists_table(self):
-        query = ("SELECT name FROM sqlite_master "
-                 "WHERE type='table' AND name='%s'" % self.__tablename__)
+        query = ("SELECT name FROM sqlite_master " +
+                 "WHERE type='table' AND name=?",
+                 (self.__tablename__, ))
         connection = sqlite3.connect(sqlDataBaseFile)
         cursor = connection.cursor()
-        cursor.execute(query)
+        cursor.execute(*query)
         return True if cursor.fetchone() else False
 
     def create_table(self):
@@ -117,11 +135,12 @@ class Configuration():
 
     def _haveKey(self, key):
         query = ("SELECT value FROM %s " % (self.__tablename__) +
-                 "WHERE key='%s'" % key
+                 "WHERE key=?",
+                 (key,)
                  )
         connection = sqlite3.connect(sqlDataBaseFile)
         cursor = connection.cursor()
-        cursor.execute(query)
+        cursor.execute(*query)
         return True if cursor.fetchone() else False
 
     def __getitem__(self, key):
@@ -129,11 +148,12 @@ class Configuration():
             it returns `None` if a key is not found!
         """
         query = ("SELECT value FROM %s " % (self.__tablename__) +
-                 "WHERE key='%s'" % key
+                 "WHERE key=?",
+                 (key,)
                  )
         connection = sqlite3.connect(sqlDataBaseFile)
         cursor = connection.cursor()
-        cursor.execute(query)
+        cursor.execute(*query)
         result = cursor.fetchone()
         if result:
             return result[0]
@@ -151,24 +171,25 @@ class Configuration():
 
     def __setitem__(self, key, value):
         if key in self:
-            query = ("UPDATE %s " % (self.__tablename__) +
-                     "SET value='%s' " % value +
-                     "WHERE key='%s'" % key
-                     )
+            query = ("UPDATE %s " % self.__tablename__ +
+                     "SET value=? WHERE key=?",
+                     (value, key))
         else:
-            query = ("INSERT INTO %s (key, value) VALUES" % (self.__tablename__) +
-                     "('%s', '%s')" % (key, value))
+            query = ("INSERT INTO %s " % self.__tablename__ +
+                     "(key, value) VALUES (?, ?)",
+                     (key, value))
         connection = sqlite3.connect(sqlDataBaseFile)
         cursor = connection.cursor()
-        cursor.execute(query)
+        cursor.execute(*query)
         connection.commit()
 
-    def __delitem__(self, key):
+    def delete(self, key):
         query = ("DELETE FROM %s " % (self.__tablename__) +
-                 "WHERE key='%s'" % key)
+                 "WHERE key=?",
+                 (key,))
         connection = sqlite3.connect(sqlDataBaseFile)
         cursor = connection.cursor()
-        cursor.execute(query)
+        cursor.execute(*query)
         connection.commit()
 
     def __iter__(self):
@@ -189,6 +210,68 @@ class Configuration():
         return len(cursor.fetchall())
 
 
+class WrongMasterPasswordException(Exception):
+    pass
+
+
+class MasterPassword(object):
+    """ The keys are encrypted with a Masterpassword that is stored in
+        the configurationStore. It has a checksum to verify correctness
+        of the password
+    """
+
+    password = ""
+    decrypted_master = ""
+    config_key = "encrypted_master_password"
+
+    def __init__(self, password):
+        self.password = password
+        if self.config_key not in configStorage:
+            self.newMaster()
+            self.saveEncrytpedMaster()
+        else:
+            self.decryptEncryptedMaster()
+
+    def decryptEncryptedMaster(self):
+        aes = AESCipher(self.password)
+        checksum, encrypted_master = configStorage[self.config_key].split("$")
+        try:
+            decrypted_master = aes.decrypt(encrypted_master)
+        except:
+            raise WrongMasterPasswordException
+        if checksum != self.deriveChecksum(decrypted_master):
+            raise WrongMasterPasswordException
+        self.decrypted_master = decrypted_master
+
+    def saveEncrytpedMaster(self):
+        configStorage[self.config_key] = self.getEncryptedMaster()
+
+    def newMaster(self):
+        # make sure to not overwrite an existing key
+        if (self.config_key in configStorage and
+                configStorage[self.config_key]):
+            return
+        self.decrypted_master = hexlify(os.urandom(32)).decode("ascii")
+
+    def deriveChecksum(self, s):
+        checksum = hashlib.sha256(bytes(s, "ascii")).hexdigest()
+        return checksum[:4]
+
+    def getEncryptedMaster(self):
+        if not self.decrypted_master:
+            raise Exception("master not decrypted")
+        aes = AESCipher(self.password)
+        return "{}${}".format(self.deriveChecksum(self.decrypted_master),
+                              aes.encrypt(self.decrypted_master))
+
+    def changePassword(self, newpassword):
+        self.password = newpassword
+        self.saveEncrytpedMaster()
+
+    def purge(self):
+        configStorage.delete(self.config_key)
+
+
 def sqlite3_backup(dbfile, backupdir):
     """Create timestamped database copy"""
     if not os.path.isdir(backupdir):
@@ -206,7 +289,6 @@ def sqlite3_backup(dbfile, backupdir):
     log.info("Creating {}...".format(backup_file))
     # Unlock database
     connection.rollback()
-    configStorage["foobar"] = datetime.now().strftime(timeformat)
     configStorage["lastBackup"] = datetime.now().strftime(timeformat)
 
 
@@ -246,6 +328,7 @@ if not keyStorage.exists_table():
 # Backup the SQL database every 7 days
 if ("lastBackup" not in configStorage or
         configStorage["lastBackup"] == ""):
+    print("No backup has been created yet!")
     refreshBackup()
 
 try:
@@ -254,6 +337,7 @@ try:
         datetime.strptime(configStorage["lastBackup"],
                           timeformat)
     ).days > 7:
+        print("Backups older than 7 days!")
         refreshBackup()
 except:
     refreshBackup()

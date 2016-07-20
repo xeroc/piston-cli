@@ -4,7 +4,7 @@ import os
 import json
 from appdirs import user_data_dir
 import logging
-from .storage import keyStorage, createTables
+from .storage import keyStorage, createTables, MasterPassword, configStorage
 from .wallet_legacy import LegacyWallet
 
 log = logging.getLogger(__name__)
@@ -21,7 +21,7 @@ class InvalidWifError(Exception):
 class Wallet(LegacyWallet):
     keys = []
     rpc = None
-    password = None
+    masterpassword = None
     keysDb = None
 
     def __init__(self, rpc, *args, **kwargs):
@@ -34,20 +34,61 @@ class Wallet(LegacyWallet):
                 self.migrateFromJSON()
 
     def unlock(self):
-        if self.password is None:
-            self.password = self.getPassword()
+        if (self.masterpassword is None and
+                configStorage[MasterPassword.config_key]):
+            pwd = self.getPassword()
+            if pwd == "":
+                self.masterpassword = pwd
+                return
+            else:
+                masterpwd = MasterPassword(pwd)
+                self.masterpassword = masterpwd.decrypted_master
 
     def lock(self):
-        self.password = None
+        self.masterpassword = None
 
     def locked(self):
-        return False if self.password else True
+        return False if self.masterpassword else True
+
+    def changePassphrase(self):
+        # Open Existing Wallet
+        currentpwd = self.getPassword()
+        if currentpwd != "":
+            masterpwd = MasterPassword(currentpwd)
+            self.masterpassword = masterpwd.decrypted_master
+        else:
+            self.masterpassword = ""
+        print("Please provide the new password")
+        newpwd = self.getPasswordConfirmed()
+        if newpwd:
+            if currentpwd == "":
+                masterpwd = MasterPassword(newpwd)
+                self.reencryptKeys(currentpwd, masterpwd.decrypted_master)
+            else:
+                # only change the masterpassword
+                masterpwd.changePassword(newpwd)
+        else:
+            self.reencryptKeys(currentpwd, newpwd)
+            masterpwd.purge()
+
+    def reencryptKeys(self, oldpassword, newpassword):
+        # remove encryption from database
+        allPubs = self.getPublicKeys()
+        for i, pub in enumerate(allPubs):
+            log.critical("Updating key %d of %d" % (i + 1, len(allPubs)))
+            self.masterpassword = oldpassword
+            wif = self.getPrivateKeyForPublicKey(pub)
+            self.masterpassword = newpassword
+            keyStorage.updateWif(pub, wif)
+        log.critical("Removing password complete")
 
     def migrateFromJSON(self):
         # Open Legacy Wallet and populate self.keys
         self.ensureOpen()
         print("Please provide a password for the new wallet")
-        self.password = self.getPasswordConfirmed()
+        pwd = self.getPasswordConfirmed()
+        masterpwd = MasterPassword(pwd)
+        self.masterpassword = masterpwd.decrypted_master
         numKeys = len(self.keys)
         for i, key in enumerate(self.keys):
             self.addPrivateKey(key)
@@ -56,10 +97,10 @@ class Wallet(LegacyWallet):
 
     def encrypt_wif(self, wif):
         self.unlock()
-        if self.password == "":
+        if self.masterpassword == "":
             return wif
         else:
-            return format(bip38.encrypt(PrivateKey(wif), self.password), "encwif")
+            return format(bip38.encrypt(PrivateKey(wif), self.masterpassword), "encwif")
 
     def decrypt_wif(self, encwif):
         try:
@@ -69,7 +110,7 @@ class Wallet(LegacyWallet):
         except:
             pass
         self.unlock()
-        return format(bip38.decrypt(encwif, self.password), "wif")
+        return format(bip38.decrypt(encwif, self.masterpassword), "wif")
 
     def getPassword(self):
         import getpass
