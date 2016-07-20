@@ -33,10 +33,11 @@ class Wallet(LegacyWallet):
                 log.critical("Migrating old wallet format to new format!")
                 self.migrateFromJSON()
 
-    def unlock(self):
+    def unlock(self, pwd=None):
         if (self.masterpassword is None and
                 configStorage[MasterPassword.config_key]):
-            pwd = self.getPassword()
+            if not pwd:
+                pwd = self.getPassword()
             if pwd == "":
                 self.masterpassword = pwd
                 return
