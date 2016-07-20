@@ -2,7 +2,8 @@ var $notify = $('#notify');
 var socket = io('http://localhost:5054');
 
 $(function() {
- $('[data-toggle="tooltip"]').tooltip()
+ $('[data-toggle="tooltip"]').tooltip();
+ socket.emit("getWebUser");
 });
 
 function notify(status) {
@@ -20,6 +21,12 @@ function accountChange() {
  $('#activeAccount').text(account);
  socket.emit("changeAccount", account);
 }
+
+function setAccount(data) {
+ var account = data["name"]
+ $('#activeAccount').text(account);
+}
+
 
 function downVote() {
  console.log("downvoting");
@@ -44,6 +51,7 @@ socket.on('connect', function(){});
 socket.on('event', function(data){});
 socket.on('disconnect', function(){});
 socket.on('log', log);
+socket.on('web.user', setAccount);
 $('.accountSelector').on("click", accountChange);
 $('.downvoteButton').on("click", downVote);
 $('.upvoteButton').on("click", upVote);

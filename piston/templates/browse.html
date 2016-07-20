@@ -11,7 +11,11 @@
    {% if post.author in accounts %}
    <div class="panel panel-danger"> {% else %} <div class="panel panel-default">
    {% endif %}
-    <div class="panel-heading">{{ post.title }}</div>
+    <div class="panel-heading">
+     <a href="{{url_to()}}">
+      {{ post.title }}
+     </a>
+    </div>
     <div class="panel-body">
      {{ post.body | excert | markdown }} ...
     </div>

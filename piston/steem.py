@@ -147,6 +147,16 @@ class Post(object):
     def __repr__(self):
         return "<Steem.Post-%s>" % constructIdentifier(self["author"], self["permlink"])
 
+    def get_comments(self):
+        """ Return **first-level** comments of the post.
+        """
+        post_author, post_permlink = resolveIdentifier(self.identifier)
+        posts = self.steem.rpc.get_content_replies(post_author, post_permlink)
+        r = []
+        for post in posts:
+            r.append(Post(self.steem, post))
+        return(r)
+
     def reply(self, body, title="", author="", meta=None):
         """ Reply to the post
 
@@ -816,6 +826,19 @@ class Steem(object):
         for p in func(discussion_query):
             r.append(Post(self, p))
         return r
+
+    def get_comments(self, identifier):
+        """ Return **first-level** comments of a post.
+
+            :param str identifier: Identifier of a post. Takes an
+                                   identifier of the form ``@author/permlink``
+        """
+        post_author, post_permlink = resolveIdentifier(identifier)
+        posts = self.rpc.get_content_replies(post_author, post_permlink)
+        r = []
+        for post in posts:
+            r.append(Post(self, post))
+        return(r)
 
     def get_categories(self, sort="trending", begin=None, limit=10):
         """ List categories

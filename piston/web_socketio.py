@@ -20,7 +20,7 @@ def error(msg):
     emit("log", data, json=True)
 
 
-def error_locked(msg="Wallet is locked"):
+def warning(msg):
     data = {"status": "warning",
             "message": msg}
     emit("log", data, json=True)
@@ -32,16 +32,29 @@ def error_exc(msg=None):
     emit("log", data, json=True)
 
 
+def error_locked():
+    warning("Wallet is locked")
+
+
 @io.on('test')
 def test():
     print("test")
     success("test")
 
 
+@io.on('getWebUser')
+def getWebUser():
+    if "web.user" in config:
+        emit("web.user", {
+             "name": config["web.user"]
+             })
+    else:
+        warning("Please pick an account!")
+
+
 @io.on('changeAccount')
 def changeAccount(account):
-    config["default_author"] = account
-    config["default_voter"] = account
+    config["web.user"] = account
     success("changeAccount to " + account)
 
 
@@ -54,8 +67,8 @@ def vote(identifier, weight):
     try:
         post = Post(steem, identifier)
         post.vote(weight=weight,
-                  voter=config["default_voter"])
+                  voter=config["web.user"])
         success("voted post %s with account %s" %
-                (identifier, config["default_voter"]))
+                (identifier, config["web.user"]))
     except:
         error_exc()
