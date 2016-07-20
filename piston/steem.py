@@ -11,7 +11,8 @@ from .utils import (
     derivePermlink,
 )
 from .wallet import Wallet
-from .storage import configStorage as config
+from .configuration import Configuration
+from datetime import datetime
 import logging
 log = logging.getLogger(__name__)
 
@@ -65,7 +66,7 @@ class Post(object):
             )
             # if there only is an author and a permlink but no body
             # get the full post via RPC
-            if "body" not in post:
+            if "created" not in post or "cashout_time" not in post:
                 post = self.steem.rpc.get_content(
                     post["author"],
                     post["permlink"]
@@ -77,6 +78,16 @@ class Post(object):
         if re.match("^@@", post["body"]):
             self._patched = True
             self._patch = post["body"]
+
+        parse_times = ["active",
+                       "cashout_time",
+                       "created",
+                       "last_payout",
+                       "last_update",
+                       "max_cashout_time"]
+        for p in parse_times:
+            post["%s_parsed" % p] = datetime.strptime(
+                    post.get(p, "1970-01-01T00:00:00"), '%Y-%m-%dT%H:%M:%S')
 
         # Try to properly format json meta data
         meta_str = post.get("json_metadata", "")
