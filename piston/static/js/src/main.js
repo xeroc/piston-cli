@@ -45,6 +45,23 @@ function log (data){
  notify(data);
 }
 
+function unlockWallet() {
+ var password = $("#unlockpassword");
+ socket.emit("unlock", password.val());
+}
+
+function unlocked() {
+ $('#unlockModal').modal('hide');
+ $(".walletLock").removeClass("fa-lock");
+ $(".walletLock").addClass("fa-unlock");
+}
+
+function notunlocked() {
+ $(".walletLock").removeClass("fa-unlock")
+ $(".walletLock").addClass("fa-lock")
+}
+
+
 
 // events
 socket.on('connect', function(){});
@@ -52,6 +69,9 @@ socket.on('event', function(data){});
 socket.on('disconnect', function(){});
 socket.on('log', log);
 socket.on('web.user', setAccount);
+socket.on('notunlocked', notunlocked);
+socket.on('unlocked', unlocked);
 $('.accountSelector').on("click", accountChange);
 $('.downvoteButton').on("click", downVote);
 $('.upvoteButton').on("click", upVote);
+$('#unlockWallet').on("click", unlockWallet);

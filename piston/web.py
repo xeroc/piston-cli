@@ -25,7 +25,6 @@ users = {
     "susan": "bye"
 }
 
-
 from . import web_assets, web_views
 
 
@@ -57,3 +56,4 @@ def run():
     # http_server.serve_forever()
 
 app.config["GOOGLE_ANALYTICS_ID"] = ""
+app.config["SECRET_KEY"] = "abcdefghijklmnopqrstuvwxyz"

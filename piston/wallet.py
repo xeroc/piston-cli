@@ -36,7 +36,7 @@ class Wallet(LegacyWallet):
     def unlock(self, pwd=None):
         if (self.masterpassword is None and
                 configStorage[MasterPassword.config_key]):
-            if not pwd:
+            if pwd is None:
                 pwd = self.getPassword()
             if pwd == "":
                 self.masterpassword = pwd

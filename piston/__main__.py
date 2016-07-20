@@ -566,7 +566,6 @@ def main() :
     rpc_not_required = [
         "set",
         "config",
-        "web",  # comes with it's own Steem connection
         ""]
     if args.command not in rpc_not_required and args.command:
         steem = Steem(
@@ -856,12 +855,12 @@ def main() :
         print(t)
 
     elif args.command == "web":
+        config["WEB_STEEM_NODE"] = args.node
+        config["WEB_STEEM_RPCUSER"] = args.rpcuser
+        config["WEB_STEEM_RPCPASS"] = args.rpcpassword
+        config["WEB_STEEM_NOBROADCAST"] = args.nobroadcast
+        config["WEB_PORT"] = args.port
         from . import web
-        web.app.config["STEEM_NODE"] = args.node
-        web.app.config["STEEM_RPCUSER"] = args.rpcuser
-        web.app.config["STEEM_RPCPASS"] = args.rpcpassword
-        web.app.config["STEEM_NOBROADCAST"] = args.nobroadcast
-        web.app.config["PORT"] = args.port
         web.run()
 
     else:

@@ -39,6 +39,12 @@
      </ul>
 
      <ul class="nav navbar-nav navbar-right">
+      <li><span class="navbar-text">
+           <button type="button" class="btn btn-default btn-xs" data-toggle="modal" data-target="#unlockModal">
+           <i class="fa fa-lock walletLock"></i>
+           </button>
+          </span>
+      </li>
       <li><a href="#" id="activeAccount"></a></li>
       <li class="dropdown">
        <a class="dropdown-toggle" data-toggle="dropdown" href="#" role="button" aria-haspopup="true" aria-expanded="false">
@@ -76,6 +82,27 @@
     </div>
    </div>
   </nav>
+
+  <div class="modal fade" id="unlockModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+          <h4 class="modal-title">Unlock Wallet</h4>
+        </div>
+        <div class="modal-body">
+         <div class="input-group">
+          <input type="password" id="unlockpassword" class="form-control" placeholder="password">
+          <span class="input-group-btn">
+            <button class="btn btn-default" type="button" id="unlockWallet">Unlock</button>
+          </span>
+         </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
   <div class="container-fluid">
    <div class="row">
     <div class="col-md-12">

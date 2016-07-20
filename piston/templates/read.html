@@ -1,0 +1,15 @@
+{% from "_macros.html" import formatUser, showPost, recursiveComments %}
+
+{% extends "layout.html" %}
+{% block content %}
+{% include "_messages.html" %}
+
+{{ showPost(post, "full") }}
+
+{% for comment in post.get_comments() %}
+ <div class="row">
+  {{ recursiveComments(comment) }}
+ </div>
+{% endfor %}
+
+{% endblock %}

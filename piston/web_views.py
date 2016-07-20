@@ -1,15 +1,18 @@
 from jinja2 import Template, Markup, Environment, PackageLoader, FileSystemLoader
 from flask import render_template, redirect, request, session, flash, url_for, make_response, jsonify, abort
+from .utils import resolveIdentifier
 from .steem import Steem, Post
 from .web import app, auth
 from .storage import configStorage as config
+from .web_forms import NewPostForm
+from textwrap import indent
 
 # Connect to Steem network
 steem = Steem(
-    node=app.config.get("STEEM_NODE", config["node"]),
-    rpcuser=app.config.get("STEEM_RPCUSER", config["rpcuser"]),
-    rpcpassword=app.config.get("STEEM_RPCPASS", config["rpcpassword"]),
-    nobroadcast=app.config.get("STEEM_NOBROADCAST", False)
+    node=config["WEB_STEEM_NODE"],
+    rpcuser=config["WEB_STEEM_RPCUSER"],
+    rpcpassword=config["WEB_STEEM_RPCPASS"],
+    nobroadcast=config["WEB_STEEM_NOBROADCAST"]
 )
 
 from . import web_socketio
@@ -36,15 +39,40 @@ def read(identifier):
     post = Post(steem, identifier)
     if not post:
         abort(400)
+    return render_template('read.html', **locals())
+
+
+@app.route('/post', defaults={"identifier": ""}, methods=["GET", "POST"])
+@app.route('/post/<path:identifier>', methods=["GET", "POST"])
+def post(identifier):
+    if identifier:
+        post = Post(steem, identifier)
+        if not post:
+            abort(400)
+        postForm = NewPostForm(
+            category=post.category,
+            body=indent(post.body, "> "),
+            title="Re: " + post.title
+        )
     else:
-        comments = 
-    tags = steem.get_categories("trending", limit=25)
-    return render_template('browse.html', **locals())
+        postForm = NewPostForm()
 
-
-@app.route('/post')
-def post():
-    pass
+    if steem.wallet.locked():
+        flash("Wallet is locked!")
+    else:
+        if postForm.validate_on_submit():
+            steem.post(
+                postForm.title.data,
+                postForm.body.data,
+                author=config["web.user"],
+                category=postForm.category.data
+            )
+            return url_for(
+                "browse",
+                category=postForm.category.data,
+                sort="created"
+            )
+    return render_template('post.html', **locals())
 
 
 @app.route('/transfer')
