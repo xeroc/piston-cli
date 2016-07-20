@@ -34,8 +34,7 @@ def derivePermlink(title, parent_permlink=None):
 def resolveIdentifier(identifier):
     match = re.match("@?([\w\-\.]*)/([\w\-]*)", identifier)
     if not hasattr(match, "group"):
-        log.error("Invalid identifier")
-        sys.exit(1)
+        raise ValueError("Invalid identifier")
     return match.group(1), match.group(2)
 
 
