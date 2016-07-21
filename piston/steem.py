@@ -48,6 +48,11 @@ class Post(object):
         self.steem = steem
         self._patch = False
 
+        # If this 'post' comes from an operation, it might carry a patch
+        if "body" in post and re.match("^@@", post["body"]):
+            self._patched = True
+            self._patch = post["body"]
+
         # Get full Post
         if isinstance(post, str):  # From identifier
             self.identifier = post
@@ -74,10 +79,6 @@ class Post(object):
         else:
             raise ValueError("Post expects an identifier or a dict "
                              "with author and permlink!")
-
-        if re.match("^@@", post["body"]):
-            self._patched = True
-            self._patch = post["body"]
 
         parse_times = ["active",
                        "cashout_time",
