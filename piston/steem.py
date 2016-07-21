@@ -87,7 +87,8 @@ class Post(object):
                        "max_cashout_time"]
         for p in parse_times:
             post["%s_parsed" % p] = datetime.strptime(
-                    post.get(p, "1970-01-01T00:00:00"), '%Y-%m-%dT%H:%M:%S')
+                post.get(p, "1970-01-01T00:00:00"), '%Y-%m-%dT%H:%M:%S'
+            )
 
         # Try to properly format json meta data
         meta_str = post.get("json_metadata", "")
@@ -123,6 +124,12 @@ class Post(object):
 
     def remove(self, key):
         delattr(self, key)
+
+    def get(self, key, default=None):
+        if hasattr(self, key):
+            return getattr(self, key)
+        else:
+            return default
 
     def __delitem__(self, key):
         delattr(self, key)
