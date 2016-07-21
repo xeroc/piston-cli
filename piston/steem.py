@@ -11,7 +11,7 @@ from .utils import (
     derivePermlink,
 )
 from .wallet import Wallet
-from .configuration import Configuration
+from .storage import configStorage as config
 from datetime import datetime
 import logging
 log = logging.getLogger(__name__)
@@ -879,6 +879,17 @@ class Steem(object):
             "vesting_shares" : a["vesting_shares"],
             "sbd_balance": a["sbd_balance"]
         }
+
+    def get_account_history(self, account, end=100, limit=100):
+        """ Returns the transaction history of an account
+
+            :param str account: account name to get history for
+            :param int end: sequence number of the last transaction to return
+            :param int limit: limit number of transactions to return
+        """
+        assert limit <= 100
+        assert end >= limit
+        return self.rpc.get_account_history(account, end, limit)
 
     def stream_comments(self, *args, **kwargs):
         """ Generator that yields posts when they come in
