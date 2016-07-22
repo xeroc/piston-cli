@@ -11,13 +11,8 @@ css_libs = Bundle("libs/bootstrap-notify/css/bootstrap-notify.css",
 js_main = Bundle("js/src/main.js",
                  output="js/main.js")
 
-css_less = Bundle("css/src/styles.less",
-                  output="css/styles.css",
-                  debug=False)
-
-css_main = Bundle(css_less,
+css_main = Bundle("css/src/main.css",
                   output="css/main.css")
-
 
 webassets.manifest = 'cache' if not app.debug else False
 webassets.cache = not app.debug

@@ -1,2 +1,13 @@
+.post-body img {
+ max-width: 100%;
+}
 
-
+.fundstable td:first-child{
+   width:50%;
+}
+.fundstable small {
+   color: gray;
+}
+.fundstable td:nth-child(2){
+   text-align: right;
+}

@@ -1,6 +1,5 @@
 from .steem import Steem
 from .web import socketio as io
-from .web import auth
 from .storage import configStorage as config
 from flask_socketio import send, emit
 from .steem import Post
@@ -38,14 +37,12 @@ def error_locked():
 
 
 @io.on('test')
-@auth.login_required
 def test():
     print("test")
     success("test")
 
 
 @io.on('getWebUser')
-@auth.login_required
 def getWebUser():
     if "web.user" in config:
         emit("web.user", {
@@ -56,14 +53,12 @@ def getWebUser():
 
 
 @io.on('changeAccount')
-@auth.login_required
 def changeAccount(account):
     config["web.user"] = account
     success("changeAccount to " + account)
 
 
 @io.on('unlock')
-@auth.login_required
 def unlock(password):
     try:
         steem.wallet.unlock(password)
@@ -74,7 +69,6 @@ def unlock(password):
 
 
 @io.on('vote')
-@auth.login_required
 def vote(identifier, weight):
     if steem.wallet.locked():
         return error_locked()

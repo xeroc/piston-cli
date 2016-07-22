@@ -61,3 +61,7 @@ target/
 # Vim temp files
 *.swp
 posts
+
+# compile locally
+piston/static/css/*.css
+piston/static/js/*.js

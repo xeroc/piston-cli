@@ -18,13 +18,14 @@ function notify(status) {
 
 function accountChange() {
  var account = $(this).attr("id");
- $('#activeAccount').text(account);
+ setAccount({"name": account});
  socket.emit("changeAccount", account);
 }
 
 function setAccount(data) {
  var account = data["name"]
  $('#activeAccount').text(account);
+ $('#activeAccount').attr("href", "/@" + account);
 }
 
 

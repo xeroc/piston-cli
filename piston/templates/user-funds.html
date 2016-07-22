@@ -1,0 +1,79 @@
+{% from "_macros.html" import showPost, formatOp %}
+{% extends "layout.html" %}
+{% block content %}
+{% include "_messages.html" %}
+
+{% include "user-header.html" %}
+
+<h3>BALANCES</h3>
+
+<table class="table fundstable">
+ <tbody>
+
+  <tr>
+   <td>STEEM 
+    <p><small>Steem, tradeable tokens that may be transferred at anytime.
+     Steem can be converted to Steem Power in a process called powering up.
+    </small></p>
+   </td>
+   <td>{{ steem_balance | currency}} STEEM</td>
+  </tr>
+
+  <tr>
+   <td>STEEM POWER 
+    <p><small>Steem Power, influence tokens that earn more power for holding long term and voting on posts.
+     The more one holds the more one can influence other’s rewards and earn rewards for accurate voting.
+    </small></p>
+   </td>
+   <td>
+    <p>{{ vets_shares | currency }} VEST</p>
+    <p>~ {{ vesting_shares | currency }} STEEM</p>
+   </td>
+  </tr>
+
+  <tr>
+   <td>STEEM DOLLAR
+    <p><small>Tokens worth about $1.00 of Steem.
+    </small></p>
+   </td>
+   <td>{{sbd_balance | currency }} SBD</td>
+  </tr>
+
+ </tbody>
+
+ <tfoot>
+  <tr>
+   <td>Estimated Value
+    <p><small>The estimated value is based on a 7 day average value of Steem.
+    </small></p>
+   </td>
+   <td>${{ ((vesting_shares + steem_balance) * price + sbd_balance) | currency }}</td>
+  </tr>
+ </tfoot>
+
+</table>
+
+<h3>Transaction</h3>
+
+<table class="table">
+ <thead>
+  <tr>
+   <th>#</th>
+   <th>time</th>
+   <th>block</th>
+   <th>type</th>
+  </tr>
+ </thead>
+ <tbody>
+  {% for tx in transactions %}
+  <tr>
+   <td>{{tx[0]}}</td>
+   <td>{{tx[1]["timestamp"]}}</td>
+   <td>{{tx[1]["block"]}}</td>
+   <td>{{formatOp(tx[1]["op"])}}</td>
+  </tr>
+ {% endfor %}
+ </tbody>
+</table>
+
+{% endblock %}

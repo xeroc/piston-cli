@@ -238,19 +238,13 @@ class Steem(object):
                             single string, or array of keys.
         """
         self.connect(*args, **kwargs)
-        self.wallet = Wallet(self.rpc)
-
-        self.debug = False
-        if "debug" in kwargs:
-            self.debug = kwargs["debug"]
+        self.debug = kwargs.get("debug", False)
+        self.nobroadcast = kwargs.get("nobroadcast", False)
 
         if "wif" in kwargs:
-            if isinstance(kwargs["wif"], str):
-                keys = [kwargs["wif"]]
-            elif isinstance(kwargs["wif"], list):
-                keys = kwargs["wif"]
-            self.wallet.setKeys(keys)
-        self.nobroadcast = kwargs.get("nobroadcast", False)
+            self.wallet = Wallet(self.rpc, wif=kwargs["wif"])
+        else:
+            self.wallet = Wallet(self.rpc)
 
     def connect(self, *args, **kwargs):
         """ Connect to the Steem network.

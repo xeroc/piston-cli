@@ -1,14 +1,15 @@
+import re
 from flask import Flask, redirect, url_for, session, current_app
 from flask_assets import Environment
 from flask_bootstrap import Bootstrap
 from flaskext.markdown import Markdown
 from .utils import strfdelta, strfage
 from flask_socketio import SocketIO
-from flask_httpauth import HTTPBasicAuth
+import html2text
+import lxml.html
 
 
 app = Flask(__name__)
-auth = HTTPBasicAuth()
 socketio = SocketIO(app)
 Bootstrap(app)
 webassets = Environment(app)
@@ -20,19 +21,12 @@ markdown = Markdown(
     safe_mode=True,
     output_format='html4'
 )
-users = {
-    "john": "hello",
-    "susan": "bye"
-}
 
 from . import web_assets, web_views
 
 
-@auth.get_password
-def get_pw(username):
-    if username in users:
-        return users.get(username)
-    return None
+def is_html(body):
+    return lxml.html.fromstring(body).find('.//*') is not None
 
 
 @app.template_filter('age')
@@ -44,6 +38,22 @@ def _jinja2_filter_age(date, fmt=None):
 def _jinja2_filter_datetime(data):
     words = data.split(" ")
     return " ".join(words[:100])
+
+
+@app.template_filter('parseBody')
+def _jinja2_filter_parseBody(body):
+    body = re.sub(
+        r"^(https?:.*/(.*\.(jpg|png|gif))?.*)",
+        r"\n![](\1)\n",
+        body, flags=re.MULTILINE)
+    if is_html(body):
+        body = html2text.html2text(body)
+    return body
+
+
+@app.template_filter('currency')
+def _jinja2_filter_currency(value):
+    return "{:,.3f}".format(value)
 
 
 def run():

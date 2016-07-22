@@ -1,0 +1,59 @@
+{% import "bootstrap/wtf.html" as wtf %}
+{% from "_macros.html" import formatUser %}
+
+{% extends "layout.html" %}
+{% block content %}
+{% include "_messages.html" %}
+
+{% if posting_key %}
+ <div class="panel panel-success">
+   <div class="panel-heading">
+     <h3 class="panel-title">Posting Private Key</h3>
+   </div>
+   <div class="panel-body">
+    <p>This private key gives access to <strong>voting</strong> and <strong>posting</strong> permission of your account.
+    <pre>{{ posting_key }}</pre>
+   </div>
+ </div>
+{% endif %}
+
+{% if active_key %}
+ <div class="panel panel-warning">
+   <div class="panel-heading">
+     <h3 class="panel-title">Active Private Key</h3>
+   </div>
+   <div class="panel-body">
+    <p>This key has access to the <strong>funds</strong> of your account and can change keys (except for the owner key)</p>
+    <pre>{{ active_key }}</pre>
+   </div>
+ </div>
+{% endif %}
+
+{% if owner_key %}
+ <div class="panel panel-danger">
+   <div class="panel-heading">
+     <h3 class="panel-title">Owner Private Key</h3>
+   </div>
+   <div class="panel-body">
+    <p>The owner key has <strong>SUPERPOWERS</strong> over your account.
+    <span class="text-danger">The fact that you have the owner key
+     installed in piston tells us that you are doing something
+     wrong!</span></p>
+    <pre>{{ owner_key }}</pre>
+   </div>
+ </div>
+{% endif %}
+
+{% if memo_key %}
+ <div class="panel panel-default">
+   <div class="panel-heading">
+     <h3 class="panel-title">Memo Private Key</h3>
+   </div>
+   <div class="panel-body">
+    <p>This key is used for encrypted messaging within the Steem blockchain.</p>
+    <pre>{{ memo_key }}</pre>
+   </div>
+ </div>
+{% endif %}
+
+{% endblock %}

@@ -25,7 +25,7 @@
 {% block navbar %}
   <div class='notifications top-right' id="notify"></div>
   <nav class="navbar navbar-default navbar-fixed-top" role="navigation">
-   <div class="container-fluid">
+   <div class="container">
     <div class="navbar-header">
      <a class="navbar-brand" href="/">piston.web</a>
     </div>
@@ -34,14 +34,21 @@
      <ul class="nav navbar-nav" role="tablist">
       <li role="presentation"><a href="{{url_for('browse')}}"><i class="fa fa-book"></i> Browse</a></li>
       <li role="presentation"><a href="{{url_for('post')}}"><i class="fa fa-pencil"></i> Submit Post</a></li>
+      <li role="presentation"><a href="{{url_for('wallet')}}"><i class="fa fa-key"></i> Wallet</a></li>
+      <!--
       <li role="presentation"><a href="{{url_for('trade')}}"><i class="fa fa-exchange"></i> Trade</a></li>
       <li role="presentation"><a href="{{url_for('transfer')}}"><i class="fa fa-credit-card"></i> Transfer</a></li>
+      //-->
      </ul>
 
      <ul class="nav navbar-nav navbar-right">
       <li><span class="navbar-text">
            <button type="button" class="btn btn-default btn-xs" data-toggle="modal" data-target="#unlockModal">
+           {% if wallet.locked() %}
            <i class="fa fa-lock walletLock"></i>
+           {% else %}
+           <i class="fa fa-unlock walletLock"></i>
+           {% endif %}
            </button>
           </span>
       </li>
@@ -76,7 +83,9 @@
        {% endfor %}
        </ul>
       </li>
-      <li role="presentation"><a href=""><i class="fa fa-heartbeat"></i> Status</a></li>
+      <!--
+       <li role="presentation"><a href=""><i class="fa fa-heartbeat"></i> Status</a></li>
+      //-->
     </ul>
 
     </div>
@@ -103,7 +112,7 @@
   </div>
 
 
-  <div class="container-fluid">
+  <div class="container">
    <div class="row">
     <div class="col-md-12">
 {% endblock %}

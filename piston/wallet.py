@@ -4,7 +4,6 @@ import os
 import json
 from appdirs import user_data_dir
 import logging
-from .storage import keyStorage, createTables, MasterPassword, configStorage
 from .wallet_legacy import LegacyWallet
 
 log = logging.getLogger(__name__)
@@ -22,27 +21,61 @@ class Wallet(LegacyWallet):
     keys = []
     rpc = None
     masterpassword = None
-    keysDb = None
+
+    # Keys from database
+    configStorage = None
+    MasterPassword = None
+    keyStorage = None
+
+    # Manually provided keys
+    keys = {}  # struct with pubkey as key and wif as value
 
     def __init__(self, rpc, *args, **kwargs):
         self.rpc = rpc
 
-        if createTables:
-            # migrate to new SQL based storage
-            if self.exists():
-                log.critical("Migrating old wallet format to new format!")
-                self.migrateFromJSON()
+        if not "wif" in kwargs:
+            """ If no keys are provided manually we load the SQLite
+                keyStorage
+            """
+            from .storage import (keyStorage, 
+                                  createTables,
+                                  MasterPassword,
+                                  configStorage)
+            self.configStorage = configStorage
+            self.MasterPassword = MasterPassword
+            self.keyStorage = keyStorage
+            if createTables:
+                # migrate to new SQL based storage
+                if self.exists():
+                    log.critical("Migrating old wallet format to new format!")
+                    self.migrateFromJSON()
+        else:
+            self.setKeys(kwargs["wif"])
+
+    def setKeys(self, wifs):
+        """ This method is strictly only for in memory keys that are
+            passed to Wallet/Steem with the ``keys`` argument
+        """
+        print("setting keys")
+        if not isinstance(wifs, list):
+            wifs = [wifs]
+        for wif in wifs:
+            try:
+                key = PrivateKey(wif)
+            except:
+                raise InvalidWifError
+            self.keys[format(key.pubkey, "STM")] = str(key)
 
     def unlock(self, pwd=None):
         if (self.masterpassword is None and
-                configStorage[MasterPassword.config_key]):
+                self.configStorage[self.MasterPassword.config_key]):
             if pwd is None:
                 pwd = self.getPassword()
             if pwd == "":
                 self.masterpassword = pwd
                 return
             else:
-                masterpwd = MasterPassword(pwd)
+                masterpwd = self.MasterPassword(pwd)
                 self.masterpassword = masterpwd.decrypted_master
 
     def lock(self):
@@ -55,7 +88,7 @@ class Wallet(LegacyWallet):
         # Open Existing Wallet
         currentpwd = self.getPassword()
         if currentpwd != "":
-            masterpwd = MasterPassword(currentpwd)
+            masterpwd = self.MasterPassword(currentpwd)
             self.masterpassword = masterpwd.decrypted_master
         else:
             self.masterpassword = ""
@@ -63,7 +96,7 @@ class Wallet(LegacyWallet):
         newpwd = self.getPasswordConfirmed()
         if newpwd:
             if currentpwd == "":
-                masterpwd = MasterPassword(newpwd)
+                masterpwd = self.MasterPassword(newpwd)
                 self.reencryptKeys(currentpwd, masterpwd.decrypted_master)
             else:
                 # only change the masterpassword
@@ -80,7 +113,8 @@ class Wallet(LegacyWallet):
             self.masterpassword = oldpassword
             wif = self.getPrivateKeyForPublicKey(pub)
             self.masterpassword = newpassword
-            keyStorage.updateWif(pub, wif)
+            if self.keyStorage:
+                self.keyStorage.updateWif(pub, wif)
         log.critical("Removing password complete")
 
     def migrateFromJSON(self):
@@ -88,7 +122,7 @@ class Wallet(LegacyWallet):
         self.ensureOpen()
         print("Please provide a password for the new wallet")
         pwd = self.getPasswordConfirmed()
-        masterpwd = MasterPassword(pwd)
+        masterpwd = self.MasterPassword(pwd)
         self.masterpassword = masterpwd.decrypted_master
         numKeys = len(self.keys)
         for i, key in enumerate(self.keys):
@@ -138,13 +172,33 @@ class Wallet(LegacyWallet):
             pub = format(PrivateKey(wif).pubkey, prefix)
         except:
             raise InvalidWifError("Invalid Private Key Format. Please use WIF!")
-        keyStorage.add(self.encrypt_wif(wif), pub)
+        if self.keyStorage:
+            self.keyStorage.add(self.encrypt_wif(wif), pub)
 
     def getPrivateKeyForPublicKey(self, pub):
-        return self.decrypt_wif(keyStorage.getPrivateKeyForPublicKey(pub))
+        if self.keyStorage:
+            return self.decrypt_wif(keyStorage.getPrivateKeyForPublicKey(pub))
+        else:
+            if pub in self.keys:
+                return self.keys[pub]
 
     def removePrivateKeyFromPublicKey(self, pub):
-        keyStorage.delete(pub)
+        if self.keyStorage:
+            self.keyStorage.delete(pub)
+
+    def removeAccount(self, account):
+        accounts = self.getAccounts()
+        for a in accounts:
+            if a["name"] == account:
+                self.removePrivateKeyFromPublicKey(a["pubkey"])
+
+    def getOwnerKeyForAccount(self, name):
+        account = self.rpc.get_account(name)
+        for authority in account["owner"]["key_auths"]:
+            key = self.getPrivateKeyForPublicKey(authority[0])
+            if key:
+                return key
+        return False
 
     def getPostingKeyForAccount(self, name):
         account = self.rpc.get_account(name)
@@ -171,22 +225,26 @@ class Wallet(LegacyWallet):
 
     def getAccountFromPrivateKey(self, wif):
         pub = format(PrivateKey(wif).pubkey, prefix)
-        return self.rpc.get_key_references([pub])[0][0]
+        return self.getAccountFromPublicKey(pub)
 
     def getAccountFromPublicKey(self, pub):
-        return self.rpc.get_key_references([pub])[0][0]
+        names = self.rpc.get_key_references([pub])[0]
+        if not names:
+            return None
+        else:
+            return names[0]
 
     def getAccount(self, pub):
-        name = self.rpc.get_key_references([pub])[0]
+        name = self.getAccountFromPublicKey(pub)
         if not name:
             return {"name": None,
                     "type": None,
                     "pubkey": pub
                     }
         else:
-            account = self.rpc.get_account(name[0])
+            account = self.rpc.get_account(name)
             keyType = self.getKeyType(account, pub)
-            return {"name": name[0],
+            return {"name": name,
                     "type": keyType,
                     "pubkey": pub
                     }
@@ -208,6 +266,8 @@ class Wallet(LegacyWallet):
         r = {}
         for account in accounts:
             name = account["name"]
+            if not name:
+                continue
             type = account["type"]
             if name not in r:
                 r[name] = {"posting": False,
@@ -218,4 +278,7 @@ class Wallet(LegacyWallet):
         return r
 
     def getPublicKeys(self):
-        return keyStorage.getPublicKeys()
+        if self.keyStorage:
+            return self.keyStorage.getPublicKeys()
+        else:
+            return list(self.keys.keys())

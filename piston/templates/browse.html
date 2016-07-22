@@ -1,10 +1,20 @@
-{% from "_macros.html" import formatUser, showPost %}
+{% from "_macros.html" import showPost with context %}
 
 {% extends "layout.html" %}
 {% block content %}
 {% include "_messages.html" %}
 
 <div class="row">
+
+ <ol class="breadcrumb">
+  {% for newsort in ["trending", "created", "active", "cashout",
+                   "payout", "votes", "children", "hot"] %}
+    <li {% if sort == newsort %} class="active" {% endif %}>
+      <a href="{{ url_for("browse", sort=newsort) }}">{{newsort}}</a>
+    </li>
+  {% endfor %}
+ </ol>
+
  <div class="col-md-10">
   {% for post in posts %}
    {{ showPost(post, "excerpt") }}
