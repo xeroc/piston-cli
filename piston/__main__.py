@@ -670,7 +670,7 @@ def main() :
             meta["replyto"],
             message,
             title=meta["title"],
-            author=args.author
+            author=meta["author"]
         ))
 
     elif args.command == "post" or args.command == "yaml":
