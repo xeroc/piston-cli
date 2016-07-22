@@ -22,13 +22,14 @@ from . import web_socketio
 @app.context_processor
 def inject_dict_for_all_templates():
     accounts = steem.wallet.getAccountsWithPermissions()
+
     def checkvotes(post):
         myaccount = configStore["web.user"]
         for v in post.active_votes:
             if v["voter"] == myaccount and v["percent"] > 0:
-               return True, False
+                return True, False
             elif v["voter"] == myaccount and v["percent"] < 0:
-               return False, True
+                return False, True
         return False, False
 
     return dict(
@@ -118,10 +119,25 @@ def showPrivateKeys(account):
         flash("Wallet is locked!")
         return redirect(url_for("wallet"))
 
+    from steembase import PrivateKey
+
     posting_key = steem.wallet.getPostingKeyForAccount(account)
     memo_key = steem.wallet.getMemoKeyForAccount(account)
     active_key = steem.wallet.getActiveKeyForAccount(account)
     owner_key = steem.wallet.getOwnerKeyForAccount(account)
+
+    posting_key_pub = None
+    memo_key_pub = None
+    active_key_pub = None
+    owner_key_pub = None
+    if posting_key:
+        posting_key_pub = format(PrivateKey(posting_key).pubkey, "STM")
+    if memo_key:
+        memo_key_pub = format(PrivateKey(memo_key).pubkey, "STM")
+    if active_key:
+        active_key_pub = format(PrivateKey(active_key).pubkey, "STM")
+    if owner_key:
+        owner_key_pub = format(PrivateKey(owner_key).pubkey, "STM")
 
     return render_template('wallet-keys.html', **locals())
 
@@ -141,6 +157,7 @@ def wallet():
     elif request.method == 'POST' and "import_accountpwd" in request.form:
         if import_accountpwd.validate():
             from graphenebase.account import PasswordKey
+            keyImported = False
             for role in ["active", "posting", "memo"]:
                 priv = PasswordKey(
                     import_accountpwd.accountname.data,
@@ -150,7 +167,16 @@ def wallet():
                 pub = format(priv.pubkey, "STM")
                 importName = steem.wallet.getAccountFromPublicKey(pub)
                 if importName:
-                    steem.wallet.addPrivateKey(str(priv))
+                    configStore["web.user"] = importName
+                    try:
+                        steem.wallet.addPrivateKey(str(priv))
+                    except:
+                        flash("Key seems to be installed already!", "error")
+
+                    keyImported = True
+            if not keyImported:
+                flash("The account could not be imported. "
+                      "Verify your password!", "error")
 
     return render_template('wallet.html', **locals())
 

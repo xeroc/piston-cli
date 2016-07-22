@@ -43,10 +43,14 @@ def _jinja2_filter_datetime(data):
 @app.template_filter('parseBody')
 def _jinja2_filter_parseBody(body):
     body = re.sub(
-        r"^(https?:.*/(.*\.(jpg|png|gif))?.*)",
+        r"^(https?:.*/(.*\.(jpg|png|gif))\?.*)",
         r"\n![](\1)\n",
         body, flags=re.MULTILINE)
     if is_html(body):
+        body = re.sub(
+            r"<p>(https?:.*/(.*\.(jpg|png|gif))\?.*)<\/p>",
+            r"\n![](\1)\n",
+            body, flags=re.MULTILINE)
         body = html2text.html2text(body)
     return body
 

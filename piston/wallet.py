@@ -33,22 +33,24 @@ class Wallet(LegacyWallet):
     def __init__(self, rpc, *args, **kwargs):
         self.rpc = rpc
 
-        if not "wif" in kwargs:
+        if "wif" not in kwargs:
             """ If no keys are provided manually we load the SQLite
                 keyStorage
             """
-            from .storage import (keyStorage, 
-                                  createTables,
+            from .storage import (keyStorage,
+                                  newKeyStorage,
                                   MasterPassword,
                                   configStorage)
             self.configStorage = configStorage
             self.MasterPassword = MasterPassword
             self.keyStorage = keyStorage
-            if createTables:
+            if newKeyStorage:
                 # migrate to new SQL based storage
                 if self.exists():
                     log.critical("Migrating old wallet format to new format!")
                     self.migrateFromJSON()
+            if not self.created():
+                self.newWallet()
         else:
             self.setKeys(kwargs["wif"])
 
@@ -117,13 +119,28 @@ class Wallet(LegacyWallet):
                 self.keyStorage.updateWif(pub, wif)
         log.critical("Removing password complete")
 
-    def migrateFromJSON(self):
-        # Open Legacy Wallet and populate self.keys
-        self.ensureOpen()
+    def created(self):
+        if len(self.getPublicKeys()):
+            # Already keys installed
+            return True
+        elif self.MasterPassword.config_key in self.configStorage:
+            # no keys but a master password
+            return True
+        else:
+            return False
+
+    def newWallet(self):
+        if self.created():
+            raise Exception("You already have created a wallet!")
         print("Please provide a password for the new wallet")
         pwd = self.getPasswordConfirmed()
         masterpwd = self.MasterPassword(pwd)
         self.masterpassword = masterpwd.decrypted_master
+
+    def migrateFromJSON(self):
+        # Open Legacy Wallet and populate self.keys
+        self.ensureOpen()
+        self.newWallet()
         numKeys = len(self.keys)
         for i, key in enumerate(self.keys):
             self.addPrivateKey(key)
@@ -177,7 +194,7 @@ class Wallet(LegacyWallet):
 
     def getPrivateKeyForPublicKey(self, pub):
         if self.keyStorage:
-            return self.decrypt_wif(keyStorage.getPrivateKeyForPublicKey(pub))
+            return self.decrypt_wif(self.keyStorage.getPrivateKeyForPublicKey(pub))
         else:
             if pub in self.keys:
                 return self.keys[pub]

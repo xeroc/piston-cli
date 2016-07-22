@@ -269,7 +269,7 @@ class MasterPassword(object):
         self.saveEncrytpedMaster()
 
     def purge(self):
-        configStorage.delete(self.config_key)
+        configStorage[self.config_key] = ""
 
 
 def sqlite3_backup(dbfile, backupdir):
@@ -317,11 +317,12 @@ keyStorage = Key()
 configStorage = Configuration()
 
 # Create Tables if database is brand new
-createTables = False
+newKeyStorage = False
 if not configStorage.exists_table():
     configStorage.create_table()
+
 if not keyStorage.exists_table():
-    createTables = True
+    newKeyStorage = True
     keyStorage.create_table()
 
 
