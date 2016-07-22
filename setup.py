@@ -16,6 +16,8 @@ setup(name='steem-piston',
       url='http://www.github.com/xeroc/piston',
       keywords=['steem', 'library', 'api', 'rpc', 'cli'],
       packages=["piston"],
+      # https://github.com/pallets/flask/issues/1562
+      zip_safe=False,
       classifiers=['License :: OSI Approved :: MIT License',
                    'Operating System :: OS Independent',
                    'Programming Language :: Python :: 3',
