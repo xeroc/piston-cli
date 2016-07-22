@@ -185,7 +185,10 @@ class Wallet(LegacyWallet):
                     print("Given Passphrases do not match!")
 
     def addPrivateKey(self, wif):
+        if isinstance(wif, PrivateKey):
+            wif = str(wif)
         try:
+            pub = format(PrivateKey(wif).pubkey, prefix)
             pub = format(PrivateKey(wif).pubkey, prefix)
         except:
             raise InvalidWifError("Invalid Private Key Format. Please use WIF!")

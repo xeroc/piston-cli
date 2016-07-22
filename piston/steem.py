@@ -583,7 +583,8 @@ class Steem(object):
         active  = format(active_key.get_public_key(), prefix)
         posting = format(posting_key.get_public_key(), prefix)
         memo    = format(memo_key.get_public_key(), prefix)
-        # owner
+
+        # store keys
         if storekeys:
             self.wallet.addPrivateKey(owner_key.get_private_key())
             self.wallet.addPrivateKey(active_key.get_private_key())
@@ -628,9 +629,8 @@ class Steem(object):
              'posting': {'account_auths': posting_accounts_authority,
                          'key_auths': posting_key_authority,
                          'weight_threshold': 1}}
-
         op = transactions.Account_create(**s)
-        wif = self.wallet.getPostingKeyForAccount(creator)
+        wif = self.wallet.getActiveKeyForAccount(creator)
         self.executeOp(op, wif)
 
         return password
