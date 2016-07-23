@@ -22,6 +22,9 @@ from . import web_socketio
 @app.context_processor
 def inject_dict_for_all_templates():
     accounts = steem.wallet.getAccountsWithPermissions()
+    current_user = {
+        "name": configStore["web.user"]
+    }
 
     def checkvotes(post):
         myaccount = configStore["web.user"]
@@ -35,7 +38,8 @@ def inject_dict_for_all_templates():
     return dict(
         accounts=accounts,
         wallet=steem.wallet,
-        checkvotes=checkvotes
+        checkvotes=checkvotes,
+        current_user=current_user
     )
 
 

@@ -90,7 +90,11 @@
     {{ formatBody(post, type) }}
    </div>
    <table class="table">
-    <tr>
+    <tr
+     {% if post.author == current_user["name"] %}
+       class="success"
+     {% endif %}
+     >
      <td>
       <button 
          {% if upvoted %}
