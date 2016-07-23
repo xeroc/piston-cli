@@ -5,13 +5,14 @@ import random
 from steemapi.steemclient import SteemNodeRPC
 from steembase import PrivateKey, PublicKey, Address
 import steembase.transactions as transactions
-from piston.utils import (
+from .utils import (
     resolveIdentifier,
     constructIdentifier,
     derivePermlink,
 )
-from piston.wallet import Wallet
-from piston.configuration import Configuration
+from .wallet import Wallet
+from .configuration import Configuration
+from datetime import datetime
 import logging
 log = logging.getLogger(__name__)
 
@@ -32,7 +33,7 @@ class AccountExistsException(Exception):
 
 class Post(object):
     """ This object gets instanciated by Steem.streams and is used as an
-        abstraction layer for Comments in Steam
+        abstraction layer for Comments in Steem
 
         :param Steem steem: An instance of the Steem() object
         :param object post: The post as obtained by `get_content`
@@ -46,6 +47,11 @@ class Post(object):
             )
         self.steem = steem
         self._patch = False
+
+        # If this 'post' comes from an operation, it might carry a patch
+        if "body" in post and re.match("^@@", post["body"]):
+            self._patched = True
+            self._patch = post["body"]
 
         # Get full Post
         if isinstance(post, str):  # From identifier
@@ -65,7 +71,7 @@ class Post(object):
             )
             # if there only is an author and a permlink but no body
             # get the full post via RPC
-            if "body" not in post:
+            if "created" not in post or "cashout_time" not in post:
                 post = self.steem.rpc.get_content(
                     post["author"],
                     post["permlink"]
@@ -74,9 +80,16 @@ class Post(object):
             raise ValueError("Post expects an identifier or a dict "
                              "with author and permlink!")
 
-        if re.match("^@@", post["body"]):
-            self._patched = True
-            self._patch = post["body"]
+        parse_times = ["active",
+                       "cashout_time",
+                       "created",
+                       "last_payout",
+                       "last_update",
+                       "max_cashout_time"]
+        for p in parse_times:
+            post["%s_parsed" % p] = datetime.strptime(
+                post.get(p, "1970-01-01T00:00:00"), '%Y-%m-%dT%H:%M:%S'
+            )
 
         # Try to properly format json meta data
         meta_str = post.get("json_metadata", "")
@@ -110,8 +123,29 @@ class Post(object):
     def __getitem__(self, key):
         return getattr(self, key)
 
+    def remove(self, key):
+        delattr(self, key)
+
+    def get(self, key, default=None):
+        if hasattr(self, key):
+            return getattr(self, key)
+        else:
+            return default
+
+    def __delitem__(self, key):
+        delattr(self, key)
+
     def __contains__(self, key):
         return hasattr(self, key)
+
+    def __iter__(self):
+        r = {}
+        for key in vars(self):
+            r[key] = getattr(self, key)
+        return iter(r)
+
+    def __len__(self):
+        return len(vars(self))
 
     def __repr__(self):
         return "<Steem.Post-%s>" % constructIdentifier(self["author"], self["permlink"])
@@ -623,7 +657,7 @@ class Steem(object):
             **{"from": account,
                "to": to,
                "amount": '{:.{prec}f} {asset}'.format(
-                   amount,
+                   float(amount),
                    prec=3,
                    asset=asset
                ),
@@ -648,7 +682,7 @@ class Steem(object):
         op = transactions.Withdraw_vesting(
             **{"account": account,
                "vesting_shares": '{:.{prec}f} {asset}'.format(
-                   amount,
+                   float(amount),
                    prec=6,
                    asset="VESTS"
                ),
@@ -660,7 +694,7 @@ class Steem(object):
     def transfer_to_vesting(self, amount, to=None, account=None):
         """ Vest STEEM
 
-            :param float amount: number of VESTS to withdraw over a period of 104 weeks
+            :param float amount: number of STEEM to vest
             :param str to: (optional) the source account for the transfer if not ``default_account``
             :param str account: (optional) the source account for the transfer if not ``default_account``
         """
@@ -680,7 +714,7 @@ class Steem(object):
             **{"from": account,
                "to": to,
                "amount": '{:.{prec}f} {asset}'.format(
-                   amount,
+                   float(amount),
                    prec=3,
                    asset="STEEM"
                ),
@@ -774,7 +808,7 @@ class Steem(object):
             r.append(Post(self, p))
         return r
 
-    def get_categories(self, sort, begin="", limit=10):
+    def get_categories(self, sort="trending", begin=None, limit=10):
         """ List categories
 
             :param str sort: Sort categories by "trending", "best",
