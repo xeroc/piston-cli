@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 
 from setuptools import setup
+import sys
+
+assert sys.version_info[0] == 3, "Piston requires Python > 3"
 
 VERSION = '0.2.3a'
 
