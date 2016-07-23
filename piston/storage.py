@@ -272,6 +272,18 @@ class MasterPassword(object):
         configStorage[self.config_key] = ""
 
 
+def mkdir_p(path):
+    if os.path.isdir(path):
+        return
+    else:
+        try:
+            os.makedirs(path)
+        except FileExistsError:
+            return
+        except OSError:
+            raise
+
+
 def sqlite3_backup(dbfile, backupdir):
     """Create timestamped database copy"""
     if not os.path.isdir(backupdir):
@@ -310,6 +322,7 @@ def refreshBackup():
 
 #: Storage
 data_dir = user_data_dir(appname, appauthor)
+mkdir_p(data_dir)
 sqlDataBaseFile = os.path.join(data_dir, storageDatabase)
 
 # Create keyStorage
