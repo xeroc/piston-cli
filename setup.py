@@ -2,7 +2,7 @@
 
 from setuptools import setup
 
-VERSION = '0.2.3a'
+VERSION = '0.2.3b'
 
 setup(name='steem-piston',
       version=VERSION,
