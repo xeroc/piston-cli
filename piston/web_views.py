@@ -211,7 +211,8 @@ def post(identifier):
         postForm = web_forms.NewPostForm(
             category=post.category,
             body=indent(post.body, "> "),
-            title="Re: " + post.title
+            title="Re: " + post.title,
+            reply=identifier,
         )
     else:
         postForm = web_forms.NewPostForm()
@@ -225,8 +226,8 @@ def post(identifier):
                     tx = steem.post(
                         postForm.title.data,
                         postForm.body.data,
+                        reply_identifier=postForm.reply.data,
                         author=configStore["web.user"],
-                        reply_identifier=identifier,
                     )
                     return redirect(url_for(
                         "read",
