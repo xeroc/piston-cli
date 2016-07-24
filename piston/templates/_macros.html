@@ -46,6 +46,12 @@
    <i class="fa fa-arrows-h"></i>
    {{ formatAuthorPermlink(op[1]["comment_author"], op[1]["comment_permlink"]) }}
 
+ {% elif op[0] == "comment_reward" %}
+   <i class="fa fa-gift"></i> {{op[1]["sbd_payout"]}}
+   <i class="fa fa-gift"></i> {{op[1]["vesting_payout"]}}
+   <i class="fa fa-arrows-h"></i>
+   {{ formatAuthorPermlink(op[1]["author"], op[1]["permlink"]) }}
+
  {% else %}
   {{ op  }}
 
