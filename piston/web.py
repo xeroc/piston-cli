@@ -6,7 +6,6 @@ from flaskext.markdown import Markdown
 from .utils import strfdelta, strfage
 from flask_socketio import SocketIO
 import html2text
-import lxml.html
 
 
 app = Flask(__name__)
@@ -26,7 +25,7 @@ from . import web_assets, web_views
 
 
 def is_html(body):
-    return lxml.html.fromstring(body).find('.//*') is not None
+    return re.search("<html>", body, flags=re.MULTILINE)
 
 
 @app.template_filter('age')
@@ -42,16 +41,13 @@ def _jinja2_filter_datetime(data):
 
 @app.template_filter('parseBody')
 def _jinja2_filter_parseBody(body):
+    if is_html(body):
+        body = html2text.html2text(body)
+        # body = re.sub("[HTML_REMOVED]", "", body)
     body = re.sub(
-        r"^(https?:.*/(.*\.(jpg|png|gif))\?.*)",
+        r"^(https?:.*/(.*\.(jpg|png|gif))\??.*)",
         r"\n![](\1)\n",
         body, flags=re.MULTILINE)
-    if is_html(body):
-        body = re.sub(
-            r"<p>(https?:.*/(.*\.(jpg|png|gif))\?.*)<\/p>",
-            r"\n![](\1)\n",
-            body, flags=re.MULTILINE)
-        body = html2text.html2text(body)
     return body
 
 

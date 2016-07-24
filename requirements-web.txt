@@ -16,7 +16,6 @@ graphenelib==0.4.3
 html2text==2016.5.29
 itsdangerous==0.24
 Jinja2==2.8
-lxml==3.6.0
 Markdown==2.6.6
 MarkupSafe==0.23
 prettytable==0.7.2
