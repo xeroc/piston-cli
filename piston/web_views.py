@@ -1,3 +1,4 @@
+from sys import exit
 from pprint import pprint
 from jinja2 import Template, Markup, Environment, PackageLoader, FileSystemLoader
 from flask import render_template, redirect, request, session, flash, url_for, make_response, jsonify, abort
@@ -9,12 +10,23 @@ from . import web_forms
 from textwrap import indent
 
 # Connect to Steem network
-steem = Steem(
-    node=configStore["WEB_STEEM_NODE"],
-    rpcuser=configStore["WEB_STEEM_RPCUSER"],
-    rpcpassword=configStore["WEB_STEEM_RPCPASS"],
-    nobroadcast=configStore["WEB_STEEM_NOBROADCAST"]
-)
+try:
+    steem = Steem(
+        node=configStore["WEB_STEEM_NODE"],
+        rpcuser=configStore["WEB_STEEM_RPCUSER"],
+        rpcpassword=configStore["WEB_STEEM_RPCPASS"],
+        nobroadcast=configStore["WEB_STEEM_NOBROADCAST"],
+        num_retries=0,
+    )
+except:
+    print("=" * 80)
+    print(
+        "No connection to %s could be established!\n" % configStore["WEB_STEEM_NODE"] +
+        "Please try again later, or select another node via:\n"
+        "    piston node wss://example.com"
+    )
+    print("=" * 80)
+    exit(1)
 
 from . import web_socketio
 
@@ -262,6 +274,3 @@ def transfer():
 @app.route('/trade')
 def trade():
     pass
-
-# http://www.vermilion.com/responsive-comparison/?framework=bootstrap
-# http://v4-alpha.getbootstrap.com/

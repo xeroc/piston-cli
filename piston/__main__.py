@@ -566,13 +566,14 @@ def main() :
     rpc_not_required = [
         "set",
         "config",
+        "web"
         ""]
     if args.command not in rpc_not_required and args.command:
         steem = Steem(
             node=args.node,
             rpcuser=args.rpcuser,
             rpcpassword=args.rpcpassword,
-            nobroadcast=args.nobroadcast
+            nobroadcast=args.nobroadcast,
         )
 
     if args.command == "set":
