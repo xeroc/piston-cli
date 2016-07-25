@@ -147,7 +147,7 @@ class Post(object):
     def __repr__(self):
         return "<Steem.Post-%s>" % constructIdentifier(self["author"], self["permlink"])
 
-    def get_comments(self):
+    def get_comments(self, sort="total_payout_value"):
         """ Return **first-level** comments of the post.
         """
         post_author, post_permlink = resolveIdentifier(self.identifier)
@@ -155,6 +155,10 @@ class Post(object):
         r = []
         for post in posts:
             r.append(Post(self.steem, post))
+        if sort == "total_payout_value":
+            r = sorted(r, key=lambda x: float(x[sort].split(" ")[0]), reverse=True)
+        else:
+            r = sorted(r, key=lambda x: x[sort])
         return(r)
 
     def reply(self, body, title="", author="", meta=None):
