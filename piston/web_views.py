@@ -8,26 +8,34 @@ from .web import app
 from .storage import configStorage as configStore
 from . import web_forms
 from textwrap import indent
+import logging
+log = logging.getLogger(__name__)
+
 
 # Connect to Steem network
-try:
-    steem = Steem(
-        node=configStore["WEB_STEEM_NODE"],
-        rpcuser=configStore["WEB_STEEM_RPCUSER"],
-        rpcpassword=configStore["WEB_STEEM_RPCPASS"],
-        nobroadcast=configStore["WEB_STEEM_NOBROADCAST"],
-        num_retries=0,
-    )
-except:
-    print("=" * 80)
-    print(
-        "No connection to %s could be established!\n" % configStore["WEB_STEEM_NODE"] +
-        "Please try again later, or select another node via:\n"
-        "    piston node wss://example.com"
-    )
-    print("=" * 80)
-    exit(1)
+steem = None
+def connect_steem():
+    global steem
+    log.debug("trying to connect to %s" % configStore["WEB_STEEM_NODE"])
+    try:
+        steem = Steem(
+            node=configStore["node"],
+            rpcuser=configStore["rpcuser"],
+            rpcpassword=configStore["rpcpass"],
+            nobroadcast=configStore["web:nobroadcast"],
+            num_retries=0,
+        )
+    except:
+        print("=" * 80)
+        print(
+            "No connection to %s could be established!\n" % configStore["WEB_STEEM_NODE"] +
+            "Please try again later, or select another node via:\n"
+            "    piston node wss://example.com"
+        )
+        print("=" * 80)
+        exit(1)
 
+connect_steem()
 from . import web_socketio
 
 
@@ -35,11 +43,11 @@ from . import web_socketio
 def inject_dict_for_all_templates():
     accounts = steem.wallet.getAccountsWithPermissions()
     current_user = {
-        "name": configStore["web.user"]
+        "name": configStore["web:user"]
     }
 
     def checkvotes(post):
-        myaccount = configStore["web.user"]
+        myaccount = configStore["web:user"]
         for v in post.active_votes:
             if v["voter"] == myaccount and v["percent"] > 0:
                 return True, False
@@ -183,7 +191,7 @@ def wallet():
                 pub = format(priv.pubkey, "STM")
                 importName = steem.wallet.getAccountFromPublicKey(pub)
                 if importName:
-                    configStore["web.user"] = importName
+                    configStore["web:user"] = importName
                     try:
                         steem.wallet.addPrivateKey(str(priv))
                     except:
@@ -243,7 +251,7 @@ def post(identifier):
                         postForm.title.data,
                         postForm.body.data,
                         reply_identifier=postForm.reply.data,
-                        author=configStore["web.user"],
+                        author=configStore["web:user"],
                     )
                     return redirect(url_for(
                         "read",
@@ -253,7 +261,7 @@ def post(identifier):
                     tx = steem.post(
                         postForm.title.data,
                         postForm.body.data,
-                        author=configStore["web.user"],
+                        author=configStore["web:user"],
                         category=postForm.category.data,
                     )
                     return redirect(url_for(
@@ -264,6 +272,27 @@ def post(identifier):
             except Exception as e:
                 flash(str(e))
     return render_template('post.html', **locals())
+
+
+@app.route('/settings', methods=["GET", "POST"])
+def settings():
+    global steem
+    settingsForm = web_forms.SettingsForm(
+        node=configStore["node"],
+        rpcuser=configStore["rpcuser"],
+        rpcpass=configStore["rpcpass"],
+        webport=configStore["web:port"]
+    )
+    if settingsForm.validate_on_submit():
+        oldSteemUrl = steem.rpc.url
+        configStore["node"] = settingsForm.node.data
+        configStore["rpcuser"] = settingsForm.rpcuser.data
+        configStore["rpcpass"] = settingsForm.rpcpass.data
+        configStore["web:port"] = settingsForm.webport.data
+        if settingsForm.node.data != oldSteemUrl:
+            connect_steem()
+
+    return render_template('settings.html', **locals())
 
 
 @app.route('/transfer')

@@ -69,7 +69,7 @@ socket.on('connect', function(){});
 socket.on('event', function(data){});
 socket.on('disconnect', function(){});
 socket.on('log', log);
-socket.on('web.user', setAccount);
+socket.on('web:user', setAccount);
 socket.on('notunlocked', notunlocked);
 socket.on('unlocked', unlocked);
 $('.accountSelector').on("click", accountChange);

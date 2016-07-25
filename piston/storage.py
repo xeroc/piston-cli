@@ -163,6 +163,12 @@ class Configuration():
             else:
                 return None
 
+    def get(self, key, default=None):
+        if key in self:
+            return self.__getitem__(key)
+        else:
+            return default
+
     def __contains__(self, key):
         if self._haveKey(key):
             return True

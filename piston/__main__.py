@@ -88,7 +88,9 @@ def main() :
                  "list_sorting",
                  "categories_sorting",
                  "limit",
-                 "post_category"],
+                 "post_category",
+                 "web:user",
+                 "web:port"],
         help='Configuration key'
     )
     setconfig.add_argument(
@@ -515,7 +517,7 @@ def main() :
     webconfig.add_argument(
         '--port',
         type=int,
-        default=5054,
+        default=config["web:config"],
         help='Port to open for internal web requests'
     )
 
@@ -856,11 +858,16 @@ def main() :
         print(t)
 
     elif args.command == "web":
-        config["WEB_STEEM_NODE"] = args.node
-        config["WEB_STEEM_RPCUSER"] = args.rpcuser
-        config["WEB_STEEM_RPCPASS"] = args.rpcpassword
-        config["WEB_STEEM_NOBROADCAST"] = args.nobroadcast
-        config["WEB_PORT"] = args.port
+        if args.node:
+            config["node"] = args.node
+        if args.rpcuser:
+            config["rpcuser"] = args.rpcuser
+        if args.rpcpassword:
+            config["rpcpass"] = args.rpcpassword
+        if args.nobroadcast:
+            config["web:nobroadcast"] = args.nobroadcast
+        if args.port:
+            config["web:port"] = args.port
         from . import web
         web.run()
 

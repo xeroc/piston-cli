@@ -6,6 +6,9 @@ from flaskext.markdown import Markdown
 from .utils import strfdelta, strfage
 from flask_socketio import SocketIO
 import html2text
+from .storage import configStorage as configStore
+import logging
+log = logging.getLogger(__name__)
 
 
 app = Flask(__name__)
@@ -57,7 +60,7 @@ def _jinja2_filter_currency(value):
 
 
 def run():
-    socketio.run(app, debug=True, port=app.config.get("PORT", 5054))
+    socketio.run(app, debug=True, port=configStore.get("web:port", 5054))
 
     # FIXME: Don't use .run()
     # from gevent.wsgi import WSGIServer

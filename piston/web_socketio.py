@@ -5,6 +5,8 @@ from flask_socketio import send, emit
 from .steem import Post
 from .web_views import steem
 import traceback
+import logging
+log = logging.getLogger(__name__)
 
 
 def success(msg):
@@ -44,9 +46,9 @@ def test():
 
 @io.on('getWebUser')
 def getWebUser():
-    if "web.user" in config:
-        emit("web.user", {
-             "name": config["web.user"]
+    if "web:user" in config:
+        emit("web:user", {
+             "name": config["web:user"]
              })
     else:
         warning("Please pick an account!")
@@ -54,7 +56,7 @@ def getWebUser():
 
 @io.on('changeAccount')
 def changeAccount(account):
-    config["web.user"] = account
+    config["web:user"] = account
     success("changeAccount to " + account)
 
 
@@ -77,8 +79,8 @@ def vote(identifier, weight):
     try:
         post = Post(steem, identifier)
         post.vote(weight=weight,
-                  voter=config["web.user"])
+                  voter=config["web:user"])
         success("voted post %s with account %s" %
-                (identifier, config["web.user"]))
+                (identifier, config["web:user"]))
     except:
         error_exc()
