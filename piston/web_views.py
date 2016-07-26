@@ -14,6 +14,8 @@ log = logging.getLogger(__name__)
 
 # Connect to Steem network
 steem = None
+
+
 def connect_steem():
     global steem
     log.debug("trying to connect to %s" % configStore["WEB_STEEM_NODE"])
@@ -23,7 +25,7 @@ def connect_steem():
             rpcuser=configStore["rpcuser"],
             rpcpassword=configStore["rpcpass"],
             nobroadcast=configStore["web:nobroadcast"],
-            num_retries=0,
+            num_retries=1,  # do at least 1 retry in the case the connection was lost
         )
     except:
         print("=" * 80)
@@ -182,7 +184,7 @@ def wallet():
         if import_accountpwd.validate():
             from graphenebase.account import PasswordKey
             keyImported = False
-            for role in ["active", "posting", "memo"]:
+            for role in ["active", "posting", "memo"]:  # do not add owner key!
                 priv = PasswordKey(
                     import_accountpwd.accountname.data,
                     import_accountpwd.password.data,
@@ -205,11 +207,16 @@ def wallet():
     return render_template('wallet.html', **locals())
 
 
-@app.route('/browse', defaults={"category": "", "sort": "hot"})
+@app.route('/browse', defaults={"category": "", "sort": "trending"})
 @app.route('/browse/<sort>', defaults={"category": ""})
 @app.route('/browse/<sort>/<category>')
 def browse(category, sort):
-    posts = steem.get_posts(limit=10, category=category, sort=sort)
+    start = request.args.get('start')
+    posts = steem.get_posts(limit=10,
+        category=category,
+        sort=sort,
+        start=start
+    )
     tags = steem.get_categories("trending", limit=25)
     return render_template('browse.html', **locals())
 

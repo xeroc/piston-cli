@@ -832,7 +832,7 @@ class Steem(object):
     def get_posts(self, limit=10,
                   sort="hot",
                   category=None,
-                  start=None,):
+                  start=None):
         """ Get multiple posts in an array.
 
             :param int limit: Limit the list of posts by ``limit``

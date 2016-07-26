@@ -189,7 +189,6 @@ class Wallet(LegacyWallet):
             wif = str(wif)
         try:
             pub = format(PrivateKey(wif).pubkey, prefix)
-            pub = format(PrivateKey(wif).pubkey, prefix)
         except:
             raise InvalidWifError("Invalid Private Key Format. Please use WIF!")
         if self.keyStorage:
