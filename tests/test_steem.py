@@ -49,7 +49,11 @@ class Testcases(unittest.TestCase) :
 
     def test_create_account(self):
         try:
-            steem.create_account("xeroc-create", creator=testaccount, storekeys=False)
+            steem.create_account("xeroc-create",
+                                 creator=testaccount,
+                                 password="foobar foo bar hello world",
+                                 storekeys=False
+                                 )
         except MissingKeyError:
             pass
 

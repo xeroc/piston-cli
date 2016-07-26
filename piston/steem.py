@@ -517,6 +517,11 @@ class Steem(object):
                        account_name,
                        json_meta={},
                        creator=None,
+                       owner_key=None,
+                       active_key=None,
+                       posting_key=None,
+                       memo_key=None,
+                       password=None,
                        additional_owner_keys=[],
                        additional_active_keys=[],
                        additional_posting_keys=[],
@@ -525,10 +530,9 @@ class Steem(object):
                        additional_posting_accounts=[],
                        storekeys=True,
                        ):
-        """ Create new account in Steem and store new keys in the wallet
-            automatically and return the brain key.
+        """ Create new account in Steem
 
-            The brainkey can be used to recover all generated keys (see
+            The brainkey/password can be used to recover all generated keys (see
             `graphenebase.account` for more details.
 
             By default, this call will use ``default_author`` to
@@ -546,10 +550,24 @@ class Steem(object):
                           method does and where to find the private keys
                           for your account.
 
+            .. note:: Please note that this imports private keys
+                      (if password is present) into the wallet by
+                      default. However, it **does not import the owner
+                      key** for security reasons. Do NOT expect to be
+                      able to recover it from piston if you lose your
+                      password!
+
             :param str account_name: (**required**) new account name
             :param str json_meta: Optional meta data for the account
             :param str creator: which account should pay the registration fee
                                 (defaults to ``default_author``)
+            :param str owner_key: Main owner key
+            :param str active_key: Main active key
+            :param str posting_key: Main posting key
+            :param str memo_key: Main memo_key
+            :param str password: Alternatively to providing keys, one
+                                 can provide a password from which the
+                                 keys will be derived
             :param array additional_owner_keys:  Additional owner public keys
             :param array additional_active_keys: Additional active public keys
             :param array additional_posting_keys: Additional posting public keys
@@ -566,6 +584,10 @@ class Steem(object):
             raise ValueError(
                 "Not creator account given. Define it with " +
                 "creator=x, or set the default_author in piston")
+        if password and (owner_key or posting_key or active_key or memo_key):
+            raise ValueError(
+                "You cannot use 'password' AND provide keys!"
+            )
 
         account = None
         try:
@@ -575,25 +597,41 @@ class Steem(object):
         if account:
             raise AccountExistsException
 
-        " Generate new keys "
-        from graphenebase.account import PasswordKey
-        password = ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(16))
-        posting_key = PasswordKey(account_name, password, role="posting")
-        active_key  = PasswordKey(account_name, password, role="active")
-        owner_key   = PasswordKey(account_name, password, role="owner")
-        memo_key    = PasswordKey(account_name, password, role="memo")
+        " Generate new keys from password"
+        from graphenebase.account import PasswordKey, PublicKey
+        if password:
+            posting_key = PasswordKey(account_name, password, role="posting")
+            active_key  = PasswordKey(account_name, password, role="active")
+            owner_key   = PasswordKey(account_name, password, role="owner")
+            memo_key    = PasswordKey(account_name, password, role="memo")
+            posting_pubkey = posting_key.get_public_key()
+            active_pubkey  = active_key.get_public_key()
+            owner_pubkey   = owner_key.get_public_key()
+            memo_pubkey    = memo_key.get_public_key()
+            posting_privkey = posting_key.get_private_key()
+            active_privkey  = active_key.get_private_key()
+            owner_privkey   = owner_key.get_private_key()
+            memo_privkey    = memo_key.get_private_key()
+            # store private keys
+            if storekeys:
+                # self.wallet.addPrivateKey(owner_privkey)
+                self.wallet.addPrivateKey(active_privkey)
+                self.wallet.addPrivateKey(posting_privkey)
+                self.wallet.addPrivateKey(memo_privkey)
+        elif (owner_key and posting_key and active_key and memo_key):
+            posting_pubkey = PublicKey(posting_key, prefix=prefix)
+            active_pubkey  = PublicKey(active_key, prefix=prefix)
+            owner_pubkey   = PublicKey(owner_key, prefix=prefix)
+            memo_pubkey    = PublicKey(memo_key, prefix=prefix)
+        else:
+            raise ValueError(
+                "Call incomplete! Provide either a password or public keys!"
+            )
 
-        owner   = format(owner_key.get_public_key(), prefix)
-        active  = format(active_key.get_public_key(), prefix)
-        posting = format(posting_key.get_public_key(), prefix)
-        memo    = format(memo_key.get_public_key(), prefix)
-
-        # store keys
-        if storekeys:
-            self.wallet.addPrivateKey(owner_key.get_private_key())
-            self.wallet.addPrivateKey(active_key.get_private_key())
-            self.wallet.addPrivateKey(posting_key.get_private_key())
-            self.wallet.addPrivateKey(memo_key.get_private_key())
+        owner   = format(posting_pubkey, prefix)
+        active  = format(active_pubkey, prefix)
+        posting = format(owner_pubkey, prefix)
+        memo    = format(memo_pubkey, prefix)
 
         owner_key_authority = [[owner, 1]]
         active_key_authority = [[active, 1]]
@@ -635,9 +673,7 @@ class Steem(object):
                          'weight_threshold': 1}}
         op = transactions.Account_create(**s)
         wif = self.wallet.getActiveKeyForAccount(creator)
-        self.executeOp(op, wif)
-
-        return password
+        return self.executeOp(op, wif)
 
     def transfer(self, to, amount, asset, memo="", account=None):
         """ Transfer SBD or STEEM to another account.

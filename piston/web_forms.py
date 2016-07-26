@@ -77,6 +77,7 @@ validators = {
     ]
 }
 
+
 class BaseForm(Form):
     """ To allow form wide errors
     """
