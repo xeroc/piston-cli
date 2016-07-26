@@ -6,6 +6,11 @@ provides access to the STEEM network.
 
 ## Installation
 
+Required dependencies:
+
+* libyaml
+* libssl-dev
+
 Until we leave pre-alpha, piston.web is on a different branch.
 
     git checkout feature/standalone-web
