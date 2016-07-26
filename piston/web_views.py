@@ -1,3 +1,4 @@
+import re
 from sys import exit
 from pprint import pprint
 from jinja2 import Template, Markup, Environment, PackageLoader, FileSystemLoader
@@ -246,6 +247,7 @@ def browse(category, sort):
 
 @app.route('/read/<path:identifier>')
 def read(identifier):
+    identifier = re.sub(r'.*@', '@', identifier)
     post = Post(steem, identifier)
     if not post:
         abort(400)

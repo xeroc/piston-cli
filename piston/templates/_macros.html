@@ -63,7 +63,7 @@
 {% endmacro %}
 
 {% macro formatBody(post, type) %}
- {% if type == "full" %}
+ {% if type == "full" or type == "reply" %}
   {{ post.body | parseBody | markdown }}
  {% else %}
   {{ post.body | excert | parseBody | markdown }} ...
@@ -96,6 +96,15 @@
      </a>
     </div>
    {% endif %}
+
+   {% if type == "reply" %}
+    <div class="panel-heading">
+     <a href="{{url_for("read", identifier=post.openingPostIdentifier)}}">
+      <i class="fa fa-link"></i> {{post.root_title}}
+     </a>
+    </div>
+   {% endif %}
+
    <div class="panel-body post-body">
     {{ formatBody(post, type) }}
    </div>

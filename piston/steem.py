@@ -98,11 +98,11 @@ class Post(object):
             pass
         post["_tags"] = meta.get("tags", [])
 
-        self.openingPostIdentifier, self.category = self._getOpeningPost()
-
         # Store everything as attribute
         for key in post:
             setattr(self, key, post[key])
+
+        self.openingPostIdentifier, self.category = self._getOpeningPost()
 
     def _getOpeningPost(self):
         m = re.match("/([^/]*)/@([^/]*)/([^#]*).*",
