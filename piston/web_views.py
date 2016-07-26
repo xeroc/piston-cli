@@ -212,7 +212,10 @@ def wallet():
 @app.route('/browse/<sort>/<category>')
 def browse(category, sort):
     start = request.args.get('start')
-    posts = steem.get_posts(limit=10,
+    posts = steem.get_posts(
+        # 10 are displyed, the 11th is to pick ?start=
+        # for the next page
+        limit=11,
         category=category,
         sort=sort,
         start=start

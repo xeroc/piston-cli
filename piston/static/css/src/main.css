@@ -1,7 +1,40 @@
+/* Sticky footer styles
+-------------------------------------------------- */
+html {
+  position: relative;
+  min-height: 100%;
+}
+body {
+  /* Margin bottom by footer height */
+  margin-bottom: 60px;
+  padding-bottom: 2ex;
+}
+
+/* Footer
+-------------------------------------------------- */
+.footer {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  /* Set the fixed height of the footer here */
+  height: 60px;
+  background-color: #f5f5f5;
+}
+
+.footer .container {
+  width: auto;
+  max-width: 680px;
+  padding: 0 15px;
+}
+
+/* Posts
+-------------------------------------------------- */
 .post-body img {
  max-width: 100%;
 }
 
+/* Funds
+-------------------------------------------------- */
 .fundstable td:first-child{
    width:50%;
 }

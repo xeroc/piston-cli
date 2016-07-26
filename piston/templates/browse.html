@@ -16,12 +16,12 @@
  </ol>
 
  <div class="col-md-10">
-  {% for post in posts %}
+  {% for post in posts[:10] %}
    {{ showPost(post, "excerpt") }}
   {% endfor %}
 
   <div class="text-center">
-   <a class="btn btn-primary btn-lg"
+   <a class="btn btn-primary btn-block"
       href="{{url_for("browse", sort=sort, category=category, start=posts[-1].identifier, _external=True)}}">
       read more</a>
   </div>
