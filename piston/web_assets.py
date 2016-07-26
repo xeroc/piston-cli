@@ -1,3 +1,5 @@
+# https://adambard.com/blog/fresh-flask-setup/
+
 from flask_assets import Bundle
 from .web import app, webassets
 

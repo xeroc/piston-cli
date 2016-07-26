@@ -107,7 +107,7 @@ def user_replies(user):
     return render_template('user-replies.html', **locals())
 
 
-@app.route('/@<user>/funds')
+@app.route('/@<user>/funds', methods=["POST", "GET"])
 def user_funds(user):
     try:
         user = steem.rpc.get_account(user)
@@ -129,7 +129,27 @@ def user_funds(user):
     vets_shares = float(user["vesting_shares"].split(" ")[0])
     steem_balance = float(user["balance"].split(" ")[0])
     sbd_balance = float(user["sbd_balance"].split(" ")[0])
-    transactions = steem.get_account_history(user["name"], end=99999999, limit=10)
+
+    latestOp = request.args.get('latestOp')
+    if latestOp:
+        latestOp = int(latestOp) - 1
+    else:
+        lastTx = steem.get_account_history(user["name"], end=99999999, limit=1)
+        latestOp = lastTx[-1][0]
+
+    transactionFilterForm = web_forms.TransactionFilterForm()
+    if transactionFilterForm.validate_on_submit():
+        ops = transactionFilterForm.operations.data
+    else:
+        ops = None
+
+    transactions = steem.get_account_history(
+        user["name"],
+        end=latestOp,
+        limit=10,
+        only_ops=ops
+    )
+    transactions = sorted(transactions, key=lambda x: x[0], reverse=True)
     return render_template('user-funds.html', **locals())
 
 

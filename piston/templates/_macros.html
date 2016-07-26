@@ -37,6 +37,10 @@
    <i class="fa fa-comment"></i>
    {{ formatAuthorPermlink(op[1]["author"], op[1]["permlink"]) }}
 
+ {% elif op[0] == "interest" %}
+   <i class="fa fa-level-up"></i>
+   {{ op[1]["interest"] }}
+
  {% elif op[0] == "account_create" %}
    <i class="fa fa-plus-square"></i>
    account created: {{ formatUser(op[1]["name"]) }}

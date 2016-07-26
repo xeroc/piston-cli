@@ -1,3 +1,4 @@
+{% import "bootstrap/wtf.html" as wtf %}
 {% from "_macros.html" import showPost, formatOp %}
 {% extends "layout.html" %}
 {% block content %}
@@ -55,25 +56,40 @@
 
 <h3>Transaction</h3>
 
-<table class="table">
- <thead>
-  <tr>
-   <th>#</th>
-   <th>time</th>
-   <th>block</th>
-   <th>type</th>
-  </tr>
- </thead>
- <tbody>
-  {% for tx in transactions %}
-  <tr>
-   <td>{{tx[0]}}</td>
-   <td>{{tx[1]["timestamp"]}}</td>
-   <td>{{tx[1]["block"]}}</td>
-   <td>{{formatOp(tx[1]["op"])}}</td>
-  </tr>
- {% endfor %}
- </tbody>
-</table>
+<div class="row">
+ <div class="col-md-10">
+  <table class="table table-striped table-hover">
+   <thead>
+    <tr>
+     <th>#</th>
+     <th>time</th>
+     <th>block</th>
+     <th>type</th>
+    </tr>
+   </thead>
+   <tbody>
+    {% for tx in transactions %}
+    <tr>
+     <td>{{tx[0]}}</td>
+     <td>{{tx[1]["timestamp"]}}</td>
+     <td>{{tx[1]["block"]}}</td>
+     <td>{{formatOp(tx[1]["op"])}}</td>
+    </tr>
+   {% endfor %}
+   </tbody>
+  </table>
 
+  <div class="text-center">
+   <a class="btn btn-primary btn-block"
+      href="{{url_for("user_funds", user=user["name"],
+                      latestOp=(transactions[-1][0]),
+                      _external=True)}}">
+    later</a>
+  </div>
+
+ </div>
+ <div class="col-md-2">
+  {{ wtf.quick_form(transactionFilterForm) }}
+ </div>
+</div>
 {% endblock %}

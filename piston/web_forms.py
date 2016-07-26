@@ -9,7 +9,8 @@ from wtforms import (
     SubmitField,
     TextAreaField,
     HiddenField,
-    IntegerField
+    IntegerField,
+    SelectMultipleField
 )
 from wtforms.validators import (
     Required,
@@ -78,18 +79,7 @@ validators = {
 }
 
 
-class BaseForm(Form):
-    """ To allow form wide errors
-    """
-    def __init__(self, *args, **kwargs):
-        self.global_errors = []
-        super(BaseForm, self).__init__(*args, **kwargs)
-
-    def add_global_error(self, error_msg):
-        self.global_errors.append(error_msg)
-
-
-class NewPostForm(BaseForm):
+class NewPostForm(Form):
     reply = HiddenField()
     category = TextField("Category", validators['postCategory'])
     title = TextField("Title", validators['postText'])
@@ -97,18 +87,18 @@ class NewPostForm(BaseForm):
     Submit = SubmitField("Post")
 
 
-class ImportWifKey(BaseForm):
+class ImportWifKey(Form):
     wif = PasswordField("Private Key", validators['wif'])
     import_wif = SubmitField("Import Key")
 
 
-class ImportAccountPassword(BaseForm):
+class ImportAccountPassword(Form):
     accountname = TextField("Account", [Required()])
     password = PasswordField("Password", [Required()])
     import_accountpwd = SubmitField("Import")
 
 
-class SettingsForm(BaseForm):
+class SettingsForm(Form):
     node = TextField("API Node", [Required()],
                      render_kw={"list": "apiNodes"})
     rpcuser = TextField("API User", [Optional()])
@@ -129,3 +119,29 @@ class SettingsForm(BaseForm):
             self.node.errors.append('Unable to connect')
             return False
         return True
+
+
+class TransactionFilterForm(Form):
+    operations = SelectMultipleField(
+        "Types",
+        choices=[
+            ("vote", "Votes"),
+            ("comment", "Comments"),
+            ("transfer", "Transfers"),
+            ("transfer_to_vesting", "PowerUp"),
+            ("withdraw_vesting", "PowerDown"),
+            ("limit_order_create", "Create order"),
+            ("limit_order_cancel", "Cancel order"),
+            ("convert", "Settle/Convert SteemDollars"),
+            ("fill_convert_request", "Fill Settlement/Convert"),
+            ("comment_reward", "Comment Reward"),
+            ("curate_reward", "Curation Reward"),
+            ("liquidity_reward", "Liquidity Reward"),
+            ("interest", "Interest"),
+            ("fill_vesting_withdraw", "Execute PowerDown"),
+            ("fill_order", "Order filled"),
+            ("account_create", "Account create"),
+            ("account_update", "Account update")
+        ],
+    )
+    submit = SubmitField("filter")
