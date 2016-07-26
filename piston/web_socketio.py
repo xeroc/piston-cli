@@ -35,6 +35,7 @@ def error_exc(msg=None):
 
 
 def error_locked():
+    emit("error.locked")
     warning("Wallet is locked")
 
 
@@ -47,7 +48,7 @@ def test():
 @io.on('getWebUser')
 def getWebUser():
     if "web:user" in config:
-        emit("web:user", {
+        emit("success.web:user", {
              "name": config["web:user"]
              })
     else:
@@ -64,10 +65,10 @@ def changeAccount(account):
 def unlock(password):
     try:
         steem.wallet.unlock(password)
-        emit("unlocked")
+        emit("success.unlocked")
     except:
         error("Couldn't unlock wallet. Wrong Password?")
-        emit("notunlocked")
+        emit("error.notunlocked")
 
 
 @io.on('vote')
@@ -80,6 +81,8 @@ def vote(identifier, weight):
         post = Post(steem, identifier)
         post.vote(weight=weight,
                   voter=config["web:user"])
+        emit("success.vote", {"identifier": identifier,
+                              "weight": weight})
         success("voted post %s with account %s" %
                 (identifier, config["web:user"]))
     except:
