@@ -791,7 +791,7 @@ class Steem(object):
             :param str user: Show recommendations for this author
         """
         state = self.rpc.get_state("/@%s/recommended" % user)
-        posts = state["accounts"][user]["recommended"]
+        posts = state["accounts"][user].get("recommended", [])
         r = []
         for p in posts:
             post = state["content"][p]
@@ -804,7 +804,7 @@ class Steem(object):
             :param str user: Show recommendations for this author
         """
         state = self.rpc.get_state("/@%s/blog" % user)
-        posts = state["accounts"][user]["blog"]
+        posts = state["accounts"][user].get("blog", [])
         r = []
         for p in posts:
             post = state["content"]["%s/%s" % (
@@ -820,7 +820,7 @@ class Steem(object):
             :param bool skipown: Do not show my own replies
         """
         state = self.rpc.get_state("/@%s/recent-replies" % author)
-        replies = state["accounts"][author]["recent_replies"]
+        replies = state["accounts"][author].get("recent_replies", [])
         discussions  = []
         for reply in replies:
             post = state["content"][reply]
