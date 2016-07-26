@@ -66,3 +66,4 @@ posts
 piston/static/css/*.css
 piston/static/js/*.js
 piston/static/.webassets-cache
+env

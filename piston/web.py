@@ -5,7 +5,6 @@ from flask_bootstrap import Bootstrap
 from flaskext.markdown import Markdown
 from .utils import strfdelta, strfage
 from flask_socketio import SocketIO
-import html2text
 from .storage import configStorage as configStore
 import logging
 log = logging.getLogger(__name__)
@@ -20,15 +19,13 @@ markdown = Markdown(
     extensions=['meta',
                 'tables'
                 ],
-    safe_mode=True,
+    # disable safe mode since private keys
+    # are not in the browser
+    safe_mode=False,
     output_format='html4'
 )
 
 from . import web_assets, web_views
-
-
-def is_html(body):
-    return re.search("<html>", body, flags=re.MULTILINE)
 
 
 @app.template_filter('age')
@@ -44,9 +41,6 @@ def _jinja2_filter_datetime(data):
 
 @app.template_filter('parseBody')
 def _jinja2_filter_parseBody(body):
-    if is_html(body):
-        body = html2text.html2text(body)
-        # body = re.sub("[HTML_REMOVED]", "", body)
     body = re.sub(
         r"^(https?:.*/(.*\.(jpg|png|gif))\??.*)",
         r"\n![](\1)\n",
