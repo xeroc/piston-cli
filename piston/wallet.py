@@ -200,6 +200,11 @@ class Wallet(LegacyWallet):
         else:
             if pub in self.keys:
                 return self.keys[pub]
+            elif len(self.keys) == 1:
+                # If there is only one key in my overwrite-storage, then
+                # use that one! Feather it will has sufficient
+                # authorization is left to ensure by the developer
+                return list(self.keys.values())[0]
 
     def removePrivateKeyFromPublicKey(self, pub):
         if self.keyStorage:
