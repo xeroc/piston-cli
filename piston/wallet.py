@@ -58,7 +58,7 @@ class Wallet(LegacyWallet):
         """ This method is strictly only for in memory keys that are
             passed to Wallet/Steem with the ``keys`` argument
         """
-        print("setting keys")
+        log.debug("Force setting of private keys. Not using the wallet database!")
         if not isinstance(wifs, list):
             wifs = [wifs]
         for wif in wifs:
@@ -95,7 +95,7 @@ class Wallet(LegacyWallet):
         else:
             self.masterpassword = ""
         print("Please provide the new password")
-        newpwd = self.getPasswordConfirmed()
+        newpwd = self.getPassword(confirm=True)
         if newpwd:
             if currentpwd == "":
                 masterpwd = self.MasterPassword(newpwd)
@@ -133,7 +133,7 @@ class Wallet(LegacyWallet):
         if self.created():
             raise Exception("You already have created a wallet!")
         print("Please provide a password for the new wallet")
-        pwd = self.getPasswordConfirmed()
+        pwd = self.getPassword(confirm=True)
         masterpwd = self.MasterPassword(pwd)
         self.masterpassword = masterpwd.decrypted_master
 
@@ -164,25 +164,28 @@ class Wallet(LegacyWallet):
         self.unlock()
         return format(bip38.decrypt(encwif, self.masterpassword), "wif")
 
-    def getPassword(self):
+    def getPassword(self, confirm=False):
         import getpass
-        return getpass.getpass('Passphrase: ')
-
-    def getPasswordConfirmed(self):
-        import getpass
-        while True :
-            pw = getpass.getpass('Passphrase: ')
-            if not pw:
-                print("You have chosen an empty password! " +
-                      "We assume you understand the risks!")
-                return ""
-                break
-            else:
-                pwck = getpass.getpass('Retype passphrase: ')
-                if (pw == pwck) :
-                    return(pw)
-                else :
-                    print("Given Passphrases do not match!")
+        if "UNLOCK" in os.environ:
+            # overwrite password from environmental variable
+            return os.environ.get("UNLOCK")
+        if confirm:
+            # Loop until both match
+            while True :
+                pw = self.getPassword(confirm=False)
+                if not pw:
+                    print("You have chosen an empty password! " +
+                          "We assume you understand the risks!")
+                    return ""
+                else:
+                    pwck = self.getPassword(confirm=False)
+                    if (pw == pwck) :
+                        return(pw)
+                    else :
+                        print("Given Passphrases do not match!")
+        else:
+            # return just one password
+            return getpass.getpass('Passphrase: ')
 
     def addPrivateKey(self, wif):
         if isinstance(wif, PrivateKey):
