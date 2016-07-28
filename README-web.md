@@ -8,8 +8,8 @@ provides access to the STEEM network.
 
 Required dependencies:
 
-* libyaml
-* libssl-dev
+    apt-get update
+    apt-get install -y git make gcc libssl-dev libgmp-dev python-dev libxml2-dev libxslt1-dev zlib1g-dev libyaml
 
 Until we leave pre-alpha, piston.web is on a different branch.
 
