@@ -54,7 +54,10 @@ def _jinja2_filter_currency(value):
 
 
 def run():
-    socketio.run(app, debug=True, port=configStore.get("web:port", 5054))
+    socketio.run(app,
+                 debug=configStore.get("web:debug"),
+                 host=configStore.get("web:host"),
+                 port=configStore.get("web:port"))
 
     # FIXME: Don't use .run()
     # from gevent.wsgi import WSGIServer

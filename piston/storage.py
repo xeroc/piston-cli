@@ -19,6 +19,24 @@ appauthor = "Fabian Schuh"
 storageDatabase = "piston.sqlite"
 timeformat = "%Y%m%d-%H%M%S"
 
+config_defaults = {
+    "categories_sorting": "trending",
+    "default_vote_weight": 100.0,
+    # "default_author": None,
+    # "default_voter": None,
+    "format": "markdown",
+    "limit": 10,
+    "list_sorting": "trending",
+    "node": "wss://this.piston.rocks",
+    "post_category": "steem",
+    "rpcpassword": "",
+    "rpcuser": "",
+    "web:port" : 5054,
+    "web:debug": False,
+    "web:host": "127.0.0.1",
+    "web:nobroadcast": False
+}
+
 
 class Key():
     __tablename__ = 'keys'
@@ -99,19 +117,7 @@ class Key():
 
 class Configuration():
     __tablename__ = "config"
-    defaults = {
-        "categories_sorting": "trending",
-        "default_vote_weight": 100.0,
-        # "default_author": "xeroc",
-        # "default_voter": "xeroc",
-        "format": "markdown",
-        "limit": 10,
-        "list_sorting": "hot",
-        "node": "wss://this.piston.rocks",
-        "post_category": "steem",
-        "rpcpassword": "",
-        "rpcuser": "",
-    }
+    defaults = config_defaults
 
     def exists_table(self):
         query = ("SELECT name FROM sqlite_master " +

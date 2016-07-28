@@ -6,7 +6,7 @@ import argparse
 from pprint import pprint
 from steembase import PrivateKey, PublicKey, Address
 import steembase.transactions as transactions
-from .storage import configStorage as config
+from .storage import configStorage as config, config_defaults
 from .utils import (
     resolveIdentifier,
     yaml_parse_file,
@@ -27,6 +27,25 @@ import logging
 log = logging.getLogger("piston")
 log.setLevel(logging.WARNING)
 log.addHandler(logging.StreamHandler())
+
+
+availableConfigurationKeys = [
+    "default_author",
+    "default_voter",
+    "default_account",
+    "node",
+    "rpcuser",
+    "rpcpassword",
+    "default_vote_weight",
+    "list_sorting",
+    "categories_sorting",
+    "limit",
+    "post_category",
+    "web:user",
+    "web:port",
+    "web:debug",
+    "web:host",
+]
 
 
 def main() :
@@ -78,19 +97,7 @@ def main() :
     setconfig.add_argument(
         'key',
         type=str,
-        choices=["default_author",
-                 "default_voter",
-                 "default_account",
-                 "node",
-                 "rpcuser",
-                 "rpcpassword",
-                 "default_vote_weight",
-                 "list_sorting",
-                 "categories_sorting",
-                 "limit",
-                 "post_category",
-                 "web:user",
-                 "web:port"],
+        choices=availableConfigurationKeys,
         help='Configuration key'
     )
     setconfig.add_argument(
@@ -517,8 +524,14 @@ def main() :
     webconfig.add_argument(
         '--port',
         type=int,
-        default=config["web:config"],
+        default=config["web:port"],
         help='Port to open for internal web requests'
+    )
+    webconfig.add_argument(
+        '--host',
+        type=str,
+        default=config["web:host"],
+        help='Host address to listen to'
     )
 
     """
@@ -585,7 +598,8 @@ def main() :
         t = PrettyTable(["Key", "Value"])
         t.align = "l"
         for key in config:
-            t.add_row([key, config[key]])
+            if key in availableConfigurationKeys:  # hide internal config data
+                t.add_row([key, config[key]])
         print(t)
 
     elif args.command == "changewalletpassphrase":
@@ -868,6 +882,8 @@ def main() :
             config["web:nobroadcast"] = args.nobroadcast
         if args.port:
             config["web:port"] = args.port
+        if args.host:
+            config["web:host"] = args.host
         from . import web
         web.run()
 
