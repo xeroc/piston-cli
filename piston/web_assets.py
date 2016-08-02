@@ -4,10 +4,12 @@ from flask_assets import Bundle
 from .web import app, webassets
 
 js_libs = Bundle("libs/bootstrap-notify/js/bootstrap-notify.js",
+                 "libs/sliptree-bootstrap-tokenfield/dist/bootstrap-tokenfield.min.js",
                  output="js/libs.js")
 
 css_libs = Bundle("libs/bootstrap-notify/css/bootstrap-notify.css",
                   "libs/bootstrap-notify/css/styles/alert-bangtidy.css",
+                  "libs/sliptree-bootstrap-tokenfield/dist/css/bootstrap-tokenfield.min.css",
                   output="css/libs.css")
 
 js_main = Bundle("js/src/main.js",

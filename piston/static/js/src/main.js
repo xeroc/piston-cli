@@ -3,7 +3,19 @@ var socket = io('http://localhost:5054');
 var stopSpinners = [];
 
 $(function() {
+ /* Tooltips
+  ************************************************/
  $('[data-toggle="tooltip"]').tooltip();
+
+ /* Tokenfield
+  ************************************************/
+ $('#tokenfield').tokenfield({
+  "delimiter": [",", " ", "\t"],
+  "createTokensOnBlur": true,
+ });
+
+ /* Retreive web:user
+  ************************************************/
  socket.emit("getWebUser");
 });
 
