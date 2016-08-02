@@ -48,11 +48,6 @@ class Post(object):
         self.steem = steem
         self._patch = False
 
-        # If this 'post' comes from an operation, it might carry a patch
-        if "body" in post and re.match("^@@", post["body"]):
-            self._patched = True
-            self._patch = post["body"]
-
         # Get full Post
         if isinstance(post, str):  # From identifier
             self.identifier = post
@@ -80,6 +75,12 @@ class Post(object):
             raise ValueError("Post expects an identifier or a dict "
                              "with author and permlink!")
 
+        # If this 'post' comes from an operation, it might carry a patch
+        if "body" in post and re.match("^@@", post["body"]):
+            self._patched = True
+            self._patch = post["body"]
+
+        # Parse Times
         parse_times = ["active",
                        "cashout_time",
                        "created",
@@ -101,6 +102,7 @@ class Post(object):
             pass
         post["_tags"] = meta.get("tags", [])
 
+        # Retrieve the root comment
         self.openingPostIdentifier, self.category = self._getOpeningPost()
 
         # Store everything as attribute
