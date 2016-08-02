@@ -34,8 +34,7 @@ def derivePermlink(title, parent_permlink=None):
 def resolveIdentifier(identifier):
     match = re.match("@?([\w\-\.]*)/([\w\-]*)", identifier)
     if not hasattr(match, "group"):
-        log.error("Invalid identifier")
-        sys.exit(1)
+        raise ValueError("Invalid identifier")
     return match.group(1), match.group(2)
 
 
@@ -94,3 +93,37 @@ def formatTime(t) :
     """ Properly Format Time for permlinks
     """
     return datetime.utcfromtimestamp(t).strftime("%Y%m%dt%H%M%S%Z")
+
+
+def strfage(time, fmt):
+    """ Format time/age
+    """
+    if not hasattr(time, "days"):  # dirty hack
+        now = datetime.now()
+        d = datetime.strptime(time, '%Y-%m-%dT%H:%M:%S')
+        time = (now - d)
+
+    d = {"days": time.days}
+    d["hours"], rem = divmod(time.seconds, 3600)
+    d["minutes"], d["seconds"] = divmod(rem, 60)
+
+    s = "{seconds} seconds"
+    if d["minutes"]:
+        s = "{minutes} minutes " + s
+    if d["hours"]:
+        s = "{hours} hours " + s
+    if d["days"]:
+        s = "{days} days " + s
+    return s.format(**d)
+
+
+def strfdelta(tdelta, fmt):
+    """ Format time/age
+    """
+    if not tdelta or not hasattr(tdelta, "days"):  # dirty hack
+        return None
+
+    d = {"days": tdelta.days}
+    d["hours"], rem = divmod(tdelta.seconds, 3600)
+    d["minutes"], d["seconds"] = divmod(rem, 60)
+    return fmt.format(**d)

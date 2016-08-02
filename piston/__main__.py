@@ -4,9 +4,9 @@ import sys
 import os
 import argparse
 from pprint import pprint
-from steembase import PrivateKey, PublicKey, Address
+from steembase.account import PrivateKey, PublicKey, Address
 import steembase.transactions as transactions
-from .configuration import Configuration
+from .storage import configStorage as config, config_defaults
 from .utils import (
     resolveIdentifier,
     yaml_parse_file,
@@ -29,9 +29,27 @@ log.setLevel(logging.WARNING)
 log.addHandler(logging.StreamHandler())
 
 
+availableConfigurationKeys = [
+    "default_author",
+    "default_voter",
+    "default_account",
+    "node",
+    "rpcuser",
+    "rpcpassword",
+    "default_vote_weight",
+    "list_sorting",
+    "categories_sorting",
+    "limit",
+    "post_category",
+    "web:user",
+    "web:port",
+    "web:debug",
+    "web:host",
+]
+
+
 def main() :
     global args
-    config = Configuration()
 
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -79,17 +97,7 @@ def main() :
     setconfig.add_argument(
         'key',
         type=str,
-        choices=["default_author",
-                 "default_voter",
-                 "default_account",
-                 "node",
-                 "rpcuser",
-                 "rpcpassword",
-                 "default_vote_weight",
-                 "list_sorting",
-                 "categories_sorting",
-                 "limit",
-                 "post_category"],
+        choices=availableConfigurationKeys,
         help='Configuration key'
     )
     setconfig.add_argument(
@@ -106,6 +114,12 @@ def main() :
     configconfig.set_defaults(command="config")
 
     """
+        Command "changewalletpassphrase"
+    """
+    changepasswordconfig = subparsers.add_parser('changewalletpassphrase', help='Change wallet password')
+    changepasswordconfig.set_defaults(command="changewalletpassphrase")
+
+    """
         Command "addkey"
     """
     addkey = subparsers.add_parser('addkey', help='Add a new key to the wallet')
@@ -116,6 +130,29 @@ def main() :
         help='the private key in wallet import format (wif)'
     )
     addkey.set_defaults(command="addkey")
+
+    """
+        Command "delkey"
+    """
+    delkey = subparsers.add_parser('delkey', help='Delete keys from the wallet')
+    delkey.add_argument(
+        'pub',
+        nargs='*',
+        type=str,
+        help='the public key to delete from the wallet'
+    )
+    delkey.set_defaults(command="delkey")
+
+    """
+        Command "getkey"
+    """
+    getkey = subparsers.add_parser('getkey', help='Dump the privatekey of a pubkey from the wallet')
+    getkey.add_argument(
+        'pub',
+        type=str,
+        help='the public key for which to show the private key'
+    )
+    getkey.set_defaults(command="getkey")
 
     """
         Command "listkeys"
@@ -399,8 +436,14 @@ def main() :
     )
     parser_transfer.add_argument(
         'amount',
+        type=float,
+        help='Amount to transfer'
+    )
+    parser_transfer.add_argument(
+        'asset',
         type=str,
-        help='Amount to transfer including asset (e.g.: 100.000 STEEM)'
+        choices=["STEEM", "SBD"],
+        help='Asset to (i.e. STEEM or SDB)'
     )
     parser_transfer.add_argument(
         'memo',
@@ -474,6 +517,24 @@ def main() :
     )
 
     """
+        Command "web"
+    """
+    webconfig = subparsers.add_parser('web', help='Launch web version of piston')
+    webconfig.set_defaults(command="web")
+    webconfig.add_argument(
+        '--port',
+        type=int,
+        default=config["web:port"],
+        help='Port to open for internal web requests'
+    )
+    webconfig.add_argument(
+        '--host',
+        type=str,
+        default=config["web:host"],
+        help='Host address to listen to'
+    )
+
+    """
         Parse Arguments
     """
     args = parser.parse_args()
@@ -512,29 +573,37 @@ def main() :
         gphlog.setLevel(getattr(logging, verbosity.upper()))
         gphlog.addHandler(ch)
 
-    rpc_not_required = ["set", "config", ""]
-
     if not hasattr(args, "command"):
         parser.print_help()
         sys.exit(2)
 
+    # We don't require RPC for these commands
+    rpc_not_required = [
+        "set",
+        "config",
+        "web"
+        ""]
     if args.command not in rpc_not_required and args.command:
         steem = Steem(
-            args.node,
-            args.rpcuser,
-            args.rpcpassword,
-            nobroadcast=args.nobroadcast
+            node=args.node,
+            rpcuser=args.rpcuser,
+            rpcpassword=args.rpcpassword,
+            nobroadcast=args.nobroadcast,
         )
 
     if args.command == "set":
         config[args.key] = args.value
 
-    if args.command == "config":
+    elif args.command == "config":
         t = PrettyTable(["Key", "Value"])
         t.align = "l"
-        for key in config.store:
-            t.add_row([key, config[key]])
+        for key in config:
+            if key in availableConfigurationKeys:  # hide internal config data
+                t.add_row([key, config[key]])
         print(t)
+
+    elif args.command == "changewalletpassphrase":
+        steem.wallet.changePassphrase()
 
     elif args.command == "addkey":
         pub = None
@@ -563,6 +632,13 @@ def main() :
             config["default_author"] = name
             config["default_voter"] = name
 
+    elif args.command == "delkey":
+        for pub in args.pub:
+            steem.wallet.removePrivateKeyFromPublicKey(pub)
+
+    elif args.command == "getkey":
+        print(steem.wallet.getPrivateKeyForPublicKey(args.pub))
+
     elif args.command == "listkeys":
         t = PrettyTable(["Available Key"])
         t.align = "l"
@@ -574,7 +650,11 @@ def main() :
         t = PrettyTable(["Name", "Type", "Available Key"])
         t.align = "l"
         for account in steem.wallet.getAccounts():
-            t.add_row(account)
+            t.add_row([
+                account["name"] or "n/a",
+                account["type"] or "n/a",
+                account["pubkey"]
+            ])
         print(t)
 
     elif args.command == "reply":
@@ -607,7 +687,7 @@ def main() :
             meta["replyto"],
             message,
             title=meta["title"],
-            author=args.author
+            author=meta["author"]
         ))
 
     elif args.command == "post" or args.command == "yaml":
@@ -718,10 +798,13 @@ def main() :
 
     elif args.command == "categories":
         categories = steem.get_categories(
-            args.sort,
+            sort=args.sort,
             begin=args.category,
             limit=args.limit
         )
+        print(args.sort)
+        print(args.category)
+        print(args.limit)
         t = PrettyTable(["name", "discussions", "payouts"])
         t.align = "l"
         for category in categories:
@@ -743,13 +826,19 @@ def main() :
         )
 
     elif args.command == "replies":
-        discussions = steem.get_replies(args.author)
-        list_posts(discussions[0:args.limit])
+        if not args.author:
+            print("Please specify an author via --author\n "
+                  "or define your default author with:\n"
+                  "   piston set default_author x")
+        else:
+            discussions = steem.get_replies(args.author)
+            list_posts(discussions[0:args.limit])
 
     elif args.command == "transfer":
         pprint(steem.transfer(
             args.to,
             args.amount,
+            args.asset,
             memo=args.memo,
             account=args.account
         ))
@@ -781,6 +870,22 @@ def main() :
                 b["vesting_shares"],
             ])
         print(t)
+
+    elif args.command == "web":
+        if args.node:
+            config["node"] = args.node
+        if args.rpcuser:
+            config["rpcuser"] = args.rpcuser
+        if args.rpcpassword:
+            config["rpcpass"] = args.rpcpassword
+        if args.nobroadcast:
+            config["web:nobroadcast"] = args.nobroadcast
+        if args.port:
+            config["web:port"] = args.port
+        if args.host:
+            config["web:host"] = args.host
+        from . import web
+        web.run()
 
     else:
         print("No valid command given")

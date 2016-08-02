@@ -1,141 +1,231 @@
+from steembase.account import PrivateKey
+from graphenebase import bip38
 import os
 import json
-import base64
-import hashlib
-from Crypto import Random
-from Crypto.Cipher import AES
-from steembase import PrivateKey
 from appdirs import user_data_dir
 import logging
+from .wallet_legacy import LegacyWallet
+
 log = logging.getLogger(__name__)
 appname = "piston"
 appauthor = "Fabian Schuh"
-walletFile = "wallet.dat"
-
 prefix = "STM"
 # prefix = "TST"
 
 
-class Wallet(object):
+class InvalidWifError(Exception):
+    pass
+
+
+class Wallet(LegacyWallet):
     keys = []
     rpc = None
-    aes = None
+    masterpassword = None
+
+    # Keys from database
+    configStorage = None
+    MasterPassword = None
+    keyStorage = None
+
+    # Manually provided keys
+    keys = {}  # struct with pubkey as key and wif as value
 
     def __init__(self, rpc, *args, **kwargs):
         self.rpc = rpc
 
-    def open(self, password=None):
-        if not password and not self.keys:
-            # try to load the file without password
-            import getpass
-            if self.exists():
-                if not self._openWallet(""):
-                    print("Please unlock your existing wallet!")
-                    while True :
-                        pw = getpass.getpass('Passphrase: ')
-                        if self._openWallet(pw):
-                            break
-            else:
-                print("No wallet has been created yet. " +
-                      "Please provide a passphrase for it!")
-                while True :
-                    pw = getpass.getpass('Passphrase: ')
-                    if not pw:
-                        print("You have chosen an empty password! " +
-                              "We assume you understand the risks!")
-                        self._openWallet(pw)
-                        break
-                    else:
-                        pwck = getpass.getpass('Retype passphrase: ')
-                        if (pw == pwck) :
-                            self._openWallet(pw)
-                            break
-                        else :
-                            print("Given Passphrases do not match!")
+        if "wif" not in kwargs:
+            """ If no keys are provided manually we load the SQLite
+                keyStorage
+            """
+            from .storage import (keyStorage,
+                                  newKeyStorage,
+                                  MasterPassword,
+                                  configStorage)
+            self.configStorage = configStorage
+            self.MasterPassword = MasterPassword
+            self.keyStorage = keyStorage
+            if newKeyStorage:
+                # migrate to new SQL based storage
+                if self.exists():
+                    log.critical("Migrating old wallet format to new format!")
+                    self.migrateFromJSON()
+            if not self.created():
+                self.newWallet()
+        else:
+            self.setKeys(kwargs["wif"])
 
-    def setKeys(self, keys):
-        self.keys = keys
-
-    def _openWallet(self, pw):
-        if pw != "":
-            self.aes = AESCipher(pw)
-
-        if self.exists():
+    def setKeys(self, wifs):
+        """ This method is strictly only for in memory keys that are
+            passed to Wallet/Steem with the ``keys`` argument
+        """
+        log.debug("Force setting of private keys. Not using the wallet database!")
+        if not isinstance(wifs, list):
+            wifs = [wifs]
+        for wif in wifs:
             try:
-                self.keys = self._loadPrivateKeys()
-                return True
+                key = PrivateKey(wif)
             except:
-                return False
-        else:
-            self._storeWallet()
-            return True
+                raise InvalidWifError
+            self.keys[format(key.pubkey, "STM")] = str(key)
 
-    def isOpen(self):
-        return self.keys
-
-    def ensureOpen(self):
-        if not self.isOpen():
-            self.open()
-
-    @staticmethod
-    def exists():
-        data_dir = user_data_dir(appname, appauthor)
-        f = os.path.join(data_dir, walletFile)
-        return os.path.isfile(f)
-
-    def mkdir_p(self, path):
-        if os.path.isdir(path):
-            return
-        else:
-            try:
-                os.makedirs(path)
-            except OSError:
-                raise
-
-    def _storeWallet(self):
-        data_dir = user_data_dir(appname, appauthor)
-        f = os.path.join(data_dir, walletFile)
-        log.info("Your encrypted wallet file is located at " + f)
-        self.mkdir_p(data_dir)
-        try:
-            # Test if ciphertext can be constructed
-            if self.aes:
-                self.aes.encrypt(json.dumps(self.keys))
+    def unlock(self, pwd=None):
+        if (self.masterpassword is None and
+                self.configStorage[self.MasterPassword.config_key]):
+            if pwd is None:
+                pwd = self.getPassword()
+            if pwd == "":
+                self.masterpassword = pwd
+                return
             else:
-                json.dumps(self.keys)
+                masterpwd = self.MasterPassword(pwd)
+                self.masterpassword = masterpwd.decrypted_master
 
-            with open(f, 'w') as fp:
-                if self.aes:
-                    ciphertext = self.aes.encrypt(json.dumps(self.keys))
-                    fp.write(ciphertext)
-                else:
-                    json.dump(self.keys, fp)
-        except:
-            raise Exception("Error formating wallet. Skipping ..")
+    def lock(self):
+        self.masterpassword = None
 
-    def _loadPrivateKeys(self):
-        data_dir = user_data_dir(appname, appauthor)
-        f = os.path.join(data_dir, walletFile)
-        if os.path.isfile(f) :
-            with open(f, 'r') as fp:
-                try:
-                    if self.aes:
-                        ciphertext = fp.read()
-                        plaintext = self.aes.decrypt(ciphertext)
-                        self.keys = json.loads(plaintext)
-                    else:
-                        self.keys = json.load(fp)
-                    return self.keys
-                except:
-                    raise ValueError("Error decrypting/loading keys! Check passphrase!")
+    def locked(self):
+        return False if self.masterpassword else True
+
+    def changePassphrase(self):
+        # Open Existing Wallet
+        currentpwd = self.getPassword()
+        if currentpwd != "":
+            masterpwd = self.MasterPassword(currentpwd)
+            self.masterpassword = masterpwd.decrypted_master
         else:
-            return []
+            self.masterpassword = ""
+        print("Please provide the new password")
+        newpwd = self.getPassword(confirm=True)
+        if newpwd:
+            if currentpwd == "":
+                masterpwd = self.MasterPassword(newpwd)
+                self.reencryptKeys(currentpwd, masterpwd.decrypted_master)
+            else:
+                # only change the masterpassword
+                masterpwd.changePassword(newpwd)
+        else:
+            self.reencryptKeys(currentpwd, newpwd)
+            masterpwd.purge()
+
+    def reencryptKeys(self, oldpassword, newpassword):
+        # remove encryption from database
+        allPubs = self.getPublicKeys()
+        for i, pub in enumerate(allPubs):
+            log.critical("Updating key %d of %d" % (i + 1, len(allPubs)))
+            self.masterpassword = oldpassword
+            wif = self.getPrivateKeyForPublicKey(pub)
+            self.masterpassword = newpassword
+            if self.keyStorage:
+                self.keyStorage.updateWif(pub, wif)
+        log.critical("Removing password complete")
+
+    def created(self):
+        if len(self.getPublicKeys()):
+            # Already keys installed
+            return True
+        elif self.MasterPassword.config_key in self.configStorage:
+            # no keys but a master password
+            return True
+        else:
+            return False
+
+    def newWallet(self):
+        if self.created():
+            raise Exception("You already have created a wallet!")
+        print("Please provide a password for the new wallet")
+        pwd = self.getPassword(confirm=True)
+        masterpwd = self.MasterPassword(pwd)
+        self.masterpassword = masterpwd.decrypted_master
+
+    def migrateFromJSON(self):
+        # Open Legacy Wallet and populate self.keys
+        self.ensureOpen()
+        self.newWallet()
+        numKeys = len(self.keys)
+        for i, key in enumerate(self.keys):
+            self.addPrivateKey(key)
+            log.critical("Migrated key %d of %d" % (i + 1, numKeys))
+        log.critical("Migration completed")
+
+    def encrypt_wif(self, wif):
+        self.unlock()
+        if self.masterpassword == "":
+            return wif
+        else:
+            return format(bip38.encrypt(PrivateKey(wif), self.masterpassword), "encwif")
+
+    def decrypt_wif(self, encwif):
+        try:
+            # Try to decode as wif
+            PrivateKey(encwif)
+            return encwif
+        except:
+            pass
+        self.unlock()
+        return format(bip38.decrypt(encwif, self.masterpassword), "wif")
+
+    def getPassword(self, confirm=False):
+        import getpass
+        if "UNLOCK" in os.environ:
+            # overwrite password from environmental variable
+            return os.environ.get("UNLOCK")
+        if confirm:
+            # Loop until both match
+            while True :
+                pw = self.getPassword(confirm=False)
+                if not pw:
+                    print("You have chosen an empty password! " +
+                          "We assume you understand the risks!")
+                    return ""
+                else:
+                    pwck = self.getPassword(confirm=False)
+                    if (pw == pwck) :
+                        return(pw)
+                    else :
+                        print("Given Passphrases do not match!")
+        else:
+            # return just one password
+            return getpass.getpass('Passphrase: ')
+
+    def addPrivateKey(self, wif):
+        if isinstance(wif, PrivateKey):
+            wif = str(wif)
+        try:
+            pub = format(PrivateKey(wif).pubkey, prefix)
+        except:
+            raise InvalidWifError("Invalid Private Key Format. Please use WIF!")
+        if self.keyStorage:
+            self.keyStorage.add(self.encrypt_wif(wif), pub)
 
     def getPrivateKeyForPublicKey(self, pub):
-        self.ensureOpen()
-        for key in self.keys:
-            if format(PrivateKey(key).pubkey, prefix) == pub:
-                return (key)
+        if self.keyStorage:
+            return self.decrypt_wif(self.keyStorage.getPrivateKeyForPublicKey(pub))
+        else:
+            if pub in self.keys:
+                return self.keys[pub]
+            elif len(self.keys) == 1:
+                # If there is only one key in my overwrite-storage, then
+                # use that one! Feather it will has sufficient
+                # authorization is left to ensure by the developer
+                return list(self.keys.values())[0]
+
+    def removePrivateKeyFromPublicKey(self, pub):
+        if self.keyStorage:
+            self.keyStorage.delete(pub)
+
+    def removeAccount(self, account):
+        accounts = self.getAccounts()
+        for a in accounts:
+            if a["name"] == account:
+                self.removePrivateKeyFromPublicKey(a["pubkey"])
+
+    def getOwnerKeyForAccount(self, name):
+        account = self.rpc.get_account(name)
+        for authority in account["owner"]["key_auths"]:
+            key = self.getPrivateKeyForPublicKey(authority[0])
+            if key:
+                return key
+        return False
 
     def getPostingKeyForAccount(self, name):
         account = self.rpc.get_account(name)
@@ -146,7 +236,6 @@ class Wallet(object):
         return False
 
     def getMemoKeyForAccount(self, name):
-        self.ensureOpen()
         account = self.rpc.get_account(name)
         key = self.getPrivateKeyForPublicKey(account["memo_key"])
         if key:
@@ -154,7 +243,6 @@ class Wallet(object):
         return False
 
     def getActiveKeyForAccount(self, name):
-        self.ensureOpen()
         account = self.rpc.get_account(name)
         for authority in account["active"]["key_auths"]:
             key = self.getPrivateKeyForPublicKey(authority[0])
@@ -162,44 +250,31 @@ class Wallet(object):
                 return key
         return False
 
-    def removePrivateKeyFromPublicKey(self, pub):
-        self.ensureOpen()
-        for key in self.keys:
-            if format(PrivateKey(key).pubkey, prefix) == pub:
-                self.keys.remove(key)
-        self._storeWallet()
-
-    def addPrivateKey(self, wif):
-        self.ensureOpen()
-        try:
-            if isinstance(wif, PrivateKey):
-                pub = format(wif.pubkey, prefix)
-                self.keys.append(str(wif))
-            else:
-                pub = format(PrivateKey(wif).pubkey, prefix)
-                self.keys.append(wif)
-        except:
-            log.error("Invalid Private Key Format. Please use WIF!")
-            return
-        self.keys = list(set(self.keys))
-        self._storeWallet()
-        return pub
-
     def getAccountFromPrivateKey(self, wif):
         pub = format(PrivateKey(wif).pubkey, prefix)
-        return self.rpc.get_key_references([pub])[0][0]
+        return self.getAccountFromPublicKey(pub)
 
     def getAccountFromPublicKey(self, pub):
-        return self.rpc.get_key_references([pub])[0][0]
+        names = self.rpc.get_key_references([pub])[0]
+        if not names:
+            return None
+        else:
+            return names[0]
 
     def getAccount(self, pub):
-            name = self.rpc.get_key_references([pub])[0]
-            if not name:
-                return ["n/a", "n/a", pub]
-            else:
-                account = self.rpc.get_account(name[0])
-                keyType = self.getKeyType(account, pub)
-                return [name[0], keyType, pub]
+        name = self.getAccountFromPublicKey(pub)
+        if not name:
+            return {"name": None,
+                    "type": None,
+                    "pubkey": pub
+                    }
+        else:
+            account = self.rpc.get_account(name)
+            keyType = self.getKeyType(account, pub)
+            return {"name": name,
+                    "type": keyType,
+                    "pubkey": pub
+                    }
 
     def getKeyType(self, account, pub):
         if pub == account["memo_key"]:
@@ -213,48 +288,24 @@ class Wallet(object):
     def getAccounts(self):
         return [self.getAccount(a) for a in self.getPublicKeys()]
 
-    def getPublicKeys(self):
-        self.ensureOpen()
-        pub = []
-        for key in self.keys:
-            try:
-                pub.append(format(PrivateKey(key).pubkey, prefix))
-            except:
+    def getAccountsWithPermissions(self):
+        accounts = [self.getAccount(a) for a in self.getPublicKeys()]
+        r = {}
+        for account in accounts:
+            name = account["name"]
+            if not name:
                 continue
-        return pub
+            type = account["type"]
+            if name not in r:
+                r[name] = {"posting": False,
+                           "owner": False,
+                           "active": False,
+                           "memo": False}
+            r[name][type] = True
+        return r
 
-
-class AESCipher(object):
-    """
-    A classical AES Cipher. Can use any size of data and any size of password thanks to padding.
-    Also ensure the coherence and the type of the data with a unicode to byte converter.
-    """
-    def __init__(self, key):
-        self.bs = 32
-        self.key = hashlib.sha256(AESCipher.str_to_bytes(key)).digest()
-
-    @staticmethod
-    def str_to_bytes(data):
-        u_type = type(b''.decode('utf8'))
-        if isinstance(data, u_type):
-            return data.encode('utf8')
-        return data
-
-    def _pad(self, s):
-        return s + (self.bs - len(s) % self.bs) * AESCipher.str_to_bytes(chr(self.bs - len(s) % self.bs))
-
-    @staticmethod
-    def _unpad(s):
-        return s[:-ord(s[len(s) - 1:])]
-
-    def encrypt(self, raw):
-        raw = self._pad(AESCipher.str_to_bytes(raw))
-        iv = Random.new().read(AES.block_size)
-        cipher = AES.new(self.key, AES.MODE_CBC, iv)
-        return base64.b64encode(iv + cipher.encrypt(raw)).decode('utf-8')
-
-    def decrypt(self, enc):
-        enc = base64.b64decode(enc)
-        iv = enc[:AES.block_size]
-        cipher = AES.new(self.key, AES.MODE_CBC, iv)
-        return self._unpad(cipher.decrypt(enc[AES.block_size:])).decode('utf-8')
+    def getPublicKeys(self):
+        if self.keyStorage:
+            return self.keyStorage.getPublicKeys()
+        else:
+            return list(self.keys.keys())

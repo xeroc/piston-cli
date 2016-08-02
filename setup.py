@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 
 from setuptools import setup
+import sys
+
+assert sys.version_info[0] == 3, "Piston requires Python > 3"
 
 VERSION = '0.2.3b'
 
@@ -16,6 +19,8 @@ setup(name='steem-piston',
       url='http://www.github.com/xeroc/piston',
       keywords=['steem', 'library', 'api', 'rpc', 'cli'],
       packages=["piston"],
+      # https://github.com/pallets/flask/issues/1562
+      zip_safe=False,
       classifiers=['License :: OSI Approved :: MIT License',
                    'Operating System :: OS Independent',
                    'Programming Language :: Python :: 3',
@@ -34,6 +39,8 @@ setup(name='steem-piston',
                         "appdirs==1.4.0",
                         "prettytable==0.7.2",
                         "colorama==0.3.6",
+                        "pycrypto==2.6.1",
+                        "scrypt==0.7.1",
                         ],
       setup_requires=['pytest-runner'],
       tests_require=['pytest'],

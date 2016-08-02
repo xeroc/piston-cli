@@ -3,7 +3,7 @@ import json
 import string
 import random
 from steemapi.steemclient import SteemNodeRPC
-from steembase import PrivateKey, PublicKey, Address
+from steembase.account import PrivateKey, PublicKey, Address
 import steembase.transactions as transactions
 from .utils import (
     resolveIdentifier,
@@ -11,13 +11,10 @@ from .utils import (
     derivePermlink,
 )
 from .wallet import Wallet
-from .configuration import Configuration
+from .storage import configStorage as config
 from datetime import datetime
 import logging
 log = logging.getLogger(__name__)
-
-#: Configuration from local user settings
-config = Configuration()
 
 #: Default settings
 if "node" not in config or not config["node"]:
@@ -152,6 +149,20 @@ class Post(object):
     def __repr__(self):
         return "<Steem.Post-%s>" % constructIdentifier(self["author"], self["permlink"])
 
+    def get_comments(self, sort="total_payout_value"):
+        """ Return **first-level** comments of the post.
+        """
+        post_author, post_permlink = resolveIdentifier(self.identifier)
+        posts = self.steem.rpc.get_content_replies(post_author, post_permlink)
+        r = []
+        for post in posts:
+            r.append(Post(self.steem, post))
+        if sort == "total_payout_value":
+            r = sorted(r, key=lambda x: float(x[sort].split(" ")[0]), reverse=True)
+        else:
+            r = sorted(r, key=lambda x: x[sort])
+        return(r)
+
     def reply(self, body, title="", author="", meta=None):
         """ Reply to the post
 
@@ -222,6 +233,9 @@ class Steem(object):
         This class also deals with edits, votes and reading content.
     """
 
+    wallet = None
+    rpc = None
+
     def __init__(self, *args, **kwargs):
         """
             :param bool debug: Enable Debugging
@@ -230,19 +244,13 @@ class Steem(object):
                             single string, or array of keys.
         """
         self.connect(*args, **kwargs)
-        self.wallet = Wallet(self.rpc)
-
-        self.debug = False
-        if "debug" in kwargs:
-            self.debug = kwargs["debug"]
+        self.debug = kwargs.get("debug", False)
+        self.nobroadcast = kwargs.get("nobroadcast", False)
 
         if "wif" in kwargs:
-            if isinstance(kwargs["wif"], str):
-                keys = [kwargs["wif"]]
-            elif isinstance(kwargs["wif"], list):
-                keys = kwargs["wif"]
-            self.wallet.setKeys(keys)
-        self.nobroadcast = kwargs.get("nobroadcast", False)
+            self.wallet = Wallet(self.rpc, wif=kwargs["wif"])
+        else:
+            self.wallet = Wallet(self.rpc)
 
     def connect(self, *args, **kwargs):
         """ Connect to the Steem network.
@@ -253,7 +261,7 @@ class Steem(object):
             :param bool nobroadcast: Do **not** broadcast a transaction!
 
             If no node is provided, it will connect to the node of
-            SteemIT.com. It is **highly** recommended that you pick your own
+            http://piston.rocks. It is **highly** recommended that you pick your own
             node instead. Default settings can be changed with:
 
             .. code-block:: python
@@ -263,9 +271,18 @@ class Steem(object):
             where ``<host>`` starts with ``ws://`` or ``wss://``.
         """
 
-        node = kwargs.pop("node", False)
-        rpcuser = kwargs.pop("rpcuser", "")
-        rpcpassword = kwargs.pop("rpcpassword", "")
+        node = None
+        rpcuser = None
+        rpcpassword = None
+        if len(args):
+            node = args.pop(0)
+        if len(args):
+            rpcuser = args.pop(0)
+        if len(args):
+            rpcpassword = args.pop(0)
+        node = kwargs.pop("node", node)
+        rpcuser = kwargs.pop("rpcuser", rpcuser)
+        rpcpassword = kwargs.pop("rpcpassword", rpcpassword)
 
         if not node:
             if "node" in config:
@@ -502,6 +519,11 @@ class Steem(object):
                        account_name,
                        json_meta={},
                        creator=None,
+                       owner_key=None,
+                       active_key=None,
+                       posting_key=None,
+                       memo_key=None,
+                       password=None,
                        additional_owner_keys=[],
                        additional_active_keys=[],
                        additional_posting_keys=[],
@@ -510,10 +532,9 @@ class Steem(object):
                        additional_posting_accounts=[],
                        storekeys=True,
                        ):
-        """ Create new account in Steem and store new keys in the wallet
-            automatically and return the brain key.
+        """ Create new account in Steem
 
-            The brainkey can be used to recover all generated keys (see
+            The brainkey/password can be used to recover all generated keys (see
             `graphenebase.account` for more details.
 
             By default, this call will use ``default_author`` to
@@ -531,10 +552,24 @@ class Steem(object):
                           method does and where to find the private keys
                           for your account.
 
+            .. note:: Please note that this imports private keys
+                      (if password is present) into the wallet by
+                      default. However, it **does not import the owner
+                      key** for security reasons. Do NOT expect to be
+                      able to recover it from piston if you lose your
+                      password!
+
             :param str account_name: (**required**) new account name
             :param str json_meta: Optional meta data for the account
             :param str creator: which account should pay the registration fee
                                 (defaults to ``default_author``)
+            :param str owner_key: Main owner key
+            :param str active_key: Main active key
+            :param str posting_key: Main posting key
+            :param str memo_key: Main memo_key
+            :param str password: Alternatively to providing keys, one
+                                 can provide a password from which the
+                                 keys will be derived
             :param array additional_owner_keys:  Additional owner public keys
             :param array additional_active_keys: Additional active public keys
             :param array additional_posting_keys: Additional posting public keys
@@ -551,6 +586,10 @@ class Steem(object):
             raise ValueError(
                 "Not creator account given. Define it with " +
                 "creator=x, or set the default_author in piston")
+        if password and (owner_key or posting_key or active_key or memo_key):
+            raise ValueError(
+                "You cannot use 'password' AND provide keys!"
+            )
 
         account = None
         try:
@@ -560,24 +599,41 @@ class Steem(object):
         if account:
             raise AccountExistsException
 
-        " Generate new keys "
-        from graphenebase.account import PasswordKey
-        password = ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(16))
-        posting_key = PasswordKey(account_name, password, role="posting")
-        active_key  = PasswordKey(account_name, password, role="active")
-        owner_key   = PasswordKey(account_name, password, role="owner")
-        memo_key    = PasswordKey(account_name, password, role="memo")
+        " Generate new keys from password"
+        from graphenebase.account import PasswordKey, PublicKey
+        if password:
+            posting_key = PasswordKey(account_name, password, role="posting")
+            active_key  = PasswordKey(account_name, password, role="active")
+            owner_key   = PasswordKey(account_name, password, role="owner")
+            memo_key    = PasswordKey(account_name, password, role="memo")
+            posting_pubkey = posting_key.get_public_key()
+            active_pubkey  = active_key.get_public_key()
+            owner_pubkey   = owner_key.get_public_key()
+            memo_pubkey    = memo_key.get_public_key()
+            posting_privkey = posting_key.get_private_key()
+            active_privkey  = active_key.get_private_key()
+            owner_privkey   = owner_key.get_private_key()
+            memo_privkey    = memo_key.get_private_key()
+            # store private keys
+            if storekeys:
+                # self.wallet.addPrivateKey(owner_privkey)
+                self.wallet.addPrivateKey(active_privkey)
+                self.wallet.addPrivateKey(posting_privkey)
+                self.wallet.addPrivateKey(memo_privkey)
+        elif (owner_key and posting_key and active_key and memo_key):
+            posting_pubkey = PublicKey(posting_key, prefix=prefix)
+            active_pubkey  = PublicKey(active_key, prefix=prefix)
+            owner_pubkey   = PublicKey(owner_key, prefix=prefix)
+            memo_pubkey    = PublicKey(memo_key, prefix=prefix)
+        else:
+            raise ValueError(
+                "Call incomplete! Provide either a password or public keys!"
+            )
 
-        owner   = format(owner_key.get_public_key(), prefix)
-        active  = format(active_key.get_public_key(), prefix)
-        posting = format(posting_key.get_public_key(), prefix)
-        memo    = format(memo_key.get_public_key(), prefix)
-        # owner
-        if storekeys:
-            self.wallet.addPrivateKey(owner_key.get_private_key())
-            self.wallet.addPrivateKey(active_key.get_private_key())
-            self.wallet.addPrivateKey(posting_key.get_private_key())
-            self.wallet.addPrivateKey(memo_key.get_private_key())
+        owner   = format(posting_pubkey, prefix)
+        active  = format(active_pubkey, prefix)
+        posting = format(owner_pubkey, prefix)
+        memo    = format(memo_pubkey, prefix)
 
         owner_key_authority = [[owner, 1]]
         active_key_authority = [[active, 1]]
@@ -617,12 +673,9 @@ class Steem(object):
              'posting': {'account_auths': posting_accounts_authority,
                          'key_auths': posting_key_authority,
                          'weight_threshold': 1}}
-
         op = transactions.Account_create(**s)
-        wif = self.wallet.getPostingKeyForAccount(creator)
-        self.executeOp(op, wif)
-
-        return password
+        wif = self.wallet.getActiveKeyForAccount(creator)
+        return self.executeOp(op, wif)
 
     def transfer(self, to, amount, asset, memo="", account=None):
         """ Transfer SBD or STEEM to another account.
@@ -740,7 +793,7 @@ class Steem(object):
             :param str user: Show recommendations for this author
         """
         state = self.rpc.get_state("/@%s/recommended" % user)
-        posts = state["accounts"][user]["recommended"]
+        posts = state["accounts"][user].get("recommended", [])
         r = []
         for p in posts:
             post = state["content"][p]
@@ -753,7 +806,7 @@ class Steem(object):
             :param str user: Show recommendations for this author
         """
         state = self.rpc.get_state("/@%s/blog" % user)
-        posts = state["accounts"][user]["blog"]
+        posts = state["accounts"][user].get("blog", [])
         r = []
         for p in posts:
             post = state["content"]["%s/%s" % (
@@ -769,7 +822,7 @@ class Steem(object):
             :param bool skipown: Do not show my own replies
         """
         state = self.rpc.get_state("/@%s/recent-replies" % author)
-        replies = state["accounts"][author]["recent_replies"]
+        replies = state["accounts"][author].get("recent_replies", [])
         discussions  = []
         for reply in replies:
             post = state["content"][reply]
@@ -781,7 +834,7 @@ class Steem(object):
     def get_posts(self, limit=10,
                   sort="hot",
                   category=None,
-                  start=None,):
+                  start=None):
         """ Get multiple posts in an array.
 
             :param int limit: Limit the list of posts by ``limit``
@@ -809,6 +862,19 @@ class Steem(object):
         for p in func(discussion_query):
             r.append(Post(self, p))
         return r
+
+    def get_comments(self, identifier):
+        """ Return **first-level** comments of a post.
+
+            :param str identifier: Identifier of a post. Takes an
+                                   identifier of the form ``@author/permlink``
+        """
+        post_author, post_permlink = resolveIdentifier(identifier)
+        posts = self.rpc.get_content_replies(post_author, post_permlink)
+        r = []
+        for post in posts:
+            r.append(Post(self, post))
+        return(r)
 
     def get_categories(self, sort="trending", begin=None, limit=10):
         """ List categories
@@ -849,6 +915,43 @@ class Steem(object):
             "vesting_shares" : a["vesting_shares"],
             "sbd_balance": a["sbd_balance"]
         }
+
+    def get_account_history(self, account, end=100, limit=100, only_ops=[]):
+        """ Returns the transaction history of an account
+
+            :param str account: account name to get history for
+            :param int end: sequence number of the last transaction to return
+            :param int limit: limit number of transactions to return
+            :param array only_ops: Limit generator by these operations
+        """
+        if not only_ops:
+            assert limit <= 100
+            assert end >= limit
+            return self.rpc.get_account_history(account, end, limit)
+        else:
+            r = []
+            for op in self.loop_account_history(account, end, limit, only_ops):
+                r.append(op)
+            return r
+
+    def loop_account_history(self, account, end=100, limit=100, only_ops=[]):
+        """ Returns a generator for individual account transactions
+
+            :param str account: account name to get history for
+            :param int end: sequence number of the last transaction to return
+            :param int limit: limit number of transactions to return
+            :param array only_ops: Limit generator by these operations
+        """
+        cnt = 0
+        while (cnt < limit) and end >= 100:
+            txs = self.get_account_history(account, end, 100)
+            for i in txs:
+                if not only_ops or i[1]["op"][0] in only_ops:
+                    cnt += 1
+                    yield i
+                if cnt >= limit:
+                    break
+            end = txs[0][0] - 1  # new end
 
     def stream_comments(self, *args, **kwargs):
         """ Generator that yields posts when they come in
