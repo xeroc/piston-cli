@@ -3,7 +3,7 @@ import json
 import string
 import random
 from steemapi.steemclient import SteemNodeRPC
-from steembase import PrivateKey, PublicKey, Address
+from steembase.account import PrivateKey, PublicKey, Address
 import steembase.transactions as transactions
 from .utils import (
     resolveIdentifier,

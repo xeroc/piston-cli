@@ -1,4 +1,4 @@
-from steembase import PrivateKey
+from steembase.account import PrivateKey
 from graphenebase import bip38
 import os
 import json

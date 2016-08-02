@@ -41,7 +41,7 @@ class WifPrivateKey(object):
         self.message = message
 
     def __call__(self, form, field):
-        from steembase import PrivateKey
+        from steembase.account import PrivateKey
         try:
             PrivateKey(field.data)
         except:

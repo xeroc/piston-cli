@@ -4,7 +4,7 @@ import sys
 import os
 import argparse
 from pprint import pprint
-from steembase import PrivateKey, PublicKey, Address
+from steembase.account import PrivateKey, PublicKey, Address
 import steembase.transactions as transactions
 from .storage import configStorage as config, config_defaults
 from .utils import (

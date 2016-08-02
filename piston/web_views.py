@@ -166,7 +166,7 @@ def showPrivateKeys(account):
         flash("Wallet is locked!")
         return redirect(url_for("wallet"))
 
-    from steembase import PrivateKey
+    from steembase.account import PrivateKey
 
     posting_key = steem.wallet.getPostingKeyForAccount(account)
     memo_key = steem.wallet.getMemoKeyForAccount(account)
