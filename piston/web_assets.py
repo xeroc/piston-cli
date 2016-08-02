@@ -1,20 +1,22 @@
-# https://adambard.com/blog/fresh-flask-setup/
-
 from flask_assets import Bundle
 from .web import app, webassets
 
+# Javascript Libraries
 js_libs = Bundle("libs/bootstrap-notify/js/bootstrap-notify.js",
                  "libs/sliptree-bootstrap-tokenfield/dist/bootstrap-tokenfield.min.js",
                  output="js/libs.js")
 
+# CSS libraries
 css_libs = Bundle("libs/bootstrap-notify/css/bootstrap-notify.css",
                   "libs/bootstrap-notify/css/styles/alert-bangtidy.css",
                   "libs/sliptree-bootstrap-tokenfield/dist/css/bootstrap-tokenfield.min.css",
                   output="css/libs.css")
 
+# JS main script
 js_main = Bundle("js/src/main.js",
                  output="js/main.js")
 
+# CSS main style
 css_main = Bundle("css/src/main.css",
                   output="css/main.css")
 

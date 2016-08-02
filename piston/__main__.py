@@ -6,7 +6,7 @@ import argparse
 from pprint import pprint
 from steembase.account import PrivateKey, PublicKey, Address
 import steembase.transactions as transactions
-from .storage import configStorage as config, config_defaults
+from .storage import configStorage as config
 from .utils import (
     resolveIdentifier,
     yaml_parse_file,
@@ -857,7 +857,7 @@ def main() :
         ))
 
     elif args.command == "balance":
-        t = PrettyTable(["Account", "STEEM", "SBD", "VESTS"])
+        t = PrettyTable(["Account", "STEEM", "SBD", "VESTS", "VESTS (in STEEM)"])
         t.align = "r"
         if isinstance(args.account, str):
             args.account = [args.account]
@@ -868,6 +868,7 @@ def main() :
                 b["balance"],
                 b["sbd_balance"],
                 b["vesting_shares"],
+                b["vesting_shares_steem"]
             ])
         print(t)
 

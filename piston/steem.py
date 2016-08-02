@@ -16,10 +16,6 @@ from datetime import datetime
 import logging
 log = logging.getLogger(__name__)
 
-#: Default settings
-if "node" not in config or not config["node"]:
-    config["node"] = "wss://this.piston.rocks/"
-
 prefix = "STM"
 # prefix = "TST"
 
@@ -612,7 +608,7 @@ class Steem(object):
             memo_pubkey    = memo_key.get_public_key()
             posting_privkey = posting_key.get_private_key()
             active_privkey  = active_key.get_private_key()
-            owner_privkey   = owner_key.get_private_key()
+            # owner_privkey   = owner_key.get_private_key()
             memo_privkey    = memo_key.get_private_key()
             # store private keys
             if storekeys:
@@ -910,9 +906,16 @@ class Steem(object):
         if not account:
             raise ValueError("You need to provide an account")
         a = self.rpc.get_account(account)
+        info = self.rpc.get_dynamic_global_properties()
+        steem_per_mvest = (
+            float(info["total_vesting_fund_steem"].split(" ")[0]) /
+            (float(info["total_vesting_shares"].split(" ")[0]) / 1e6)
+        )
+        vesting_shares_steem = float(a["vesting_shares"].split(" ")[0]) / 1e6 * steem_per_mvest
         return {
             "balance": a["balance"],
             "vesting_shares" : a["vesting_shares"],
+            "vesting_shares_steem" : vesting_shares_steem,
             "sbd_balance": a["sbd_balance"]
         }
 

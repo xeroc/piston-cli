@@ -7,8 +7,6 @@ import logging
 from .wallet_legacy import LegacyWallet
 
 log = logging.getLogger(__name__)
-appname = "piston"
-appauthor = "Fabian Schuh"
 prefix = "STM"
 # prefix = "TST"
 
@@ -31,6 +29,13 @@ class Wallet(LegacyWallet):
     keys = {}  # struct with pubkey as key and wif as value
 
     def __init__(self, rpc, *args, **kwargs):
+        """ The wallet is meant to maintain access to private keys for
+            your accounts. It either uses manually provided private keys
+            or uses a SQLite database managed by storage.py.
+
+            :param SteemNodeRPC rpc: RPC connection to a Steem node
+            :param array wif: Predefine the wif keys to shortcut the wallet database
+        """
         self.rpc = rpc
 
         if "wif" not in kwargs:
@@ -69,6 +74,8 @@ class Wallet(LegacyWallet):
             self.keys[format(key.pubkey, "STM")] = str(key)
 
     def unlock(self, pwd=None):
+        """ Unlock the wallet database
+        """
         if (self.masterpassword is None and
                 self.configStorage[self.MasterPassword.config_key]):
             if pwd is None:
@@ -81,12 +88,18 @@ class Wallet(LegacyWallet):
                 self.masterpassword = masterpwd.decrypted_master
 
     def lock(self):
+        """ Lock the wallet database
+        """
         self.masterpassword = None
 
     def locked(self):
+        """ Is the wallet database locked?
+        """
         return False if self.masterpassword else True
 
     def changePassphrase(self):
+        """ Change the passphrase for the wallet database
+        """
         # Open Existing Wallet
         currentpwd = self.getPassword()
         if currentpwd != "":
@@ -108,6 +121,8 @@ class Wallet(LegacyWallet):
             masterpwd.purge()
 
     def reencryptKeys(self, oldpassword, newpassword):
+        """ Reencrypt keys in the wallet database
+        """
         # remove encryption from database
         allPubs = self.getPublicKeys()
         for i, pub in enumerate(allPubs):
@@ -120,6 +135,8 @@ class Wallet(LegacyWallet):
         log.critical("Removing password complete")
 
     def created(self):
+        """ Do we have a wallet database already?
+        """
         if len(self.getPublicKeys()):
             # Already keys installed
             return True
@@ -130,6 +147,8 @@ class Wallet(LegacyWallet):
             return False
 
     def newWallet(self):
+        """ Create a new wallet database
+        """
         if self.created():
             raise Exception("You already have created a wallet!")
         print("Please provide a password for the new wallet")
@@ -138,6 +157,8 @@ class Wallet(LegacyWallet):
         self.masterpassword = masterpwd.decrypted_master
 
     def migrateFromJSON(self):
+        """ (Legacy) Migrate code from former wallet database
+        """
         # Open Legacy Wallet and populate self.keys
         self.ensureOpen()
         self.newWallet()
@@ -148,6 +169,8 @@ class Wallet(LegacyWallet):
         log.critical("Migration completed")
 
     def encrypt_wif(self, wif):
+        """ Encrypt a wif key
+        """
         self.unlock()
         if self.masterpassword == "":
             return wif
@@ -155,6 +178,8 @@ class Wallet(LegacyWallet):
             return format(bip38.encrypt(PrivateKey(wif), self.masterpassword), "encwif")
 
     def decrypt_wif(self, encwif):
+        """ decrypt a wif key
+        """
         try:
             # Try to decode as wif
             PrivateKey(encwif)
@@ -164,7 +189,9 @@ class Wallet(LegacyWallet):
         self.unlock()
         return format(bip38.decrypt(encwif, self.masterpassword), "wif")
 
-    def getPassword(self, confirm=False):
+    def getPassword(self, confirm=False, text='Passphrase: '):
+        """ Obtain a password from the user
+        """
         import getpass
         if "UNLOCK" in os.environ:
             # overwrite password from environmental variable
@@ -178,16 +205,21 @@ class Wallet(LegacyWallet):
                           "We assume you understand the risks!")
                     return ""
                 else:
-                    pwck = self.getPassword(confirm=False)
+                    pwck = self.getPassword(
+                        confirm=False,
+                        text="Confirm Passphrase: "
+                    )
                     if (pw == pwck) :
                         return(pw)
                     else :
                         print("Given Passphrases do not match!")
         else:
             # return just one password
-            return getpass.getpass('Passphrase: ')
+            return getpass.getpass(text)
 
     def addPrivateKey(self, wif):
+        """ Add a private key to the wallet database
+        """
         if isinstance(wif, PrivateKey):
             wif = str(wif)
         try:
@@ -198,6 +230,10 @@ class Wallet(LegacyWallet):
             self.keyStorage.add(self.encrypt_wif(wif), pub)
 
     def getPrivateKeyForPublicKey(self, pub):
+        """ Obtain the private key for a given public key
+
+            :param str pub: Public Key
+        """
         if self.keyStorage:
             return self.decrypt_wif(self.keyStorage.getPrivateKeyForPublicKey(pub))
         else:
@@ -210,16 +246,22 @@ class Wallet(LegacyWallet):
                 return list(self.keys.values())[0]
 
     def removePrivateKeyFromPublicKey(self, pub):
+        """ Remove a key from the wallet database
+        """
         if self.keyStorage:
             self.keyStorage.delete(pub)
 
     def removeAccount(self, account):
+        """ Remove all keys associated with a given account
+        """
         accounts = self.getAccounts()
         for a in accounts:
             if a["name"] == account:
                 self.removePrivateKeyFromPublicKey(a["pubkey"])
 
     def getOwnerKeyForAccount(self, name):
+        """ Obtain owner Private Key for an account from the wallet database
+        """
         account = self.rpc.get_account(name)
         for authority in account["owner"]["key_auths"]:
             key = self.getPrivateKeyForPublicKey(authority[0])
@@ -228,6 +270,8 @@ class Wallet(LegacyWallet):
         return False
 
     def getPostingKeyForAccount(self, name):
+        """ Obtain owner Posting Key for an account from the wallet database
+        """
         account = self.rpc.get_account(name)
         for authority in account["posting"]["key_auths"]:
             key = self.getPrivateKeyForPublicKey(authority[0])
@@ -236,6 +280,8 @@ class Wallet(LegacyWallet):
         return False
 
     def getMemoKeyForAccount(self, name):
+        """ Obtain owner Memo Key for an account from the wallet database
+        """
         account = self.rpc.get_account(name)
         key = self.getPrivateKeyForPublicKey(account["memo_key"])
         if key:
@@ -243,6 +289,8 @@ class Wallet(LegacyWallet):
         return False
 
     def getActiveKeyForAccount(self, name):
+        """ Obtain owner Active Key for an account from the wallet database
+        """
         account = self.rpc.get_account(name)
         for authority in account["active"]["key_auths"]:
             key = self.getPrivateKeyForPublicKey(authority[0])
@@ -251,10 +299,17 @@ class Wallet(LegacyWallet):
         return False
 
     def getAccountFromPrivateKey(self, wif):
+        """ Obtain account name from private key
+        """
         pub = format(PrivateKey(wif).pubkey, prefix)
         return self.getAccountFromPublicKey(pub)
 
     def getAccountFromPublicKey(self, pub):
+        """ Obtain account name from public key
+        """
+        # FIXME, this only returns the first associated key.
+        # If the key is used by multiple accounts, this
+        # will surely lead to undesired behavior
         names = self.rpc.get_key_references([pub])[0]
         if not names:
             return None
@@ -262,6 +317,8 @@ class Wallet(LegacyWallet):
             return names[0]
 
     def getAccount(self, pub):
+        """ Get the account data for a public key
+        """
         name = self.getAccountFromPublicKey(pub)
         if not name:
             return {"name": None,
@@ -277,6 +334,8 @@ class Wallet(LegacyWallet):
                     }
 
     def getKeyType(self, account, pub):
+        """ Get key type
+        """
         if pub == account["memo_key"]:
             return "memo"
         for authority in ["owner", "posting", "active"]:
@@ -286,9 +345,14 @@ class Wallet(LegacyWallet):
         return None
 
     def getAccounts(self):
+        """ Return all accounts installed in the wallet database
+        """
         return [self.getAccount(a) for a in self.getPublicKeys()]
 
     def getAccountsWithPermissions(self):
+        """ Return a dictionary for all installed accounts with their
+            corresponding installed permissions
+        """
         accounts = [self.getAccount(a) for a in self.getPublicKeys()]
         r = {}
         for account in accounts:
@@ -305,6 +369,8 @@ class Wallet(LegacyWallet):
         return r
 
     def getPublicKeys(self):
+        """ Return all installed public keys
+        """
         if self.keyStorage:
             return self.keyStorage.getPublicKeys()
         else:
