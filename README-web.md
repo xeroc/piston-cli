@@ -11,11 +11,14 @@ Required dependencies:
     apt-get update
     apt-get install -y git make gcc libssl-dev libgmp-dev python-dev libxml2-dev libxslt1-dev zlib1g-dev libyaml
 
-Until we leave pre-alpha, piston.web is on a different branch.
+Obtain the piston sources
 
-    git checkout feature/standalone-web
-    make install-user
+    git clone https://github.com/xeroc/piston/
+    # install the python dependencies
     pip install -r requirements-web.txt
+    make install-user
+
+[Install the steem GUI on Windows 7](https://steemit.com/piston/@etz/piston-web-install-a-steem-gui-on-windows-7) (thanks @etz)
 
 ## Usage
     
