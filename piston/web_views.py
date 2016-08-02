@@ -203,7 +203,7 @@ def wallet():
 
     elif request.method == 'POST' and "import_accountpwd" in request.form:
         if import_accountpwd.validate():
-            from graphenebase.account import PasswordKey
+            from steembase.account import PasswordKey
             keyImported = False
             for role in ["active", "posting", "memo"]:  # do not add owner key!
                 priv = PasswordKey(

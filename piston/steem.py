@@ -535,7 +535,7 @@ class Steem(object):
         """ Create new account in Steem
 
             The brainkey/password can be used to recover all generated keys (see
-            `graphenebase.account` for more details.
+            `steembase.account` for more details.
 
             By default, this call will use ``default_author`` to
             register a new name ``account_name`` with all keys being
@@ -600,7 +600,7 @@ class Steem(object):
             raise AccountExistsException
 
         " Generate new keys from password"
-        from graphenebase.account import PasswordKey, PublicKey
+        from steembase.account import PasswordKey, PublicKey
         if password:
             posting_key = PasswordKey(account_name, password, role="posting")
             active_key  = PasswordKey(account_name, password, role="active")
