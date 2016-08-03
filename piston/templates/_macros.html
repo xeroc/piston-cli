@@ -105,67 +105,70 @@
     </div>
    {% endif %}
 
-   <div class="panel-body post-body">
-    {{ formatBody(post, type) }}
-   </div>
-   <table class="table">
-    <tr
-     {% if post.author == current_user["name"] %}
-       class="success"
-     {% endif %}
-     >
-     <td>
-      <button 
-         {% if upvoted %}
-          disabled
-         {% endif %}
-         type="button" 
-         class="btn {% if upvoted %} btn-success {% endif %} btn-xs text-success upvoteButton"
-         identifier="{{post.identifier}}">
-       <i class="fa fa-thumbs-up"></i>
-      </button>
-     </td>
-     <td>
-      <a type="button" class="btn btn-info btn-xs" href="{{url_for("post", identifier=post.identifier)}}"><i class="fa fa-reply"></i></a>
-     <td>
-      <i class="fa fa-money"></i> {{post.total_pending_payout_value}}
-     </td>
-     <td>
-      <i class="fa fa-clock-o"></i>
-      {{post.created | age}}
-      ago
-     </td>
-     <td>
-      by 
-      {{ formatUser(post.author) }}
-     </td>
-     <td>
-      in
-      <i class="fa fa-globe"></i>
-      <a href="{{url_for("browse", category=post.category, sort=sort)}}">
-       {{post.category}}
-      </a>
-     </td>
-     <td>
-      <i class="fa fa-users"></i> {{ post.active_votes | length }}
-     </td>
-     <td>
-      <i class="fa fa-comment"></i> {{ post.children }}
-     </td>
-     <td>
-     </td>
-     <td>
-      <button type="button" 
-              {% if downvoted %}
-               disabled
-              {% endif %}
-              class="btn {% if downvoted %} btn-danger {% endif %} btn-xs text-danger downvoteButton"
-              identifier="{{post.identifier}}">
-       <i class="fa fa-flag"></i>
-      </button>
-     </td>
-    </tr>
-   </table>
+   {% if type != "title" %}
+    <div class="panel-body post-body">
+     {{ formatBody(post, type) }}
+    </div>
+    <table class="table">
+     <tr
+      {% if post.author == current_user["name"] %}
+        class="success"
+      {% endif %}
+      >
+      <td>
+       <button 
+          {% if upvoted %}
+           disabled
+          {% endif %}
+          type="button" 
+          class="btn {% if upvoted %} btn-success {% endif %} btn-xs text-success upvoteButton"
+          identifier="{{post.identifier}}">
+        <i class="fa fa-thumbs-up"></i>
+       </button>
+      </td>
+      <td>
+       <a type="button" class="btn btn-info btn-xs" href="{{url_for("post", identifier=post.identifier)}}"><i class="fa fa-reply"></i></a>
+      <td>
+       <i class="fa fa-money"></i> {{post.total_payout_reward}}
+      </td>
+      <td>
+       <i class="fa fa-clock-o"></i>
+       {{post.created | age}}
+       ago
+      </td>
+      <td>
+       by 
+       {{ formatUser(post.author) }}
+      </td>
+      <td>
+       in
+       <i class="fa fa-globe"></i>
+       <a href="{{url_for("browse", category=post.category, sort=sort)}}">
+        {{post.category}}
+       </a>
+      </td>
+      <td>
+       <i class="fa fa-users"></i> {{ post.active_votes | length }}
+      </td>
+      <td>
+       <i class="fa fa-comment"></i> {{ post.children }}
+      </td>
+      <td>
+      </td>
+      <td>
+       <button type="button" 
+               {% if downvoted %}
+                disabled
+               {% endif %}
+               class="btn {% if downvoted %} btn-danger {% endif %} btn-xs text-danger downvoteButton"
+               identifier="{{post.identifier}}">
+        <i class="fa fa-flag"></i>
+       </button>
+      </td>
+     </tr>
+    </table>
+   {% endif %}
+
   </div>
 {% endmacro %}
 

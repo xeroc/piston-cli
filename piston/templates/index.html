@@ -1,9 +1,21 @@
+{% from "_macros.html" import showPost with context %}
 {% extends "layout.html" %}
 {% block content %}
-
 {% include "_messages.html" %}
 
-<!-- This is a place for piston related announcements, an overview page,
-     stats, yada yada //-->
+<div class="row">
 
+ <div class="col-md-6">
+{% filter markdown %}
+{% include "index.md" %}
+{% endfilter %}
+ </div>
+
+ <div class="col-md-6">
+  <h2>Recent Piston Discussions</h2>
+  {% for post in posts[:10] %}
+   {{ showPost(post, "title") }}
+  {% endfor %}
+ </div>
+</div>
 {% endblock %}

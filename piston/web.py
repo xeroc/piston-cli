@@ -31,7 +31,10 @@ webassets = Environment(app)
 markdown = Markdown(
     app,
     extensions=['meta',
-                'tables'
+                'tables',
+                'admonition',
+                'extra',
+                'toc',
                 ],
     # disable safe mode since private keys
     # are not in the browser

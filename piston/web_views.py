@@ -68,6 +68,11 @@ def inject_dict_for_all_templates():
 
 @app.route('/')
 def index():
+    posts = steem.get_posts(
+        limit=10,
+        category="piston",
+        sort="created",
+    )
     return render_template('index.html', **locals())
 
 

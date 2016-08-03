@@ -98,6 +98,12 @@ class Post(object):
         # Retrieve the root comment
         self.openingPostIdentifier, self.category = self._getOpeningPost()
 
+        # Total reward
+        post["total_payout_reward"] = "%.3f SBD" % (
+            float(post["total_payout_value"].split(" ")[0]) +
+            float(post["total_pending_payout_value"].split(" ")[0])
+        )
+
         # Store everything as attribute
         for key in post:
             setattr(self, key, post[key])
@@ -145,7 +151,7 @@ class Post(object):
     def __repr__(self):
         return "<Steem.Post-%s>" % constructIdentifier(self["author"], self["permlink"])
 
-    def get_comments(self, sort="total_payout_value"):
+    def get_comments(self, sort="total_payout_reward"):
         """ Return **first-level** comments of the post.
         """
         post_author, post_permlink = resolveIdentifier(self.identifier)
@@ -154,7 +160,13 @@ class Post(object):
         for post in posts:
             r.append(Post(self.steem, post))
         if sort == "total_payout_value":
-            r = sorted(r, key=lambda x: float(x[sort].split(" ")[0]), reverse=True)
+            r = sorted(r, key=lambda x: float(
+                x["total_payout_value"].split(" ")[0]
+            ), reverse=True)
+        elif sort == "total_payout_reward":
+            r = sorted(r, key=lambda x: float(
+                x["total_payout_reward"].split(" ")[0]
+            ), reverse=True)
         else:
             r = sorted(r, key=lambda x: x[sort])
         return(r)
