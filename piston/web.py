@@ -1,49 +1,12 @@
 import re
-from flask import Flask, redirect, url_for, session, current_app
-from flask_assets import Environment
-from flask_bootstrap import Bootstrap
-from flaskext.markdown import Markdown
 from .utils import strfdelta, strfage
-from flask_socketio import SocketIO
 from .storage import configStorage as configStore
+from .web_app import app, socketio
+from .web_steem import WebSteem
+from . import web_views, web_assets, web_socketio
 import logging
-
-# Logging
 log = logging.getLogger(__name__)
-
-# Flask APP
-app = Flask(__name__)
-
-# Define some parameters for flask
-app.config["GOOGLE_ANALYTICS_ID"] = ""
-app.config["SECRET_KEY"] = "abcdefghijklmnopqrstuvwxyz"
-
-# SocketIO for realtime data transmission to interface
-socketio = SocketIO(app)
-
-# Bootstrap templating
-Bootstrap(app)
-
-# Web assets to manage JS and CSS
-webassets = Environment(app)
-
-# Markdown for formating content
-markdown = Markdown(
-    app,
-    extensions=['meta',
-                'tables',
-                'admonition',
-                'extra',
-                'toc',
-                ],
-    # disable safe mode since private keys
-    # are not in the browser
-    safe_mode=False,
-    output_format='html4'
-)
-
-# Load webassets and views
-from . import web_assets, web_views
+steem = WebSteem().getSteem()
 
 
 @app.template_filter('age')
@@ -82,13 +45,13 @@ def _jinja2_filter_currency(value):
     return "{:,.3f}".format(value)
 
 
-def run():
+def run(port, host):
     """ Run the Webserver/SocketIO and app
     """
     socketio.run(app,
                  debug=configStore.get("web:debug"),
-                 host=configStore.get("web:host"),
-                 port=configStore.get("web:port"))
+                 host=host,
+                 port=port)
 
     # FIXME: Don't use .run()
     # from gevent.wsgi import WSGIServer

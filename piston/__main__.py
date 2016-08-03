@@ -45,6 +45,7 @@ availableConfigurationKeys = [
     "web:port",
     "web:debug",
     "web:host",
+    "web:nobroadcast",
 ]
 
 
@@ -907,20 +908,15 @@ def main() :
         print(t)
 
     elif args.command == "web":
-        if args.node:
-            config["node"] = args.node
-        if args.rpcuser:
-            config["rpcuser"] = args.rpcuser
-        if args.rpcpassword:
-            config["rpcpass"] = args.rpcpassword
-        if args.nobroadcast:
-            config["web:nobroadcast"] = args.nobroadcast
-        if args.port:
-            config["web:port"] = args.port
-        if args.host:
-            config["web:host"] = args.host
+        from .web_steem import WebSteem
+        # WebSteem is a static class that ensures that
+        # the steem connection is a singelton
+        WebSteem(args.node,
+                 args.rpcuser,
+                 args.rpcpassword,
+                 args.nobroadcast)
         from . import web
-        web.run()
+        web.run(port=args.port, host=args.host)
 
     else:
         print("No valid command given")

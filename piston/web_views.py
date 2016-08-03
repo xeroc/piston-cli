@@ -1,45 +1,24 @@
 import re
 from sys import exit
 from pprint import pprint
-from jinja2 import Template, Markup, Environment, PackageLoader, FileSystemLoader
-from flask import render_template, redirect, request, session, flash, url_for, make_response, jsonify, abort
+from flask import (
+    render_template,
+    redirect,
+    request,
+    flash,
+    url_for,
+    abort
+)
 from .utils import resolveIdentifier
-from .steem import Steem, Post
-from .web import app
+from .steem import Post
+from .web_app import app
+from .web_steem import WebSteem
 from .storage import configStorage as configStore
 from . import web_forms
 from textwrap import indent
 import logging
 log = logging.getLogger(__name__)
-
-
-# Connect to Steem network
-steem = None
-
-
-def connect_steem():
-    global steem
-    log.debug("trying to connect to %s" % configStore["WEB_STEEM_NODE"])
-    try:
-        steem = Steem(
-            node=configStore["node"],
-            rpcuser=configStore["rpcuser"],
-            rpcpassword=configStore["rpcpass"],
-            nobroadcast=configStore["web:nobroadcast"],
-            num_retries=1,  # do at least 1 retry in the case the connection was lost
-        )
-    except:
-        print("=" * 80)
-        print(
-            "No connection to %s could be established!\n" % configStore["WEB_STEEM_NODE"] +
-            "Please try again later, or select another node via:\n"
-            "    piston node wss://example.com"
-        )
-        print("=" * 80)
-        exit(1)
-
-connect_steem()
-from . import web_socketio
+steem = WebSteem().getSteem()
 
 
 @app.context_processor
@@ -316,7 +295,7 @@ def settings():
         configStore["rpcpass"] = settingsForm.rpcpass.data
         configStore["web:port"] = settingsForm.webport.data
         if settingsForm.node.data != oldSteemUrl:
-            connect_steem()
+            steem = WebSteem().connect()
 
     return render_template('settings.html', **locals())
 
