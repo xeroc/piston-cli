@@ -784,17 +784,10 @@ class Steem(object):
         return Post(self, self.rpc.get_content(post_author, post_permlink))
 
     def get_recommended(self, user):
-        """ Get recommended posts for user
-
-            :param str user: Show recommendations for this author
+        """ (obsolete) Get recommended posts for user
         """
-        state = self.rpc.get_state("/@%s/recommended" % user)
-        posts = state["accounts"][user].get("recommended", [])
-        r = []
-        for p in posts:
-            post = state["content"][p]
-            r.append(Post(self, post))
-        return r
+        log.critical("get_recommended has been removed from the backend.")
+        return []
 
     def get_blog(self, user):
         """ Get blog posts of a user

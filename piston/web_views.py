@@ -84,18 +84,6 @@ def user_blog(user):
     return render_template('user-blog.html', **locals())
 
 
-@app.route('/@<user>/recommended')
-def user_recommended(user):
-    try:
-        user = steem.rpc.get_account(user)
-        if not user:
-            raise
-    except:
-        abort(404)
-    posts = steem.get_recommended(user["name"])
-    return render_template('user-recommended.html', **locals())
-
-
 @app.route('/@<user>/replies')
 def user_replies(user):
     try:
