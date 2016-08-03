@@ -10,7 +10,7 @@ from .storage import configStorage as config
 from .utils import (
     resolveIdentifier,
     yaml_parse_file,
-    formatTime,
+    formatTime
 )
 from .ui import (
     dump_recursive_parents,
@@ -517,6 +517,19 @@ def main() :
     )
 
     """
+        Command "interest"
+    """
+    interest = subparsers.add_parser('interest', help='Get information about interest payment')
+    interest.set_defaults(command="interest")
+    interest.add_argument(
+        'account',
+        type=str,
+        nargs="*",
+        default=config["default_author"],
+        help='Inspect these accounts'
+    )
+
+    """
         Command "web"
     """
     webconfig = subparsers.add_parser('web', help='Launch web version of piston')
@@ -869,6 +882,27 @@ def main() :
                 b["sbd_balance"],
                 b["vesting_shares"],
                 b["vesting_shares_steem"]
+            ])
+        print(t)
+
+    elif args.command == "interest":
+        t = PrettyTable(["Account",
+                         "Last Interest Payment",
+                         "Next Payment",
+                         "Interest rate",
+                         "Interest"])
+        t.align = "r"
+        if isinstance(args.account, str):
+            args.account = [args.account]
+        for a in args.account:
+            i = steem.interest(a)
+
+            t.add_row([
+                a,
+                i["last_payment"],
+                i["next_payment"],
+                "%.1f%%" % i["interest_rate"],
+                "%.3f SBD" % i["interest"],
             ])
         print(t)
 

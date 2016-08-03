@@ -95,6 +95,12 @@ def formatTime(t) :
     return datetime.utcfromtimestamp(t).strftime("%Y%m%dt%H%M%S%Z")
 
 
+def formatTimeString(t) :
+    """ Properly Format Time for permlinks
+    """
+    return datetime.strptime(t, '%Y-%m-%dT%H:%M:%S')
+
+
 def strfage(time, fmt):
     """ Format time/age
     """

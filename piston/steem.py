@@ -9,10 +9,11 @@ from .utils import (
     resolveIdentifier,
     constructIdentifier,
     derivePermlink,
+    formatTimeString
 )
 from .wallet import Wallet
 from .storage import configStorage as config
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 log = logging.getLogger(__name__)
 
@@ -347,6 +348,11 @@ class Steem(object):
             log.warning("Not broadcasting anything!")
 
         return tx
+
+    def info(self):
+        """ Returns the global properties
+        """
+        return self.rpc.get_dynamic_global_properties()
 
     def reply(self, identifier, body, title="", author="", meta=None):
         """ Reply to an existing post
@@ -968,3 +974,24 @@ class Steem(object):
         """
         for c in self.rpc.stream("comment", *args, **kwargs):
             yield Post(self, c)
+
+    def interest(self, account):
+        """ Caluclate interest for an account
+
+            :param str account: Account name to get interest for
+        """
+        account = self.rpc.get_account(account)
+        last_update = formatTimeString(account["sbd_seconds_last_update"])
+        last_payment = formatTimeString(account["sbd_last_interest_payment"])
+        next_payment = last_payment + timedelta(days=30)
+        interest_rate = self.info()["sbd_interest_rate"] / 100  # the result is in percent!
+        interest_amount = (interest_rate / 100) * int(
+            int(account["sbd_seconds"]) / (60 * 60 * 24 * 356)
+        ) * 10 ** -3
+
+        return {
+            "interest": interest_amount,
+            "last_payment" : last_payment,
+            "next_payment" : next_payment,
+            "interest_rate": interest_rate,
+        }
