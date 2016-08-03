@@ -144,6 +144,7 @@ def user_funds(user):
         only_ops=ops
     )
     transactions = sorted(transactions, key=lambda x: x[0], reverse=True)
+    interest = steem.interest(user["name"])
     return render_template('user-funds.html', **locals())
 
 

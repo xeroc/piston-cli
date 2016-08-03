@@ -54,6 +54,41 @@
 
 </table>
 
+<h3>SteemDollar Interest</h3>
+<table class="table fundstable">
+ <tbody>
+  <tr>
+   <td>Last Interest Payment
+    <p><small>Actualy time of the last interest payment.
+    </small></p>
+   </td>
+   <td>{{ interest["last_payment"] | age }} ago ({{ interest["last_payment"] }})</td>
+  </tr>
+  <tr>
+   <td>Next Interest Payment
+    <p><small>The earliest time to be able to obtain interest.
+    </small></p>
+   </td>
+   <td>in {{ interest["next_payment_duration"] | age }} ({{ interest["next_payment"] }})</td>
+  </tr>
+  <tr>
+   <td>Interest Rate (yearly)
+    <p><small>The yearly interest rate as defined by the witnesses (can
+              change at any time without further notice).
+    </small></p>
+   </td>
+   <td>{{ interest["interest"] | currency }} SBD</td>
+  </tr>
+  <tr>
+   <td>Currently Accumulated Interest
+    <p><small>If you could claim now, you would obtain this amount.
+    </small></p>
+   </td>
+   <td>{{ interest["interest"] | currency }} SBD</td>
+  </tr>
+ </tbody>
+</table>
+
 <h3>Transaction</h3>
 
 <div class="row">

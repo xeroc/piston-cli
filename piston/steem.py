@@ -993,5 +993,6 @@ class Steem(object):
             "interest": interest_amount,
             "last_payment" : last_payment,
             "next_payment" : next_payment,
+            "next_payment_duration" : next_payment - datetime.now(),
             "interest_rate": interest_rate,
         }

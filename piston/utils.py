@@ -106,8 +106,9 @@ def strfage(time, fmt):
     """
     if not hasattr(time, "days"):  # dirty hack
         now = datetime.now()
-        d = datetime.strptime(time, '%Y-%m-%dT%H:%M:%S')
-        time = (now - d)
+        if isinstance(time, str):
+            time = datetime.strptime(time, '%Y-%m-%dT%H:%M:%S')
+        time = (now - time)
 
     d = {"days": time.days}
     d["hours"], rem = divmod(time.seconds, 3600)
