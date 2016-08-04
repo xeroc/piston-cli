@@ -20,6 +20,9 @@ log = logging.getLogger(__name__)
 prefix = "STM"
 # prefix = "TST"
 
+STEEMIT_100_PERCENT = 10000
+STEEMIT_1_PERCENT = (STEEMIT_100_PERCENT / 100)
+
 
 class AccountExistsException(Exception):
     pass
@@ -508,10 +511,6 @@ class Steem(object):
 
                 piston set default_voter <account>
         """
-
-        STEEMIT_100_PERCENT = 10000
-        STEEMIT_1_PERCENT = (STEEMIT_100_PERCENT / 100)
-
         if not voter:
             if "default_voter" in config:
                 voter = config["default_voter"]
@@ -981,7 +980,6 @@ class Steem(object):
             :param str account: Account name to get interest for
         """
         account = self.rpc.get_account(account)
-        last_update = formatTimeString(account["sbd_seconds_last_update"])
         last_payment = formatTimeString(account["sbd_last_interest_payment"])
         next_payment = last_payment + timedelta(days=30)
         interest_rate = self.info()["sbd_interest_rate"] / 100  # the result is in percent!
@@ -996,3 +994,33 @@ class Steem(object):
             "next_payment_duration" : next_payment - datetime.now(),
             "interest_rate": interest_rate,
         }
+
+    def set_withdraw_vesting_route(self, to, percentage=100,
+                                   account=None, auto_vest=False):
+        """ Set up a vesting withdraw route. When vesting shares are
+            withdrawn, they will be routed to these accounts based on the
+            specified weights.
+
+            :param str to: Recipient of the vesting withdrawal
+            :param floag percentage: The percent of the withdraw to go
+                to the 'to' account.
+            :param str account: (optional) the vesting account
+            :param bool auto_vest: Set to true if the from account
+                should receive the VESTS as VESTS, or false if it should
+                receive them as STEEM. (defaults to ``False``)
+        """
+        if not account:
+            if "default_account" in config:
+                account = config["default_account"]
+        if not account:
+            raise ValueError("You need to provide an account")
+
+        op = transactions.Set_withdraw_vesting_route(
+            **{"from_account": account,
+               "to_account": to,
+               "percent": int(percentage * STEEMIT_1_PERCENT),
+               "auto_vest": auto_vest
+               }
+        )
+        wif = self.wallet.getActiveKeyForAccount(account)
+        return self.executeOp(op, wif)

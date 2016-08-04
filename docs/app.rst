@@ -267,6 +267,11 @@ You can powerup/down your account with piston using:
 If ``--author``/``--to`` are not provided, the *default* account as defined with
 ``piston set author`` will be taken.
 
+To route your powerdows to another account automatically, you can use
+``powerdownroute``. Read more in the corresponding help::
+
+   piston powerdownroute -h
+
 Balances
 ~~~~~~~~
 

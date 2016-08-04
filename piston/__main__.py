@@ -505,6 +505,36 @@ def main() :
     )
 
     """
+        Command "powerdownroute"
+    """
+    parser_powerdownroute = subparsers.add_parser('powerdownroute', help='Setup a powerdown route')
+    parser_powerdownroute.set_defaults(command="powerdownroute")
+    parser_powerdownroute.add_argument(
+        'to',
+        type=str,
+        default=config["default_author"],
+        help='The account receiving either VESTS/SteemPower or STEEM.'
+    )
+    parser_powerdownroute.add_argument(
+        '--percentage',
+        type=float,
+        default=100,
+        help='The percent of the withdraw to go to the "to" account'
+    )
+    parser_powerdownroute.add_argument(
+        '--account',
+        type=str,
+        default=config["default_author"],
+        help='The account which is powering down'
+    )
+    parser_powerdownroute.add_argument(
+        '--auto_vest',
+        action='store_true',
+        help=('Set to true if the from account should receive the VESTS as'
+              'VESTS, or false if it should receive them as STEEM.')
+    )
+
+    """
         Command "balance"
     """
     parser_balance = subparsers.add_parser('balance', help='Power down (start withdrawing STEEM from STEEM POWER)')
@@ -868,6 +898,14 @@ def main() :
         pprint(steem.withdraw_vesting(
             args.amount,
             account=args.account,
+        ))
+
+    elif args.command == "powerdownroute":
+        pprint(steem.set_withdraw_vesting_route(
+            args.to,
+            percentage=args.percentage,
+            account=args.account,
+            auto_vest=args.auto_vest
         ))
 
     elif args.command == "balance":
