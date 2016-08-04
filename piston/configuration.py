@@ -24,6 +24,9 @@ defaults = {
 
 
 class Configuration(collections.MutableMapping):
+    """ This is the **legacy** storage for configuration variables! Do
+        not use it any longer. It will be removed!
+    """
 
     def __init__(self, *args, **kwargs):
         self.store = dict()

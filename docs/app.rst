@@ -171,6 +171,21 @@ Additionally, a ``--category`` can be added as well.
     echo "Texts" | piston post --author "<author>" --category "<category>" --title "<posttitle>" --permlink "<permlink>"
     cat filename | piston post --author "<author>" --category "<category>" --title "<posttitle>" --permlink "<permlink>"
 
+If you want to provide mulitple tags to your post, you can add it to the
+frontmatter like this:
+
+::
+
+   ---
+   author: ......
+   category: .......
+   title: .......
+   tags:
+     - introduceyourself
+     - steemonsteroids
+     - art
+   ---
+
 Replying
 ~~~~~~~~
 
@@ -267,6 +282,11 @@ You can powerup/down your account with piston using:
 If ``--author``/``--to`` are not provided, the *default* account as defined with
 ``piston set author`` will be taken.
 
+To route your powerdows to another account automatically, you can use
+``powerdownroute``. Read more in the corresponding help::
+
+   piston powerdownroute -h
+
 Balances
 ~~~~~~~~
 
@@ -277,3 +297,16 @@ Get an account's balance with
     piston balance <account>
 
 If ``<account>`` is not provided, the *default* account will be taken.
+
+History
+~~~~~~~
+
+You can get an accounts history by using
+
+::
+
+    piston history <account>
+
+Furthermore you can filter by ``types`` and limit the result by
+transaction numer. More information can be found by calling ``piston
+history -h`.

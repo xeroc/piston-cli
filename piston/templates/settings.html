@@ -1,0 +1,17 @@
+{% import "bootstrap/wtf.html" as wtf %}
+
+{% extends "layout.html" %}
+{% block content %}
+{% include "_messages.html" %}
+
+{{ wtf.quick_form(settingsForm) }}
+
+<datalist id=apiNodes>
+   <option> wss://this.piston.rocks/
+   <option> wss://steemit.com/wstmp3
+   <option> wss://steemit.com/wstmp4
+   <option> wss://steemit.com/wstmp5
+   <option> wss://steemit.com/wstmp6
+</datalist>
+
+{% endblock %}

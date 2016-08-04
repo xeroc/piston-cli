@@ -34,8 +34,7 @@ def derivePermlink(title, parent_permlink=None):
 def resolveIdentifier(identifier):
     match = re.match("@?([\w\-\.]*)/([\w\-]*)", identifier)
     if not hasattr(match, "group"):
-        log.error("Invalid identifier")
-        sys.exit(1)
+        raise ValueError("Invalid identifier")
     return match.group(1), match.group(2)
 
 
@@ -87,10 +86,59 @@ def yaml_parse_file(args, initial_content):
         if key not in meta:
             meta[key] = initial_content.metadata[key]
 
-    return meta, body
+    # Extract anything that is not piston meta and return it separately
+    # for json_meta field
+    json_meta = {key: meta[key] for key in meta if key not in [
+        "title",
+        "category",
+        "author"
+    ]}
+
+    return meta, json_meta, body
 
 
 def formatTime(t) :
     """ Properly Format Time for permlinks
     """
     return datetime.utcfromtimestamp(t).strftime("%Y%m%dt%H%M%S%Z")
+
+
+def formatTimeString(t) :
+    """ Properly Format Time for permlinks
+    """
+    return datetime.strptime(t, '%Y-%m-%dT%H:%M:%S')
+
+
+def strfage(time, fmt):
+    """ Format time/age
+    """
+    if not hasattr(time, "days"):  # dirty hack
+        now = datetime.now()
+        if isinstance(time, str):
+            time = datetime.strptime(time, '%Y-%m-%dT%H:%M:%S')
+        time = (now - time)
+
+    d = {"days": time.days}
+    d["hours"], rem = divmod(time.seconds, 3600)
+    d["minutes"], d["seconds"] = divmod(rem, 60)
+
+    s = "{seconds} seconds"
+    if d["minutes"]:
+        s = "{minutes} minutes " + s
+    if d["hours"]:
+        s = "{hours} hours " + s
+    if d["days"]:
+        s = "{days} days " + s
+    return s.format(**d)
+
+
+def strfdelta(tdelta, fmt):
+    """ Format time/age
+    """
+    if not tdelta or not hasattr(tdelta, "days"):  # dirty hack
+        return None
+
+    d = {"days": tdelta.days}
+    d["hours"], rem = divmod(tdelta.seconds, 3600)
+    d["minutes"], d["seconds"] = divmod(rem, 60)
+    return fmt.format(**d)

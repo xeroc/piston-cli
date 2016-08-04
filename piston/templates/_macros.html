@@ -1,0 +1,221 @@
+{% macro formatIdentifier(identifier) %}
+ <a href="{{url_for("read", identifier=identifier)}}">{{identifier}}</a>
+{% endmacro %}
+
+{% macro formatAuthorPermlink(author, permlink) %}
+ {{ formatIdentifier("@" + author + "/" + permlink) }}
+{% endmacro %}
+
+{% macro formatOp(op) %}
+
+ {% if op[0] == "transfer" %}
+   <i class="fa fa-exchange"></i>
+   {{op[1]["amount"]}}
+   {{formatUser(op[1]["from"])}}
+   <i class="fa fa-arrow-right">
+   {{formatUser(op[1]["to"])}}:
+   <tt>{{op[1]["memo"]}}</tt>
+
+ {% elif op[0] == "vote" %}
+   {% if op[1]["weight"] > 0 %}
+    <span class="text-success"><i class="fa fa-thumbs-up"></i></span>
+   {% else %}
+    <span class="text-danger"><i class="fa fa-thumbs-down"></i></span>
+   {% endif %}
+   {{ formatUser(op[1]["voter"]) }}
+   <i class="fa fa-arrow-right"></i>
+   {{ formatAuthorPermlink(op[1]["author"], op[1]["permlink"]) }}
+
+ {% elif op[0] == "transfer_to_vesting" %}
+   <i class="fa fa-line-chart"></i>
+   {{op[1]["amount"]}}
+   {{formatUser(op[1]["from"])}}
+   <i class="fa fa-arrow-right">
+   {{formatUser(op[1]["to"])}}:
+
+ {% elif op[0] == "comment" %}
+   <i class="fa fa-comment"></i>
+   {{ formatAuthorPermlink(op[1]["author"], op[1]["permlink"]) }}
+
+ {% elif op[0] == "interest" %}
+   <i class="fa fa-level-up"></i>
+   {{ op[1]["interest"] }}
+
+ {% elif op[0] == "account_create" %}
+   <i class="fa fa-plus-square"></i>
+   account created: {{ formatUser(op[1]["name"]) }}
+
+ {% elif op[0] == "curate_reward" %}
+   <i class="fa fa-gift"></i> {{op[1]["reward"]}}
+   <i class="fa fa-arrows-h"></i>
+   {{ formatAuthorPermlink(op[1]["comment_author"], op[1]["comment_permlink"]) }}
+
+ {% elif op[0] == "comment_reward" %}
+   <i class="fa fa-gift"></i> {{op[1]["sbd_payout"]}}
+   <i class="fa fa-gift"></i> {{op[1]["vesting_payout"]}}
+   <i class="fa fa-arrows-h"></i>
+   {{ formatAuthorPermlink(op[1]["author"], op[1]["permlink"]) }}
+
+ {% else %}
+  {{ op  }}
+
+ {% endif %}
+{% endmacro %}
+
+{% macro formatBody(post, type) %}
+ {% if type == "full" or type == "reply" %}
+  {{ post.body | parseBody | markdown }}
+ {% else %}
+  {{ post.body | excert | parseBody | markdown }} ...
+ {% endif %}
+{% endmacro %}
+
+{% macro formatUser(user) %}
+<a href="{{ url_for("user_blog", user=user) }}">
+  <i class="fa fa-user"></i>
+  {{user}}
+ </a>
+{% endmacro %}
+
+{% macro showPost(post, type) %}
+
+  {% set voted = checkvotes(post) %}
+  {% set upvoted = voted[0] %}
+  {% set downvoted = voted[1] %}
+
+  <div class="panel panel-default">
+   {% if post.title %}
+    <div class="panel-heading">
+     {% if post.depth == 0 %}
+      <a target="_blank" href="https://steemit.com/{{post.category}}/{{post.identifier}}">
+       <i class="fa fa-external-link"></i>
+      </a>
+     {% endif %}
+     <a href="{{url_for("read", identifier=post.identifier)}}">
+      {{ post.title }}
+     </a>
+    </div>
+   {% endif %}
+
+   {% if type == "reply" %}
+    <div class="panel-heading">
+     <a href="{{url_for("read", identifier=post.openingPostIdentifier)}}">
+      <i class="fa fa-link"></i> {{post.root_title}}
+     </a>
+    </div>
+   {% endif %}
+
+   {% if type != "title" %}
+    <div class="panel-body post-body">
+     {{ formatBody(post, type) }}
+    </div>
+    <table class="table">
+     <tr
+      {% if post.author == current_user["name"] %}
+        class="success"
+      {% endif %}
+      >
+      <td>
+       <button 
+          {% if upvoted %}
+           disabled
+          {% endif %}
+          type="button" 
+          class="btn {% if upvoted %} btn-success {% endif %} btn-xs text-success upvoteButton"
+          identifier="{{post.identifier}}">
+        <i class="fa fa-thumbs-up"></i>
+       </button>
+      </td>
+      <td>
+       <a type="button" class="btn btn-info btn-xs" href="{{url_for("post", identifier=post.identifier)}}"><i class="fa fa-reply"></i></a>
+      <td>
+       <i class="fa fa-money"></i> {{post.total_payout_reward}}
+      </td>
+      <td>
+       <i class="fa fa-clock-o"></i>
+       {{post.created | age}}
+       ago
+      </td>
+      <td>
+       by 
+       {{ formatUser(post.author) }}
+      </td>
+      <td>
+       in
+       <i class="fa fa-globe"></i>
+       <a href="{{url_for("browse", category=post.category, sort=sort)}}">
+        {{post.category}}
+       </a>
+      </td>
+      <td>
+       <i class="fa fa-users"></i> {{ post.active_votes | length }}
+      </td>
+      <td>
+       <i class="fa fa-comment"></i> {{ post.children }}
+      </td>
+      <td>
+      </td>
+      <td>
+       <button type="button" 
+               {% if downvoted %}
+                disabled
+               {% endif %}
+               class="btn {% if downvoted %} btn-danger {% endif %} btn-xs text-danger downvoteButton"
+               identifier="{{post.identifier}}">
+        <i class="fa fa-flag"></i>
+       </button>
+      </td>
+     </tr>
+    </table>
+   {% endif %}
+
+  </div>
+{% endmacro %}
+
+{% macro recursiveComments(post) %}
+  <div class="col-md-11">
+   {{ showPost(post, "full") }}
+
+   {% if post.children %}
+   <div class="row">
+    <div class="col-md-1"></div>
+    {% for comment in post.get_comments() %}
+     {{ recursiveComments(comment) }}
+    {% endfor %}
+   </div>
+   {% endif %}
+
+
+  </div>
+{% endmacro %}
+
+
+{% macro show_form_errors(f) %}
+  {% for k in f %}
+   {% if k.errors[0] %}
+    <div class="alert alert-danger">
+    {{k.errors[0]}}
+    </div>
+   {% endif %}
+  {% endfor %}
+{% endmacro %}
+
+{% macro render_field_with_errors(field) %}
+ <div class="form-group">
+  <div class="col-sm-3 control-label">{{ field.label }}</div>
+  <div class="col-sm-9">
+   {{ field(**kwargs)|safe }}
+  </div>
+ </div>
+  {% if field.errors %}
+    <ul>
+    {% for error in field.errors %}
+      <li>{{ error }}</li>
+    {% endfor %}
+    </ul>
+  {% endif %}
+{% endmacro %}
+
+{% macro render_field(field) %}
+  <p>{{ field(**kwargs)|safe }}</p>
+{% endmacro %}

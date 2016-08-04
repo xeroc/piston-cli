@@ -4,19 +4,20 @@ import sys
 import os
 import argparse
 from pprint import pprint
-from steembase import PrivateKey, PublicKey, Address
+from steembase.account import PrivateKey, PublicKey, Address
 import steembase.transactions as transactions
-from .configuration import Configuration
+from .storage import configStorage as config
 from .utils import (
     resolveIdentifier,
     yaml_parse_file,
-    formatTime,
+    formatTime
 )
 from .ui import (
     dump_recursive_parents,
     dump_recursive_comments,
     list_posts,
     markdownify,
+    format_operation_details
 )
 from .steem import Steem
 import frontmatter
@@ -29,9 +30,28 @@ log.setLevel(logging.WARNING)
 log.addHandler(logging.StreamHandler())
 
 
+availableConfigurationKeys = [
+    "default_author",
+    "default_voter",
+    "default_account",
+    "node",
+    "rpcuser",
+    "rpcpassword",
+    "default_vote_weight",
+    "list_sorting",
+    "categories_sorting",
+    "limit",
+    "post_category",
+    "web:user",
+    "web:port",
+    "web:debug",
+    "web:host",
+    "web:nobroadcast",
+]
+
+
 def main() :
     global args
-    config = Configuration()
 
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -79,17 +99,7 @@ def main() :
     setconfig.add_argument(
         'key',
         type=str,
-        choices=["default_author",
-                 "default_voter",
-                 "default_account",
-                 "node",
-                 "rpcuser",
-                 "rpcpassword",
-                 "default_vote_weight",
-                 "list_sorting",
-                 "categories_sorting",
-                 "limit",
-                 "post_category"],
+        choices=availableConfigurationKeys,
         help='Configuration key'
     )
     setconfig.add_argument(
@@ -106,6 +116,12 @@ def main() :
     configconfig.set_defaults(command="config")
 
     """
+        Command "changewalletpassphrase"
+    """
+    changepasswordconfig = subparsers.add_parser('changewalletpassphrase', help='Change wallet password')
+    changepasswordconfig.set_defaults(command="changewalletpassphrase")
+
+    """
         Command "addkey"
     """
     addkey = subparsers.add_parser('addkey', help='Add a new key to the wallet')
@@ -116,6 +132,29 @@ def main() :
         help='the private key in wallet import format (wif)'
     )
     addkey.set_defaults(command="addkey")
+
+    """
+        Command "delkey"
+    """
+    delkey = subparsers.add_parser('delkey', help='Delete keys from the wallet')
+    delkey.add_argument(
+        'pub',
+        nargs='*',
+        type=str,
+        help='the public key to delete from the wallet'
+    )
+    delkey.set_defaults(command="delkey")
+
+    """
+        Command "getkey"
+    """
+    getkey = subparsers.add_parser('getkey', help='Dump the privatekey of a pubkey from the wallet')
+    getkey.add_argument(
+        'pub',
+        type=str,
+        help='the public key for which to show the private key'
+    )
+    getkey.set_defaults(command="getkey")
 
     """
         Command "listkeys"
@@ -399,8 +438,14 @@ def main() :
     )
     parser_transfer.add_argument(
         'amount',
+        type=float,
+        help='Amount to transfer'
+    )
+    parser_transfer.add_argument(
+        'asset',
         type=str,
-        help='Amount to transfer including asset (e.g.: 100.000 STEEM)'
+        choices=["STEEM", "SBD"],
+        help='Asset to (i.e. STEEM or SDB)'
     )
     parser_transfer.add_argument(
         'memo',
@@ -461,16 +506,109 @@ def main() :
     )
 
     """
+        Command "powerdownroute"
+    """
+    parser_powerdownroute = subparsers.add_parser('powerdownroute', help='Setup a powerdown route')
+    parser_powerdownroute.set_defaults(command="powerdownroute")
+    parser_powerdownroute.add_argument(
+        'to',
+        type=str,
+        default=config["default_author"],
+        help='The account receiving either VESTS/SteemPower or STEEM.'
+    )
+    parser_powerdownroute.add_argument(
+        '--percentage',
+        type=float,
+        default=100,
+        help='The percent of the withdraw to go to the "to" account'
+    )
+    parser_powerdownroute.add_argument(
+        '--account',
+        type=str,
+        default=config["default_author"],
+        help='The account which is powering down'
+    )
+    parser_powerdownroute.add_argument(
+        '--auto_vest',
+        action='store_true',
+        help=('Set to true if the from account should receive the VESTS as'
+              'VESTS, or false if it should receive them as STEEM.')
+    )
+
+    """
         Command "balance"
     """
-    parser_balance = subparsers.add_parser('balance', help='Power down (start withdrawing STEEM from STEEM POWER)')
+    parser_balance = subparsers.add_parser('balance', help='Show the balance of one more more accounts')
     parser_balance.set_defaults(command="balance")
     parser_balance.add_argument(
         'account',
         type=str,
         nargs="*",
         default=config["default_author"],
-        help='balance from this account'
+        help='balance of these account (multiple accounts allowed)'
+    )
+
+    """
+        Command "history"
+    """
+    parser_history = subparsers.add_parser('history', help='Show the history of an account')
+    parser_history.set_defaults(command="history")
+    parser_history.add_argument(
+        'account',
+        type=str,
+        nargs="?",
+        default=config["default_author"],
+        help='History of this account'
+    )
+    parser_history.add_argument(
+        '--limit',
+        type=int,
+        default=config["limit"],
+        help='Limit number of entries'
+    )
+    parser_history.add_argument(
+        '--end',
+        type=int,
+        default=99999999999999,
+        help='Transactioon numer (#) of the last transaction to show.'
+    )
+    parser_history.add_argument(
+        '--types',
+        type=str,
+        nargs="*",
+        default=[],
+        help='Show only these operation types'
+    )
+
+    """
+        Command "interest"
+    """
+    interest = subparsers.add_parser('interest', help='Get information about interest payment')
+    interest.set_defaults(command="interest")
+    interest.add_argument(
+        'account',
+        type=str,
+        nargs="*",
+        default=config["default_author"],
+        help='Inspect these accounts'
+    )
+
+    """
+        Command "web"
+    """
+    webconfig = subparsers.add_parser('web', help='Launch web version of piston')
+    webconfig.set_defaults(command="web")
+    webconfig.add_argument(
+        '--port',
+        type=int,
+        default=config["web:port"],
+        help='Port to open for internal web requests'
+    )
+    webconfig.add_argument(
+        '--host',
+        type=str,
+        default=config["web:host"],
+        help='Host address to listen to'
     )
 
     """
@@ -512,29 +650,37 @@ def main() :
         gphlog.setLevel(getattr(logging, verbosity.upper()))
         gphlog.addHandler(ch)
 
-    rpc_not_required = ["set", "config", ""]
-
     if not hasattr(args, "command"):
         parser.print_help()
         sys.exit(2)
 
+    # We don't require RPC for these commands
+    rpc_not_required = [
+        "set",
+        "config",
+        "web"
+        ""]
     if args.command not in rpc_not_required and args.command:
         steem = Steem(
-            args.node,
-            args.rpcuser,
-            args.rpcpassword,
-            nobroadcast=args.nobroadcast
+            node=args.node,
+            rpcuser=args.rpcuser,
+            rpcpassword=args.rpcpassword,
+            nobroadcast=args.nobroadcast,
         )
 
     if args.command == "set":
         config[args.key] = args.value
 
-    if args.command == "config":
+    elif args.command == "config":
         t = PrettyTable(["Key", "Value"])
         t.align = "l"
-        for key in config.store:
-            t.add_row([key, config[key]])
+        for key in config:
+            if key in availableConfigurationKeys:  # hide internal config data
+                t.add_row([key, config[key]])
         print(t)
+
+    elif args.command == "changewalletpassphrase":
+        steem.wallet.changePassphrase()
 
     elif args.command == "addkey":
         pub = None
@@ -563,6 +709,13 @@ def main() :
             config["default_author"] = name
             config["default_voter"] = name
 
+    elif args.command == "delkey":
+        for pub in args.pub:
+            steem.wallet.removePrivateKeyFromPublicKey(pub)
+
+    elif args.command == "getkey":
+        print(steem.wallet.getPrivateKeyForPublicKey(args.pub))
+
     elif args.command == "listkeys":
         t = PrettyTable(["Available Key"])
         t.align = "l"
@@ -574,7 +727,11 @@ def main() :
         t = PrettyTable(["Name", "Type", "Available Key"])
         t.align = "l"
         for account in steem.wallet.getAccounts():
-            t.add_row(account)
+            t.add_row([
+                account["name"] or "n/a",
+                account["type"] or "n/a",
+                account["pubkey"]
+            ])
         print(t)
 
     elif args.command == "reply":
@@ -592,7 +749,7 @@ def main() :
             "replyto": args.replyto,
         })
 
-        meta, message = yaml_parse_file(args, initial_content=post)
+        meta, json_meta, message = yaml_parse_file(args, initial_content=post)
 
         for required in ["author", "title"]:
             if (required not in meta or
@@ -607,7 +764,8 @@ def main() :
             meta["replyto"],
             message,
             title=meta["title"],
-            author=args.author
+            author=meta["author"],
+            meta=json_meta,
         ))
 
     elif args.command == "post" or args.command == "yaml":
@@ -617,7 +775,7 @@ def main() :
             "category": args.category if args.category else "required",
         })
 
-        meta, body = yaml_parse_file(args, initial_content=post)
+        meta, json_meta, body = yaml_parse_file(args, initial_content=post)
 
         if not body:
             print("Empty body! Not posting!")
@@ -636,7 +794,8 @@ def main() :
             meta["title"],
             body,
             author=meta["author"],
-            category=meta["category"]
+            category=meta["category"],
+            meta=json_meta,
         ))
 
     elif args.command == "edit":
@@ -652,11 +811,12 @@ def main() :
             "author": original_post["author"] + " (immutable)"
         })
 
-        meta, edited_message = yaml_parse_file(args, initial_content=post)
+        meta, json_meta, edited_message = yaml_parse_file(args, initial_content=post)
         pprint(steem.edit(
             args.post,
             edited_message,
-            replace=args.replace
+            replace=args.replace,
+            meta=json_meta,
         ))
 
     elif args.command == "upvote" or args.command == "downvote":
@@ -718,10 +878,13 @@ def main() :
 
     elif args.command == "categories":
         categories = steem.get_categories(
-            args.sort,
+            sort=args.sort,
             begin=args.category,
             limit=args.limit
         )
+        print(args.sort)
+        print(args.category)
+        print(args.limit)
         t = PrettyTable(["name", "discussions", "payouts"])
         t.align = "l"
         for category in categories:
@@ -743,13 +906,19 @@ def main() :
         )
 
     elif args.command == "replies":
-        discussions = steem.get_replies(args.author)
-        list_posts(discussions[0:args.limit])
+        if not args.author:
+            print("Please specify an author via --author\n "
+                  "or define your default author with:\n"
+                  "   piston set default_author x")
+        else:
+            discussions = steem.get_replies(args.author)
+            list_posts(discussions[0:args.limit])
 
     elif args.command == "transfer":
         pprint(steem.transfer(
             args.to,
             args.amount,
+            args.asset,
             memo=args.memo,
             account=args.account
         ))
@@ -767,8 +936,16 @@ def main() :
             account=args.account,
         ))
 
+    elif args.command == "powerdownroute":
+        pprint(steem.set_withdraw_vesting_route(
+            args.to,
+            percentage=args.percentage,
+            account=args.account,
+            auto_vest=args.auto_vest
+        ))
+
     elif args.command == "balance":
-        t = PrettyTable(["Account", "STEEM", "SBD", "VESTS"])
+        t = PrettyTable(["Account", "STEEM", "SBD", "VESTS", "VESTS (in STEEM)"])
         t.align = "r"
         if isinstance(args.account, str):
             args.account = [args.account]
@@ -779,8 +956,65 @@ def main() :
                 b["balance"],
                 b["sbd_balance"],
                 b["vesting_shares"],
+                b["vesting_shares_steem"]
             ])
         print(t)
+
+    elif args.command == "history":
+        import json
+        t = PrettyTable(["#", "time/block", "Operation", "Details"])
+        t.align = "r"
+        if isinstance(args.account, str):
+            args.account = [args.account]
+        if isinstance(args.types, str):
+            args.types = [args.types]
+
+        for a in args.account:
+            for b in steem.loop_account_history(
+                a,
+                args.end,
+                limit=args.limit,
+                only_ops=args.types
+            ):
+                t.add_row([
+                    b[0],
+                    "%s (%s)" % (b[1]["timestamp"], b[1]["block"]),
+                    b[1]["op"][0],
+                    format_operation_details(b[1]["op"]),
+                ])
+        print(t)
+
+    elif args.command == "interest":
+        t = PrettyTable(["Account",
+                         "Last Interest Payment",
+                         "Next Payment",
+                         "Interest rate",
+                         "Interest"])
+        t.align = "r"
+        if isinstance(args.account, str):
+            args.account = [args.account]
+        for a in args.account:
+            i = steem.interest(a)
+
+            t.add_row([
+                a,
+                i["last_payment"],
+                i["next_payment"],
+                "%.1f%%" % i["interest_rate"],
+                "%.3f SBD" % i["interest"],
+            ])
+        print(t)
+
+    elif args.command == "web":
+        from .web_steem import WebSteem
+        # WebSteem is a static class that ensures that
+        # the steem connection is a singelton
+        WebSteem(args.node,
+                 args.rpcuser,
+                 args.rpcpassword,
+                 args.nobroadcast)
+        from . import web
+        web.run(port=args.port, host=args.host)
 
     else:
         print("No valid command given")

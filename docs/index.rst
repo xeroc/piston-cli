@@ -7,10 +7,15 @@ Piston - The Swiss army knife for the Steem network
 ===================================================
 
 
-Piston is a command line tool and library to interact with the STEEM network using Python 3.
+Piston is a tool with a library to interact with the STEEM network using Python 3.
 
 * Piston's home is `github.com/xeroc/piston <https://github.com/xeroc/piston>`_ and
 * this documentation is available through ReadMyDocs and is hosted on `piston.rocks <http://piston.rocks>`_
+
+Piston.web - Graphical User Interface
+-------------------------------------
+
+(work in progress)
 
 Command Line Tool
 -----------------
@@ -58,3 +63,4 @@ Contents
     app
     lib
     contrib
+    public-api

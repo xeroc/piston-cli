@@ -1,0 +1,4 @@
+-e git://github.com/xeroc/python-graphenelib@develop#egg=graphenelib
+-e git://github.com/xeroc/python-steem@develop#egg=steem
+pytest
+coverage
