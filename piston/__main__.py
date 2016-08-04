@@ -10,7 +10,8 @@ from .storage import configStorage as config
 from .utils import (
     resolveIdentifier,
     yaml_parse_file,
-    formatTime
+    formatTime,
+    strfage
 )
 from .ui import (
     dump_recursive_parents,
@@ -999,7 +1000,7 @@ def main() :
             t.add_row([
                 a,
                 i["last_payment"],
-                i["next_payment"],
+                "in %s" % strfage(i["next_payment_duration"]),
                 "%.1f%%" % i["interest_rate"],
                 "%.3f SBD" % i["interest"],
             ])
