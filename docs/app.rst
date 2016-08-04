@@ -297,3 +297,16 @@ Get an account's balance with
     piston balance <account>
 
 If ``<account>`` is not provided, the *default* account will be taken.
+
+History
+~~~~~~~
+
+You can get an accounts history by using
+
+::
+
+    piston history <account>
+
+Furthermore you can filter by ``types`` and limit the result by
+transaction numer. More information can be found by calling ``piston
+history -h`.

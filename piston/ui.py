@@ -1,8 +1,10 @@
+import json
 from prettytable import PrettyTable
 from textwrap import fill, TextWrapper
 import frontmatter
 import re
 from .storage import configStorage as config
+from .utils import constructIdentifier
 
 # For recursive display of a discussion thread (--comments + --parents)
 currentThreadDepth = 0
@@ -200,3 +202,25 @@ def dump_recursive_comments(rpc,
         reply = rpc.get_content_replies(post["author"], post["permlink"])
         if len(reply):
             dump_recursive_comments(rpc, post["author"], post["permlink"], depth + 1)
+
+
+def format_operation_details(op):
+    if op[0] == "vote":
+        return "%s: %s" % (
+            op[1]["voter"],
+            constructIdentifier(op[1]["author"], op[1]["permlink"])
+        )
+    if op[0] == "comment":
+        return "%s: %s" % (
+            op[1]["author"],
+            constructIdentifier(op[1]["author"], op[1]["permlink"])
+        )
+    if op[0] == "transfer":
+        return "%s -> %s %s (%s)" % (
+            op[1]["from"],
+            op[1]["to"],
+            op[1]["amount"],
+            op[1]["memo"],
+        )
+    else:
+        return json.dumps(op[1])

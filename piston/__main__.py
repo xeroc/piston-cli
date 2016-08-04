@@ -17,6 +17,7 @@ from .ui import (
     dump_recursive_comments,
     list_posts,
     markdownify,
+    format_operation_details
 )
 from .steem import Steem
 import frontmatter
@@ -537,14 +538,46 @@ def main() :
     """
         Command "balance"
     """
-    parser_balance = subparsers.add_parser('balance', help='Power down (start withdrawing STEEM from STEEM POWER)')
+    parser_balance = subparsers.add_parser('balance', help='Show the balance of one more more accounts')
     parser_balance.set_defaults(command="balance")
     parser_balance.add_argument(
         'account',
         type=str,
         nargs="*",
         default=config["default_author"],
-        help='balance from this account'
+        help='balance of these account (multiple accounts allowed)'
+    )
+
+    """
+        Command "history"
+    """
+    parser_history = subparsers.add_parser('history', help='Show the history of an account')
+    parser_history.set_defaults(command="history")
+    parser_history.add_argument(
+        'account',
+        type=str,
+        nargs="?",
+        default=config["default_author"],
+        help='History of this account'
+    )
+    parser_history.add_argument(
+        '--limit',
+        type=int,
+        default=config["limit"],
+        help='Limit number of entries'
+    )
+    parser_history.add_argument(
+        '--end',
+        type=int,
+        default=99999999999999,
+        help='Transactioon numer (#) of the last transaction to show.'
+    )
+    parser_history.add_argument(
+        '--types',
+        type=str,
+        nargs="*",
+        default=[],
+        help='Show only these operation types'
     )
 
     """
@@ -925,6 +958,30 @@ def main() :
                 b["vesting_shares"],
                 b["vesting_shares_steem"]
             ])
+        print(t)
+
+    elif args.command == "history":
+        import json
+        t = PrettyTable(["#", "time/block", "Operation", "Details"])
+        t.align = "r"
+        if isinstance(args.account, str):
+            args.account = [args.account]
+        if isinstance(args.types, str):
+            args.types = [args.types]
+
+        for a in args.account:
+            for b in steem.loop_account_history(
+                a,
+                args.end,
+                limit=args.limit,
+                only_ops=args.types
+            ):
+                t.add_row([
+                    b[0],
+                    "%s (%s)" % (b[1]["timestamp"], b[1]["block"]),
+                    b[1]["op"][0],
+                    format_operation_details(b[1]["op"]),
+                ])
         print(t)
 
     elif args.command == "interest":
