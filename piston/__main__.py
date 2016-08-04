@@ -716,7 +716,7 @@ def main() :
             "replyto": args.replyto,
         })
 
-        meta, message = yaml_parse_file(args, initial_content=post)
+        meta, json_meta, message = yaml_parse_file(args, initial_content=post)
 
         for required in ["author", "title"]:
             if (required not in meta or
@@ -731,7 +731,8 @@ def main() :
             meta["replyto"],
             message,
             title=meta["title"],
-            author=meta["author"]
+            author=meta["author"],
+            meta=json_meta,
         ))
 
     elif args.command == "post" or args.command == "yaml":
@@ -741,7 +742,7 @@ def main() :
             "category": args.category if args.category else "required",
         })
 
-        meta, body = yaml_parse_file(args, initial_content=post)
+        meta, json_meta, body = yaml_parse_file(args, initial_content=post)
 
         if not body:
             print("Empty body! Not posting!")
@@ -760,7 +761,8 @@ def main() :
             meta["title"],
             body,
             author=meta["author"],
-            category=meta["category"]
+            category=meta["category"],
+            meta=json_meta,
         ))
 
     elif args.command == "edit":
@@ -776,11 +778,12 @@ def main() :
             "author": original_post["author"] + " (immutable)"
         })
 
-        meta, edited_message = yaml_parse_file(args, initial_content=post)
+        meta, json_meta, edited_message = yaml_parse_file(args, initial_content=post)
         pprint(steem.edit(
             args.post,
             edited_message,
-            replace=args.replace
+            replace=args.replace,
+            meta=json_meta,
         ))
 
     elif args.command == "upvote" or args.command == "downvote":

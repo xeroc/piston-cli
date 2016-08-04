@@ -171,6 +171,21 @@ Additionally, a ``--category`` can be added as well.
     echo "Texts" | piston post --author "<author>" --category "<category>" --title "<posttitle>" --permlink "<permlink>"
     cat filename | piston post --author "<author>" --category "<category>" --title "<posttitle>" --permlink "<permlink>"
 
+If you want to provide mulitple tags to your post, you can add it to the
+frontmatter like this:
+
+::
+
+   ---
+   author: ......
+   category: .......
+   title: .......
+   tags:
+     - introduceyourself
+     - steemonsteroids
+     - art
+   ---
+
 Replying
 ~~~~~~~~
 

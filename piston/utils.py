@@ -86,7 +86,15 @@ def yaml_parse_file(args, initial_content):
         if key not in meta:
             meta[key] = initial_content.metadata[key]
 
-    return meta, body
+    # Extract anything that is not piston meta and return it separately
+    # for json_meta field
+    json_meta = {key: meta[key] for key in meta if key not in [
+        "title",
+        "category",
+        "author"
+    ]}
+
+    return meta, json_meta, body
 
 
 def formatTime(t) :
