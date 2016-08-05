@@ -67,3 +67,8 @@ piston/static/css/*.css
 piston/static/js/*.js
 piston/static/.webassets-cache
 env
+
+contrib/build
+contrib/dist
+contrib/src
+contrib/tmp
