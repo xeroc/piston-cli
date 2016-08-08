@@ -12,7 +12,6 @@ Flask-Bootstrap==3.3.6.0
 Flask-Markdown==0.3
 Flask-SocketIO==2.5
 Flask-WTF==0.12
-graphenelib==0.4.3
 html2text==2016.5.29
 itsdangerous==0.24
 Jinja2==2.8
@@ -27,7 +26,6 @@ PyYAML==3.11
 requests==2.10.0
 scrypt==0.7.1
 six==1.10.0
-steem==0.2
 txaio==2.5.1
 Unidecode==0.4.19
 visitor==0.1.3
