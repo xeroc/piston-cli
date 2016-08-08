@@ -791,6 +791,33 @@ class Steem(object):
         wif = self.wallet.getActiveKeyForAccount(account)
         return self.executeOp(op, wif)
 
+    def convert(self, amount, account=None, requestid=None):
+        """ Convert SteemDollars to Steem (takes one week to settle)
+
+            :param float amount: number of VESTS to withdraw over a period of 104 weeks
+            :param str account: (optional) the source account for the transfer if not ``default_account``
+        """
+        if not account and "default_account" in config:
+            account = config["default_account"]
+        if not account:
+            raise ValueError("You need to provide an account")
+
+        if requestid:
+            requestid = int(requestid)
+        else:
+            requestid = random.getrandbits(32)
+        op = transactions.Convert(
+            **{"owner": account,
+               "requestid": requestid,
+               "amount": '{:.{prec}f} {asset}'.format(
+                   float(amount),
+                   prec=3,
+                   asset="SBD"
+               )}
+        )
+        wif = self.wallet.getActiveKeyForAccount(account)
+        return self.executeOp(op, wif)
+
     def get_content(self, identifier):
         """ Get the full content of a post.
 

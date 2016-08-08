@@ -537,6 +537,24 @@ def main() :
     )
 
     """
+        Command "convert"
+    """
+    parser_convert = subparsers.add_parser('convert', help='Convert STEEMDollars to Steem (takes a week to settle)')
+    parser_convert.set_defaults(command="convert")
+    parser_convert.add_argument(
+        'amount',
+        type=float,
+        help='Amount of SBD to convert'
+    )
+    parser_convert.add_argument(
+        '--account',
+        type=str,
+        required=False,
+        default=config["default_author"],
+        help='Convert from this account'
+    )
+
+    """
         Command "balance"
     """
     parser_balance = subparsers.add_parser('balance', help='Show the balance of one more more accounts')
@@ -933,6 +951,12 @@ def main() :
 
     elif args.command == "powerdown":
         pprint(steem.withdraw_vesting(
+            args.amount,
+            account=args.account,
+        ))
+
+    elif args.command == "convert":
+        pprint(steem.convert(
             args.amount,
             account=args.account,
         ))
