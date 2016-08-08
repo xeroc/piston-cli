@@ -9,6 +9,7 @@ PYWIN32_URL=http://downloads.sourceforge.net/project/pywin32/pywin32/Build%20220
 PYINSTALLER_URL=https://github.com/pyinstaller/pyinstaller/releases/download/v3.2/PyInstaller-3.2.zip
 NSIS_URL=http://downloads.sourceforge.net/project/nsis/NSIS%203/3.0/nsis-3.0-setup.exe
 PYCRYPTO=http://www.voidspace.org.uk/python/pycrypto-2.6.1/pycrypto-2.6.1.win32-py3.4.exe
+OPENSSL=http://downloads.sourceforge.net/gnuwin32/openssl-0.9.8h-1-setup.exe
 
 # Let's begin!
 cd `dirname $0`
@@ -50,9 +51,15 @@ wine nsis.exe
 wget -O pycrypto.exe "$PYCRYPTO"
 wine pycrypto.exe
 
+# Install OpenSSL
+wget -O openssl.exe "$OPENSSL"
+wine openssl.exe
+
 # add dlls needed for pyinstaller:
-cp $WINEPREFIX/drive_c/windows/system32/msvcp90.dll $WINEPREFIX/drive_c/Python34/
-cp $WINEPREFIX/drive_c/windows/system32/msvcm90.dll $WINEPREFIX/drive_c/Python34/
+cp "$WINEPREFIX/drive_c/windows/system32/msvcp90.dll" "$WINEPREFIX/drive_c/Python34/"
+cp "$WINEPREFIX/drive_c/windows/system32/msvcm90.dll" "$WINEPREFIX/drive_c/Python34/"
+cp "$WINEPREFIX/drive_c/./Program Files (x86)/GnuWin32/bin/libeay32.dll" "$WINEPREFIX/drive_c/Python34/"
 
 # Install from pip
 wine $PYHOME/Scripts/pip.exe install pefile steem-piston
+wine $PYHOME/Scripts/pip.exe install https://pypi.python.org/packages/7d/fc/3e65f21be05f5f1bafa8f2262fea474c6dd84cc7dc226d453dd488675305/scrypt-0.7.1-cp34-none-win32.whl

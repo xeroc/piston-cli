@@ -8,7 +8,8 @@ a = Analysis(['tmp/piston/cli.py'],
              ],
 #             datas=[('piston/templates', '.')],
              hiddenimports=[
-                 "piston.__main__"
+                 "piston.__main__",
+                 "scrypt", "_scrypt",
              ])
 pyz = PYZ(a.pure, a.zipped_data)
 exe = EXE(pyz,
