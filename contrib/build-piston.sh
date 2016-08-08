@@ -1,33 +1,23 @@
 #!/bin/bash
 
-# You probably need to update only this link
-GIT_URL=git://github.com/xeroc/piston
-BRANCH=master
-NAME_ROOT=piston
+$BRANCH="develop"
 WINEPREFIX=~/.wine/
-PYHOME=c:/python34
+PYHOME=c:/Python34
 PYTHON="wine $PYHOME/python.exe -OO -B"
-
 
 cd `dirname $0`
 set -e
 
 cd tmp
 
-if [ -d "piston" ]; then
-    # GIT repository found, update it
-    echo "Pull"
-    cd piston
-    git checkout master
-    git pull
-    cd ..
-else
-    # GIT repository not found, clone it
-    echo "Clone"
-    git clone -b $BRANCH $GIT_URL piston
-fi
-
+# GIT repository found, update it
+echo "Pull"
 cd piston
+git checkout $BRANCH
+git pull
+
+$PYTHON setup.py install
+
 VERSION=`git describe --tags`
 echo "Last commit: $VERSION"
 

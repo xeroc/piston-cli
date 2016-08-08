@@ -1,7 +1,11 @@
 #!/bin/bash
 
+GIT_URL=git://github.com/xeroc/piston
+BRANCH=master
+NAME_ROOT=piston
 PYHOME=c:/python34
 WINEPREFIX=~/.wine/
+PYTHON="wine $PYHOME/python.exe -OO -B"
 
 # Please update these links carefully, some versions won't work under Wine
 PYTHON_URL=https://www.python.org/ftp/python/3.4.0/python-3.4.0.msi
@@ -54,6 +58,14 @@ wine pycrypto.exe
 # Install OpenSSL
 wget -O openssl.exe "$OPENSSL"
 wine openssl.exe
+
+# piston
+git clone -b $BRANCH $GIT_URL piston
+wine $PYHOME/Scripts/pip.exe install -r requirements-web.txt --upgrade
+
+# Libraries
+wine $PYHOME/Scripts/pip.exe install https://github.com/xeroc/python-steem/archive/develop.zip#egg=steem --upgrade
+wine $PYHOME/Scripts/pip.exe install https://github.com/xeroc/python-graphenelib/archive/develop.zip#egg=graphenelib --upgrade
 
 # add dlls needed for pyinstaller:
 cp "$WINEPREFIX/drive_c/windows/system32/msvcp90.dll" "$WINEPREFIX/drive_c/Python34/"
