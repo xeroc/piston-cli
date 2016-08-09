@@ -81,9 +81,14 @@ def main() :
         help='Websocket password if authentication is required'
     )
     parser.add_argument(
-        '--nobroadcast',
+        '--nobroadcast', '-d',
         action='store_true',
         help='Do not broadcast anything'
+    )
+    parser.add_argument(
+        '--nowallet', '-p',
+        action='store_true',
+        help='Do not load the wallet'
     )
     parser.add_argument(
         '--verbose', '-v',
@@ -680,12 +685,21 @@ def main() :
         "web"
         ""]
     if args.command not in rpc_not_required and args.command:
-        steem = Steem(
-            node=args.node,
-            rpcuser=args.rpcuser,
-            rpcpassword=args.rpcpassword,
-            nobroadcast=args.nobroadcast,
-        )
+        if args.nowallet:
+            steem = Steem(
+                node=args.node,
+                rpcuser=args.rpcuser,
+                rpcpassword=args.rpcpassword,
+                nobroadcast=args.nobroadcast,
+                wif=[],  # preload wallet with empty keys
+            )
+        else:
+            steem = Steem(
+                node=args.node,
+                rpcuser=args.rpcuser,
+                rpcpassword=args.rpcpassword,
+                nobroadcast=args.nobroadcast,
+            )
 
     if args.command == "set":
         config[args.key] = args.value
@@ -901,9 +915,6 @@ def main() :
             begin=args.category,
             limit=args.limit
         )
-        print(args.sort)
-        print(args.category)
-        print(args.limit)
         t = PrettyTable(["name", "discussions", "payouts"])
         t.align = "l"
         for category in categories:
