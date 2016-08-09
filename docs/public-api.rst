@@ -54,7 +54,7 @@ This is the ``config.ini`` file for steemd:
       enable-plugin = private_message
       enable-plugin = tags
 
-      public-api = database_api login_api market_history_api tags_api follow_api
+      public-api = database_api login_api market_history_api tag_api follow_api
 
 This opens up the port ``5090`` for localhost. Going forward, you can either open up this port directly to the public, or tunnel it through a webserver (such as nginx) to add SSL on top, do load balancing, throttling etc.
 
