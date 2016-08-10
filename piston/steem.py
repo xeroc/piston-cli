@@ -98,6 +98,8 @@ class Post(object):
             meta = json.loads(meta_str)
         except:
             pass
+        if not isinstance(meta, dict):
+            meta = {}
         post["_tags"] = meta.get("tags", [])
 
         # Retrieve the root comment
