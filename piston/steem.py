@@ -14,6 +14,7 @@ from .utils import (
 from .wallet import Wallet
 from .storage import configStorage as config
 from datetime import datetime, timedelta
+from steemexchange.exchange import SteemExchange as SteemLibExchange
 import logging
 log = logging.getLogger(__name__)
 
@@ -251,16 +252,35 @@ class Steem(object):
     def __init__(self, *args, **kwargs):
         """
             :param bool debug: Enable Debugging
-            :param wif wif: WIF private key for signing. If provided,
-                            will not load from wallet (optional). Can be
-                            single string, or array of keys.
+            :param array,dict,string keys: Predefine the wif keys to shortcut the wallet database
+
+            Three wallet operation modes are possible:
+
+            * **Wallet Database**: Here, piston loads the keys from the
+              locally stored wallet SQLite database (see ``storage.py``).
+              To use this mode, simply call ``Steem()`` without the
+              ``keys`` parameter
+            * **Providing Keys**: Here, you can provide the keys for
+              your accounts manually. All you need to do is add the wif
+              keys for the accounts you want to use as a simple array
+              using the ``keys`` parameter to ``Steem()``.
+            * **Force keys**: This more is for advanced users and
+              requires that you know what you are doing. Here, the
+              ``keys`` parameter is a dictionary that overwrite the
+              ``active``, ``owner``, ``posting`` or ``memo`` keys for
+              any account. This mode is only used for *foreign*
+              signatures!
         """
         self.connect(*args, **kwargs)
         self.debug = kwargs.get("debug", False)
         self.nobroadcast = kwargs.get("nobroadcast", False)
 
-        if "wif" in kwargs:
-            self.wallet = Wallet(self.rpc, wif=kwargs["wif"])
+        # Compatibility after name change from wif->keys
+        if "wif" in kwargs and "keys" not in kwargs:
+            kwargs["keys"] = kwargs["wif"]
+
+        if "keys" in kwargs:
+            self.wallet = Wallet(self.rpc, keys=kwargs["keys"])
         else:
             self.wallet = Wallet(self.rpc)
 
@@ -1051,3 +1071,44 @@ class Steem(object):
         )
         wif = self.wallet.getActiveKeyForAccount(account)
         return self.executeOp(op, wif)
+
+
+class PistonExchangeConfig():
+    witness_url           = config["node"]
+    witness_user          = config["rpcuser"]
+    witness_password      = config["rpcpassword"]
+    account               = config["default_author"]
+    wif                   = None
+
+
+class SteemExchange(SteemLibExchange):
+    def __init__(self, *args, account, **kwargs):
+        # Connect to RPC so that we can properly use the piston wallet
+        Steem.connect(self, *args, **kwargs)
+
+        # Obtain a new Configuration object
+        ex_config = PistonExchangeConfig
+        if "keys" in kwargs:
+            self.wallet = Wallet(self.rpc, wif=kwargs["keys"])
+        else:
+            self.wallet = Wallet(self.rpc)
+
+        # Delete the rpc attribute so that we don't connect to a wallet
+        self.rpc = None
+
+        if not account:
+            if "default_account" in config:
+                account = config["default_account"]
+        if not account:
+            raise ValueError("You need to provide an account")
+
+        # Obtain the private key
+        ex_config.wif = self.wallet.getActiveKeyForAccount(account)
+
+        # Instead of re-implementing SteemExchange we use inheritance
+        # and accept that the module opens up a second RPC connection on
+        # it's own (for now)
+        super(SteemExchange, self).__init__(
+            ex_config,
+            safe_mode=True,
+        )
