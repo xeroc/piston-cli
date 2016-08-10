@@ -10,6 +10,10 @@ from .utils import constructIdentifier
 currentThreadDepth = 0
 
 
+class UIError(Exception):
+    pass
+
+
 def markdownify(t):
     width = 120
 
@@ -104,37 +108,97 @@ def markdownify(t):
     return t
 
 
-def list_posts(discussions):
-    t = PrettyTable([
-        "identifier",
-        "title",
-        "category",
-        "replies",
-        # "votes",
-        "payouts",
-    ])
-    t.align = "l"
-    t.align["payouts"] = "r"
-    # t.align["votes"] = "r"
-    t.align["replies"] = "c"
-    for d in discussions:
-        # Some discussions are dicts or identifiers
-        if isinstance(d, str):
-            d = discussions[d]
+def __get_text_wrapper(width=60):
+    """
+    Get text wrapper with a fixed with.
 
-        identifier = "@%s/%s" % (d["author"], d["permlink"])
-        identifier_wrapper = TextWrapper()
-        identifier_wrapper.width = 60
-        identifier_wrapper.subsequent_indent = " "
+    :param width: width of the wrapper. Default 60.
+    :return: text wrapper
+    :rtype: :py:class:`TextWrapper`
+    """
+    wrapper = TextWrapper()
+    wrapper.width = width
+    wrapper.subsequent_indent = " "
 
-        t.add_row([
-            identifier_wrapper.fill(identifier),
-            identifier_wrapper.fill(d["title"]),
-            d["category"],
-            d["children"],
-            # d["net_rshares"],
-            d["pending_payout_value"],
+    return wrapper
+
+
+def list_posts(discussions, custom_columns=None):
+    """
+    List posts using PrettyTable. Use default layout if custom column list
+    is not specified. Default layout is [ "identifier", "title", "category",
+    "replies", "votes", "payouts"]. Custom layout can contain one or more
+    allowed columns and rows always start with [ "identifier", "title" ].
+
+    :param discussions: discussions (posts) list
+    :type discussions: list
+    :param custom_columns: custom columns to display
+    :type custom_columns: list
+
+    :raises: :py:class:`UIError`: If tried to use wrong column(s).
+    """
+    if not discussions:
+        return
+    if not custom_columns:
+        t = PrettyTable([
+            "identifier",
+            "title",
+            "category",
+            "replies",
+            # "votes",
+            "payouts",
         ])
+        t.align = "l"
+        t.align["payouts"] = "r"
+        # t.align["votes"] = "r"
+        t.align["replies"] = "c"
+        for d in discussions:
+            # Some discussions are dicts or identifiers
+            if isinstance(d, str):
+                d = discussions[d]
+            identifier = constructIdentifier(d["author"], d["permlink"])
+            identifier_wrapper = __get_text_wrapper()
+            row = [
+                identifier_wrapper.fill(identifier),
+                identifier_wrapper.fill(d["title"]),
+                d["category"],
+                d["children"],
+                # d["net_rshares"],
+                d["pending_payout_value"],
+            ]
+            t.add_row(row)
+    else:
+        available_attrs = set(vars(discussions[0]))
+        if not set(custom_columns).issubset(available_attrs):
+            wrong_columns = set(custom_columns).difference(available_attrs)
+            raise UIError("Please use allowed column names only: %s. "
+                          "Error caused by %s." %
+                          (sorted(available_attrs), wrong_columns))
+        # move identifier and title to front if available
+        for c in ["title", "identifier"]:
+            if c in custom_columns:
+                custom_columns.insert(0, custom_columns.pop(
+                    custom_columns.index(c)))
+        t = PrettyTable(custom_columns)
+        t.align = "l"
+        for d in discussions:
+            display_columns = custom_columns.copy()
+            if isinstance(d, str):
+                d = discussions[d]
+            identifier = constructIdentifier(d["author"], d["permlink"])
+            identifier_wrapper = __get_text_wrapper()
+            row = []
+            # identifier and title always go first if available
+            if "identifier" in display_columns:
+                row.append(identifier_wrapper.fill(identifier))
+                display_columns.remove("identifier")
+            if "title" in display_columns:
+                row.append(identifier_wrapper.fill(d["title"]))
+                display_columns.remove("title")
+            for column in display_columns:
+                row.append(d[column])
+            if row:
+                t.add_row(row)
     print(t)
 
 

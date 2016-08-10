@@ -202,6 +202,12 @@ def main() :
         default=config["limit"],
         help='Limit posts by number'
     )
+    parser_list.add_argument(
+        '--columns',
+        type=str,
+        nargs="+",
+        help='Display custom columns'
+    )
 
     """
         Command "categories"
@@ -932,7 +938,8 @@ def main() :
                 sort=args.sort,
                 category=args.category,
                 start=args.start
-            )
+            ),
+            args.columns
         )
 
     elif args.command == "replies":
