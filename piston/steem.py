@@ -457,7 +457,8 @@ class Steem(object):
              permlink=None,
              meta={},
              reply_identifier=None,
-             category=""):
+             category=None,
+             tags=[]):
         """ New post
 
             :param str title: Title of the reply post
@@ -469,10 +470,14 @@ class Steem(object):
                               post.
             :param str reply_identifier: Identifier of the post to reply to. Takes the
                                          form ``@author/permlink``
-            :param str category: Allows to define a category for new posts.
-                                 It is highly recommended to provide a
-                                 category as posts end up in ``spam``
-                                 otherwise.
+            :param str category: (deprecated, see ``tags``) Allows to
+                define a category for new posts.  It is highly recommended
+                to provide a category as posts end up in ``spam`` otherwise.
+                If no category is provided but ``tags``, then the first tag
+                will be used as category
+            :param array tags: The tags to flag the post with. If no
+                category is used, then the first tag will be used as
+                category
         """
 
         if not author and config["default_author"]:
@@ -482,6 +487,19 @@ class Steem(object):
             raise ValueError(
                 "Please define an author. (Try 'piston set default_author'"
             )
+
+        if isinstance(tags, str):
+            tags = list(filter(None, (re.split("[\W_]", tags))))
+        if not category and tags:
+            # extract the first tag
+            category = tags[0]
+            tags = list(set(tags))
+            # do not use the first tag in tags
+            meta.update({"tags": tags[1:]})
+        else:
+            # store everything in tags
+            tags = list(set(tags))
+            meta.update({"tags": tags})
 
         if reply_identifier and not category:
             parent_author, parent_permlink = resolveIdentifier(reply_identifier)
