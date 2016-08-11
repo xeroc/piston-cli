@@ -488,6 +488,11 @@ class Steem(object):
                 "Please define an author. (Try 'piston set default_author'"
             )
 
+        if not isinstance(meta, dict):
+            try:
+                meta = json.loads(meta)
+            except:
+                meta = {}
         if isinstance(tags, str):
             tags = list(filter(None, (re.split("[\W_]", tags))))
         if not category and tags:

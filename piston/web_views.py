@@ -206,6 +206,7 @@ def wallet():
 @app.route('/browse/<sort>/<category>')
 def browse(category, sort):
     start = request.args.get('start')
+    tags = steem.get_categories("trending", limit=25)
     posts = steem.get_posts(
         # 10 are displyed, the 11th is to pick ?start=
         # for the next page
@@ -214,8 +215,10 @@ def browse(category, sort):
         sort=sort,
         start=start
     )
-    tags = steem.get_categories("trending", limit=25)
-    return render_template('browse.html', **locals())
+    if not posts:
+        return render_template('browse-none.html', **locals())
+    else:
+        return render_template('browse.html', **locals())
 
 
 @app.route('/read/<path:identifier>')
@@ -237,7 +240,7 @@ def post(identifier):
             abort(400)
         if not post:
             abort(400)
-        postForm = web_forms.NewPostForm(
+        postForm = web_forms.NewReplyForm(
             category=post.category,
             body=indent(post.body, "> "),
             title="Re: " + post.title,
@@ -267,11 +270,16 @@ def post(identifier):
                         postForm.title.data,
                         postForm.body.data,
                         author=configStore["web:user"],
-                        category=postForm.category.data,
+                        tags=postForm.category.data,
                     )
+                    raise
+                    if "operations" in tx:
+                        category = tx["operations"][0][1]["parent_permlink"]
+                    else:
+                        category = None
                     return redirect(url_for(
                         "browse",
-                        category=postForm.category.data,
+                        category=category,
                         sort="created"
                     ))
             except Exception as e:
