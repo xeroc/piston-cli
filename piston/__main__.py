@@ -708,6 +708,11 @@ def main() :
             )
 
     if args.command == "set":
+        if (args.key in ["default_author",
+                         "default_voter",
+                         "default_account"] and
+                args.value[0] == "@"):
+            args.value = args.value[1:]
         config[args.key] = args.value
 
     elif args.command == "config":
