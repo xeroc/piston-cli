@@ -251,9 +251,20 @@ class Steem(object):
     wallet = None
     rpc = None
 
-    def __init__(self, *args, **kwargs):
-        """
-            :param bool debug: Enable Debugging
+    def __init__(self,
+                 node="",
+                 rpcuser="",
+                 rpcpassword="",
+                 nobroadcast=False,
+                 debug=False,
+                 **kwargs):
+        """ Connect to the Steem network.
+
+            :param str node: Node to connect to *(optional)*
+            :param str rpcuser: RPC user *(optional)*
+            :param str rpcpassword: RPC password *(optional)*
+            :param bool nobroadcast: Do **not** broadcast a transaction! *(optional)*
+            :param bool debug: Enable Debugging *(optional)*
             :param array,dict,string keys: Predefine the wif keys to shortcut the wallet database
 
             Three wallet operation modes are possible:
@@ -272,8 +283,21 @@ class Steem(object):
               ``active``, ``owner``, ``posting`` or ``memo`` keys for
               any account. This mode is only used for *foreign*
               signatures!
+
+            If no node is provided, it will connect to the node of
+            http://piston.rocks. It is **highly** recommended that you pick your own
+            node instead. Default settings can be changed with:
+
+            .. code-block:: python
+
+                piston set node <host>
+
+            where ``<host>`` starts with ``ws://`` or ``wss://``.
         """
-        self.connect(*args, **kwargs)
+        self._connect(node="",
+                      rpcuser="",
+                      rpcpassword="",
+                      **kwargs)
         self.debug = kwargs.get("debug", False)
         self.nobroadcast = kwargs.get("nobroadcast", False)
 
@@ -286,38 +310,13 @@ class Steem(object):
         else:
             self.wallet = Wallet(self.rpc)
 
-    def connect(self, *args, **kwargs):
-        """ Connect to the Steem network.
-
-            :param str node: Node to connect to *(optional)*
-            :param str rpcuser: RPC user *(optional)*
-            :param str rpcpassword: RPC password *(optional)*
-            :param bool nobroadcast: Do **not** broadcast a transaction!
-
-            If no node is provided, it will connect to the node of
-            http://piston.rocks. It is **highly** recommended that you pick your own
-            node instead. Default settings can be changed with:
-
-            .. code-block:: python
-
-                piston set node <host>
-
-            where ``<host>`` starts with ``ws://`` or ``wss://``.
+    def _connect(self,
+                 node="",
+                 rpcuser="",
+                 rpcpassword="",
+                 **kwargs):
+        """ Connect to Steem network (internal use only)
         """
-
-        node = None
-        rpcuser = None
-        rpcpassword = None
-        if len(args):
-            node = args.pop(0)
-        if len(args):
-            rpcuser = args.pop(0)
-        if len(args):
-            rpcpassword = args.pop(0)
-        node = kwargs.pop("node", node)
-        rpcuser = kwargs.pop("rpcuser", rpcuser)
-        rpcpassword = kwargs.pop("rpcpassword", rpcpassword)
-
         if not node:
             if "node" in config:
                 node = config["node"]
@@ -1109,7 +1108,7 @@ class PistonExchangeConfig():
 class SteemExchange(SteemLibExchange):
     def __init__(self, *args, account, **kwargs):
         # Connect to RPC so that we can properly use the piston wallet
-        Steem.connect(self, *args, **kwargs)
+        Steem._connect(self, *args, **kwargs)
 
         # Obtain a new Configuration object
         ex_config = PistonExchangeConfig
