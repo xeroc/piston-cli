@@ -1000,43 +1000,6 @@ class Steem(object):
             "sbd_balance": a["sbd_balance"]
         }
 
-    def get_account_history(self, account, end=100, limit=100, only_ops=[]):
-        """ Returns the transaction history of an account
-
-            :param str account: account name to get history for
-            :param int end: sequence number of the last transaction to return
-            :param int limit: limit number of transactions to return
-            :param array only_ops: Limit generator by these operations
-        """
-        r = []
-        for op in self.loop_account_history(account, end, limit, only_ops):
-            r.append(op)
-        return r
-
-    def loop_account_history(self, account, end=99999999999, limit=-1, only_ops=[]):
-        """ Returns a generator for individual account transactions
-
-            :param str account: account name to get history for
-            :param int end: sequence number of the last transaction to return
-            :param int limit: limit number of transactions to return
-            :param array only_ops: Limit generator by these operations
-        """
-        cnt = 0
-        _limit = 100
-        while end >= _limit:
-            txs = self.rpc.get_account_history(account, end, _limit)
-            for i in txs:
-                if not only_ops or i[1]["op"][0] in only_ops:
-                    cnt += 1
-                    yield i
-                    if limit >= 0 and cnt >= limit:
-                        break
-            if limit >= 0 and cnt >= limit:
-                break
-            if len(txs) < _limit:
-                break
-            end = txs[0][0] - 1  # new end
-
     def stream_comments(self, *args, **kwargs):
         """ Generator that yields posts when they come in
 

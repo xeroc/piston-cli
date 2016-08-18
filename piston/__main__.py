@@ -597,7 +597,7 @@ def main() :
         help='Limit number of entries'
     )
     parser_history.add_argument(
-        '--end',
+        '--first',
         type=int,
         default=99999999999999,
         help='Transactioon numer (#) of the last transaction to show.'
@@ -1018,9 +1018,9 @@ def main() :
             args.types = [args.types]
 
         for a in args.account:
-            for b in steem.loop_account_history(
+            for b in steem.rpc.account_history(
                 a,
-                args.end,
+                args.first,
                 limit=args.limit,
                 only_ops=args.types
             ):
