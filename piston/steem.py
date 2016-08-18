@@ -298,8 +298,8 @@ class Steem(object):
                       rpcuser="",
                       rpcpassword="",
                       **kwargs)
-        self.debug = kwargs.get("debug", False)
-        self.nobroadcast = kwargs.get("nobroadcast", False)
+        self.debug = debug
+        self.nobroadcast = nobroadcast
 
         # Compatibility after name change from wif->keys
         if "wif" in kwargs and "keys" not in kwargs:
