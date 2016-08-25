@@ -20,7 +20,7 @@ from .ui import (
     markdownify,
     format_operation_details
 )
-from .steem import Steem
+from .steem import Steem, Post
 import frontmatter
 import time
 from prettytable import PrettyTable
@@ -864,6 +864,7 @@ def main() :
         ))
 
     elif args.command == "upvote" or args.command == "downvote":
+        post = Post(steem, args.post)
         if args.command == "downvote":
             weight = -float(args.weight)
         else:
@@ -871,11 +872,7 @@ def main() :
         if not args.voter:
             print("Not voter provided!")
             return
-        pprint(steem.vote(
-            args.post,
-            weight,
-            voter=args.voter
-        ))
+        pprint(post.vote(weight, voter=args.voter))
 
     elif args.command == "read":
         post_author, post_permlink = resolveIdentifier(args.post)

@@ -1,6 +1,6 @@
 import unittest
 import piston
-from piston.steem import Steem, Post, MissingKeyError
+from piston.steem import Steem, Post, MissingKeyError, VotingInvalidOnArchivedPost
 
 identifier = "@xeroc/piston"
 testaccount = "xeroc"
@@ -26,12 +26,16 @@ class Testcases(unittest.TestCase) :
     def test_upvote(self):
         try:
             self.post.upvote(voter=testaccount)
+        except VotingInvalidOnArchivedPost:
+            pass
         except MissingKeyError:
             pass
 
     def test_downvote(self, weight=-100, voter=testaccount):
         try:
             self.post.downvote(voter=testaccount)
+        except VotingInvalidOnArchivedPost:
+            pass
         except MissingKeyError:
             pass
 
