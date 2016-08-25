@@ -107,8 +107,8 @@ class Post(object):
 
         # Total reward
         post["total_payout_reward"] = "%.3f SBD" % (
-            float(post["total_payout_value"].split(" ")[0]) +
-            float(post["total_pending_payout_value"].split(" ")[0])
+            float(post.get("total_payout_value", "0 SBD").split(" ")[0]) +
+            float(post.get("total_pending_payout_value", "0 SBD").split(" ")[0])
         )
 
         # Store everything as attribute
