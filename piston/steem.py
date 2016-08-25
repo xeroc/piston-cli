@@ -695,9 +695,9 @@ class Steem(object):
                 "Call incomplete! Provide either a password or public keys!"
             )
 
-        owner   = format(posting_pubkey, prefix)
+        owner   = format(owner_pubkey, prefix)
         active  = format(active_pubkey, prefix)
-        posting = format(owner_pubkey, prefix)
+        posting = format(posting_pubkey, prefix)
         memo    = format(memo_pubkey, prefix)
 
         owner_key_authority = [[owner, 1]]
