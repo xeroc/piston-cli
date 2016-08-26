@@ -294,6 +294,12 @@ def main() :
         help='Specify category'
     )
     parser_post.add_argument(
+        '--tags',
+        default=[],
+        help='Specify tags',
+        nargs='*',
+    )
+    parser_post.add_argument(
         '--title',
         type=str,
         required=False,
@@ -819,11 +825,14 @@ def main() :
         ))
 
     elif args.command == "post" or args.command == "yaml":
-        post = frontmatter.Post("", **{
+        initmeta = {
             "title": args.title if args.title else "required",
             "author": args.author if args.author else "required",
             "category": args.category if args.category else "required",
-        })
+        }
+        if args.tags:
+            initmeta["tags"] = args.tags
+        post = frontmatter.Post("", **initmeta)
 
         meta, json_meta, body = yaml_parse_file(args, initial_content=post)
 
