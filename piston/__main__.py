@@ -11,14 +11,15 @@ from .utils import (
     resolveIdentifier,
     yaml_parse_file,
     formatTime,
-    strfage
+    strfage,
 )
 from .ui import (
     dump_recursive_parents,
     dump_recursive_comments,
     list_posts,
     markdownify,
-    format_operation_details
+    format_operation_details,
+    confirm
 )
 from .steem import Steem, Post
 import frontmatter
@@ -754,8 +755,13 @@ def main() :
             config["default_voter"] = name
 
     elif args.command == "delkey":
-        for pub in args.pub:
-            steem.wallet.removePrivateKeyFromPublicKey(pub)
+        if confirm(
+            "Are you sure you want to delete keys from your wallet?\n"
+            "This step is IRREVERSIBLE! If you don't have a backup, "
+            "You may lose access to your account!"
+        ):
+            for pub in args.pub:
+                steem.wallet.removePrivateKeyFromPublicKey(pub)
 
     elif args.command == "getkey":
         print(steem.wallet.getPrivateKeyForPublicKey(args.pub))
