@@ -246,7 +246,9 @@ class Wallet(LegacyWallet):
     def addPrivateKey(self, wif):
         """ Add a private key to the wallet database
         """
-        if isinstance(wif, PrivateKey):
+        # it could be either graphenebase or steembase so we can't check the type directly
+        keytypes = ["<class 'graphenebase.account.PrivateKey'>", "<class 'steembase.account.PrivateKey'>"]
+        if str(type(wif)) in keytypes:
             wif = str(wif)
         try:
             pub = format(PrivateKey(wif).pubkey, prefix)
