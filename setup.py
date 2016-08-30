@@ -5,7 +5,7 @@ import sys
 
 assert sys.version_info[0] == 3, "Piston requires Python > 3"
 
-VERSION = '0.3'
+VERSION = '0.3.1'
 
 setup(name='steem-piston',
       version=VERSION,
@@ -32,7 +32,7 @@ setup(name='steem-piston',
               'piston = piston.__main__:main',
           ],
       },
-      install_requires=["steem>=0.2.1",
+      install_requires=["steem>=0.2.2",
                         "pycrypto==2.6.1",
                         "diff-match-patch==20121119",
                         "appdirs==1.4.0",
