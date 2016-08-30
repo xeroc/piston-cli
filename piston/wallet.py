@@ -106,12 +106,8 @@ class Wallet(LegacyWallet):
                 self.configStorage[self.MasterPassword.config_key]):
             if pwd is None:
                 pwd = self.getPassword()
-            if pwd == "":
-                self.masterpassword = pwd
-                return
-            else:
-                masterpwd = self.MasterPassword(pwd)
-                self.masterpassword = masterpwd.decrypted_master
+            masterpwd = self.MasterPassword(pwd)
+            self.masterpassword = masterpwd.decrypted_master
 
     def lock(self):
         """ Lock the wallet database
@@ -127,27 +123,17 @@ class Wallet(LegacyWallet):
         """ Change the passphrase for the wallet database
         """
         # Open Existing Wallet
-        currentpwd = self.getPassword()
-        if currentpwd != "":
-            masterpwd = self.MasterPassword(currentpwd)
-            self.masterpassword = masterpwd.decrypted_master
-        else:
-            self.masterpassword = ""
+        pwd = self.getPassword()
+        masterpwd = self.MasterPassword(pwd)
+        self.masterpassword = masterpwd.decrypted_master
+        # Provide new passphrase
         print("Please provide the new password")
         newpwd = self.getPassword(confirm=True)
-        if newpwd:
-            if currentpwd == "":
-                masterpwd = self.MasterPassword(newpwd)
-                self.reencryptKeys(currentpwd, masterpwd.decrypted_master)
-            else:
-                # only change the masterpassword
-                masterpwd.changePassword(newpwd)
-        else:
-            self.reencryptKeys(currentpwd, newpwd)
-            masterpwd.purge()
+        # Change passphrase
+        masterpwd.changePassword(newpwd)
 
     def reencryptKeys(self, oldpassword, newpassword):
-        """ Reencrypt keys in the wallet database
+        """ (deprecated!) Reencrypt keys in the wallet database
         """
         # remove encryption from database
         allPubs = self.getPublicKeys()
@@ -198,10 +184,7 @@ class Wallet(LegacyWallet):
         """ Encrypt a wif key
         """
         self.unlock()
-        if self.masterpassword == "":
-            return wif
-        else:
-            return format(bip38.encrypt(PrivateKey(wif), self.masterpassword), "encwif")
+        return format(bip38.encrypt(PrivateKey(wif), self.masterpassword), "encwif")
 
     def decrypt_wif(self, encwif):
         """ decrypt a wif key
@@ -227,9 +210,12 @@ class Wallet(LegacyWallet):
             while True :
                 pw = self.getPassword(confirm=False)
                 if not pw:
-                    print("You have chosen an empty password! " +
-                          "We assume you understand the risks!")
-                    return ""
+                    print(
+                        "You cannot chosen an empty password! " +
+                        "If you want to automate the use of piston, " +
+                        "please use the `UNLOCK` environmental variable!"
+                    )
+                    continue
                 else:
                     pwck = self.getPassword(
                         confirm=False,
