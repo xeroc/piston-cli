@@ -10,16 +10,19 @@ from .storage import configStorage as config
 from .utils import (
     resolveIdentifier,
     yaml_parse_file,
-    formatTime
+    formatTime,
+    strfage,
 )
 from .ui import (
     dump_recursive_parents,
     dump_recursive_comments,
     list_posts,
     markdownify,
-    format_operation_details
+    format_operation_details,
+    confirm,
+    print_permissions
 )
-from .steem import Steem
+from .steem import Steem, Post, SteemConnector
 import frontmatter
 import time
 from prettytable import PrettyTable
@@ -28,7 +31,6 @@ import logging
 log = logging.getLogger("piston")
 log.setLevel(logging.WARNING)
 log.addHandler(logging.StreamHandler())
-
 
 availableConfigurationKeys = [
     "default_author",
@@ -80,9 +82,14 @@ def main() :
         help='Websocket password if authentication is required'
     )
     parser.add_argument(
-        '--nobroadcast',
+        '--nobroadcast', '-d',
         action='store_true',
         help='Do not broadcast anything'
+    )
+    parser.add_argument(
+        '--nowallet', '-p',
+        action='store_true',
+        help='Do not load the wallet'
     )
     parser.add_argument(
         '--verbose', '-v',
@@ -196,6 +203,12 @@ def main() :
         default=config["limit"],
         help='Limit posts by number'
     )
+    parser_list.add_argument(
+        '--columns',
+        type=str,
+        nargs="+",
+        help='Display custom columns'
+    )
 
     """
         Command "categories"
@@ -279,6 +292,12 @@ def main() :
         default=config["post_category"],
         type=str,
         help='Specify category'
+    )
+    parser_post.add_argument(
+        '--tags',
+        default=[],
+        help='Specify tags',
+        nargs='*',
     )
     parser_post.add_argument(
         '--title',
@@ -536,6 +555,24 @@ def main() :
     )
 
     """
+        Command "convert"
+    """
+    parser_convert = subparsers.add_parser('convert', help='Convert STEEMDollars to Steem (takes a week to settle)')
+    parser_convert.set_defaults(command="convert")
+    parser_convert.add_argument(
+        'amount',
+        type=float,
+        help='Amount of SBD to convert'
+    )
+    parser_convert.add_argument(
+        '--account',
+        type=str,
+        required=False,
+        default=config["default_author"],
+        help='Convert from this account'
+    )
+
+    """
         Command "balance"
     """
     parser_balance = subparsers.add_parser('balance', help='Show the balance of one more more accounts')
@@ -567,7 +604,12 @@ def main() :
         help='Limit number of entries'
     )
     parser_history.add_argument(
-        '--end',
+        '--memos',
+        action='store_true',
+        help='Show (decode) memos'
+    )
+    parser_history.add_argument(
+        '--first',
         type=int,
         default=99999999999999,
         help='Transactioon numer (#) of the last transaction to show.'
@@ -591,6 +633,77 @@ def main() :
         nargs="*",
         default=config["default_author"],
         help='Inspect these accounts'
+    )
+
+    """
+        Command "permissions"
+    """
+    parser_permissions = subparsers.add_parser('permissions', help='Show permissions of an account')
+    parser_permissions.set_defaults(command="permissions")
+    parser_permissions.add_argument(
+        'account',
+        type=str,
+        nargs="?",
+        default=config["default_author"],
+        help='Account to show permissions for'
+    )
+
+    """
+        Command "allow"
+    """
+    parser_allow = subparsers.add_parser('allow', help='Allow an account/key to interact with your account')
+    parser_allow.set_defaults(command="allow")
+    parser_allow.add_argument(
+        '--account',
+        type=str,
+        nargs="?",
+        default=config["default_author"],
+        help='The account to allow action for'
+    )
+    parser_allow.add_argument(
+        'foreign_account',
+        type=str,
+        help='The account or key that will be allowed to interact as your account'
+    )
+    parser_allow.add_argument(
+        '--permission',
+        type=str,
+        default="posting",
+        choices=["owner", "posting", "active"],
+        help=('The permission to grant (defaults to "posting")')
+    )
+    parser_allow.add_argument(
+        '--weight',
+        type=int,
+        default=None,
+        help=('The weight to use instead of the (full) threshold. '
+              'If the weight is smaller than the threshold, '
+              'additional signatures are required')
+    )
+
+    """
+        Command "disallow"
+    """
+    parser_disallow = subparsers.add_parser('disallow', help='Remove allowance an account/key to interact with your account')
+    parser_disallow.set_defaults(command="disallow")
+    parser_disallow.add_argument(
+        '--account',
+        type=str,
+        nargs="?",
+        default=config["default_author"],
+        help='The account to disallow action for'
+    )
+    parser_disallow.add_argument(
+        'foreign_account',
+        type=str,
+        help='The account or key whose allowance to interact as your account will be removed'
+    )
+    parser_disallow.add_argument(
+        '--permission',
+        type=str,
+        default="posting",
+        choices=["owner", "posting", "active"],
+        help=('The permission to remove (defaults to "posting")')
     )
 
     """
@@ -661,14 +774,28 @@ def main() :
         "web"
         ""]
     if args.command not in rpc_not_required and args.command:
-        steem = Steem(
-            node=args.node,
-            rpcuser=args.rpcuser,
-            rpcpassword=args.rpcpassword,
-            nobroadcast=args.nobroadcast,
-        )
+        if args.nowallet:
+            steem = SteemConnector(
+                node=args.node,
+                rpcuser=args.rpcuser,
+                rpcpassword=args.rpcpassword,
+                nobroadcast=args.nobroadcast,
+                wif=[],  # preload wallet with empty keys
+            )
+        else:
+            steem = SteemConnector(
+                node=args.node,
+                rpcuser=args.rpcuser,
+                rpcpassword=args.rpcpassword,
+                nobroadcast=args.nobroadcast,
+            ).getSteem()
 
     if args.command == "set":
+        if (args.key in ["default_author",
+                         "default_voter",
+                         "default_account"] and
+                args.value[0] == "@"):
+            args.value = args.value[1:]
         config[args.key] = args.value
 
     elif args.command == "config":
@@ -710,8 +837,13 @@ def main() :
             config["default_voter"] = name
 
     elif args.command == "delkey":
-        for pub in args.pub:
-            steem.wallet.removePrivateKeyFromPublicKey(pub)
+        if confirm(
+            "Are you sure you want to delete keys from your wallet?\n"
+            "This step is IRREVERSIBLE! If you don't have a backup, "
+            "You may lose access to your account!"
+        ):
+            for pub in args.pub:
+                steem.wallet.removePrivateKeyFromPublicKey(pub)
 
     elif args.command == "getkey":
         print(steem.wallet.getPrivateKeyForPublicKey(args.pub))
@@ -769,11 +901,14 @@ def main() :
         ))
 
     elif args.command == "post" or args.command == "yaml":
-        post = frontmatter.Post("", **{
+        initmeta = {
             "title": args.title if args.title else "required",
             "author": args.author if args.author else "required",
             "category": args.category if args.category else "required",
-        })
+        }
+        if args.tags:
+            initmeta["tags"] = args.tags
+        post = frontmatter.Post("", **initmeta)
 
         meta, json_meta, body = yaml_parse_file(args, initial_content=post)
 
@@ -820,6 +955,7 @@ def main() :
         ))
 
     elif args.command == "upvote" or args.command == "downvote":
+        post = Post(steem, args.post)
         if args.command == "downvote":
             weight = -float(args.weight)
         else:
@@ -827,11 +963,7 @@ def main() :
         if not args.voter:
             print("Not voter provided!")
             return
-        pprint(steem.vote(
-            args.post,
-            weight,
-            voter=args.voter
-        ))
+        pprint(post.vote(weight, voter=args.voter))
 
     elif args.command == "read":
         post_author, post_permlink = resolveIdentifier(args.post)
@@ -882,9 +1014,6 @@ def main() :
             begin=args.category,
             limit=args.limit
         )
-        print(args.sort)
-        print(args.category)
-        print(args.limit)
         t = PrettyTable(["name", "discussions", "payouts"])
         t.align = "l"
         for category in categories:
@@ -902,7 +1031,8 @@ def main() :
                 sort=args.sort,
                 category=args.category,
                 start=args.start
-            )
+            ),
+            args.columns
         )
 
     elif args.command == "replies":
@@ -932,6 +1062,12 @@ def main() :
 
     elif args.command == "powerdown":
         pprint(steem.withdraw_vesting(
+            args.amount,
+            account=args.account,
+        ))
+
+    elif args.command == "convert":
+        pprint(steem.convert(
             args.amount,
             account=args.account,
         ))
@@ -970,9 +1106,9 @@ def main() :
             args.types = [args.types]
 
         for a in args.account:
-            for b in steem.loop_account_history(
+            for b in steem.rpc.account_history(
                 a,
-                args.end,
+                args.first,
                 limit=args.limit,
                 only_ops=args.types
             ):
@@ -980,7 +1116,7 @@ def main() :
                     b[0],
                     "%s (%s)" % (b[1]["timestamp"], b[1]["block"]),
                     b[1]["op"][0],
-                    format_operation_details(b[1]["op"]),
+                    format_operation_details(b[1]["op"], memos=args.memos),
                 ])
         print(t)
 
@@ -999,20 +1135,37 @@ def main() :
             t.add_row([
                 a,
                 i["last_payment"],
-                i["next_payment"],
+                "in %s" % strfage(i["next_payment_duration"]),
                 "%.1f%%" % i["interest_rate"],
                 "%.3f SBD" % i["interest"],
             ])
         print(t)
 
+    elif args.command == "permissions":
+        account = steem.rpc.get_account(args.account)
+        print_permissions(account)
+
+    elif args.command == "allow":
+        pprint(steem.allow(
+            args.foreign_account,
+            weight=args.weight,
+            account=args.account,
+            permission=args.permission
+        ))
+
+    elif args.command == "disallow":
+        pprint(steem.disallow(
+            args.foreign_account,
+            account=args.account,
+            permission=args.permission
+        ))
+
     elif args.command == "web":
-        from .web_steem import WebSteem
-        # WebSteem is a static class that ensures that
-        # the steem connection is a singelton
-        WebSteem(args.node,
-                 args.rpcuser,
-                 args.rpcpassword,
-                 args.nobroadcast)
+        SteemConnector(node=args.node,
+                       rpcuser=args.rpcuser,
+                       rpcpassword=args.rpcpassword,
+                       nobroadcast=args.nobroadcast,
+                       num_retries=1)
         from . import web
         web.run(port=args.port, host=args.host)
 

@@ -1,5 +1,5 @@
 from steembase.account import PrivateKey
-from graphenebase import bip38
+from graphenebase import bip38, PrivateKey as PrivateKey2
 import os
 import json
 from appdirs import user_data_dir
@@ -27,6 +27,7 @@ class Wallet(LegacyWallet):
 
     # Manually provided keys
     keys = {}  # struct with pubkey as key and wif as value
+    keyMap = {}  # type:wif pairs to force certain keys
 
     def __init__(self, rpc, *args, **kwargs):
         """ The wallet is meant to maintain access to private keys for
@@ -34,11 +35,34 @@ class Wallet(LegacyWallet):
             or uses a SQLite database managed by storage.py.
 
             :param SteemNodeRPC rpc: RPC connection to a Steem node
-            :param array wif: Predefine the wif keys to shortcut the wallet database
+            :param array,dict,string keys: Predefine the wif keys to shortcut the wallet database
+
+            Three wallet operation modes are possible:
+
+            * **Wallet Database**: Here, piston loads the keys from the
+              locally stored wallet SQLite database (see ``storage.py``).
+              To use this mode, simply call ``Steem()`` without the
+              ``keys`` parameter
+            * **Providing Keys**: Here, you can provide the keys for
+              your accounts manually. All you need to do is add the wif
+              keys for the accounts you want to use as a simple array
+              using the ``keys`` parameter to ``Steem()``.
+            * **Force keys**: This more is for advanced users and
+              requires that you know what you are doing. Here, the
+              ``keys`` parameter is a dictionary that overwrite the
+              ``active``, ``owner``, ``posting`` or ``memo`` keys for
+              any account. This mode is only used for *foreign*
+              signatures!
         """
         self.rpc = rpc
 
-        if "wif" not in kwargs:
+        # Compatibility after name change from wif->keys
+        if "wif" in kwargs and "keys" not in kwargs:
+            kwargs["keys"] = kwargs["wif"]
+
+        if "keys" in kwargs:
+            self.setKeys(kwargs["keys"])
+        else:
             """ If no keys are provided manually we load the SQLite
                 keyStorage
             """
@@ -56,17 +80,19 @@ class Wallet(LegacyWallet):
                     self.migrateFromJSON()
             if not self.created():
                 self.newWallet()
-        else:
-            self.setKeys(kwargs["wif"])
 
-    def setKeys(self, wifs):
+    def setKeys(self, loadkeys):
         """ This method is strictly only for in memory keys that are
             passed to Wallet/Steem with the ``keys`` argument
         """
         log.debug("Force setting of private keys. Not using the wallet database!")
-        if not isinstance(wifs, list):
-            wifs = [wifs]
-        for wif in wifs:
+        if isinstance(loadkeys, dict):
+            self.keyMap = loadkeys
+            loadkeys = list(loadkeys.values())
+        elif not isinstance(loadkeys, list):
+            loadkeys = [loadkeys]
+
+        for wif in loadkeys:
             try:
                 key = PrivateKey(wif)
             except:
@@ -80,12 +106,8 @@ class Wallet(LegacyWallet):
                 self.configStorage[self.MasterPassword.config_key]):
             if pwd is None:
                 pwd = self.getPassword()
-            if pwd == "":
-                self.masterpassword = pwd
-                return
-            else:
-                masterpwd = self.MasterPassword(pwd)
-                self.masterpassword = masterpwd.decrypted_master
+            masterpwd = self.MasterPassword(pwd)
+            self.masterpassword = masterpwd.decrypted_master
 
     def lock(self):
         """ Lock the wallet database
@@ -101,27 +123,17 @@ class Wallet(LegacyWallet):
         """ Change the passphrase for the wallet database
         """
         # Open Existing Wallet
-        currentpwd = self.getPassword()
-        if currentpwd != "":
-            masterpwd = self.MasterPassword(currentpwd)
-            self.masterpassword = masterpwd.decrypted_master
-        else:
-            self.masterpassword = ""
+        pwd = self.getPassword()
+        masterpwd = self.MasterPassword(pwd)
+        self.masterpassword = masterpwd.decrypted_master
+        # Provide new passphrase
         print("Please provide the new password")
         newpwd = self.getPassword(confirm=True)
-        if newpwd:
-            if currentpwd == "":
-                masterpwd = self.MasterPassword(newpwd)
-                self.reencryptKeys(currentpwd, masterpwd.decrypted_master)
-            else:
-                # only change the masterpassword
-                masterpwd.changePassword(newpwd)
-        else:
-            self.reencryptKeys(currentpwd, newpwd)
-            masterpwd.purge()
+        # Change passphrase
+        masterpwd.changePassword(newpwd)
 
     def reencryptKeys(self, oldpassword, newpassword):
-        """ Reencrypt keys in the wallet database
+        """ (deprecated!) Reencrypt keys in the wallet database
         """
         # remove encryption from database
         allPubs = self.getPublicKeys()
@@ -172,10 +184,7 @@ class Wallet(LegacyWallet):
         """ Encrypt a wif key
         """
         self.unlock()
-        if self.masterpassword == "":
-            return wif
-        else:
-            return format(bip38.encrypt(PrivateKey(wif), self.masterpassword), "encwif")
+        return format(bip38.encrypt(PrivateKey(wif), self.masterpassword), "encwif")
 
     def decrypt_wif(self, encwif):
         """ decrypt a wif key
@@ -201,9 +210,12 @@ class Wallet(LegacyWallet):
             while True :
                 pw = self.getPassword(confirm=False)
                 if not pw:
-                    print("You have chosen an empty password! " +
-                          "We assume you understand the risks!")
-                    return ""
+                    print(
+                        "You cannot chosen an empty password! " +
+                        "If you want to automate the use of piston, " +
+                        "please use the `UNLOCK` environmental variable!"
+                    )
+                    continue
                 else:
                     pwck = self.getPassword(
                         confirm=False,
@@ -220,7 +232,8 @@ class Wallet(LegacyWallet):
     def addPrivateKey(self, wif):
         """ Add a private key to the wallet database
         """
-        if isinstance(wif, PrivateKey):
+        # it could be either graphenebase or steembase so we can't check the type directly
+        if isinstance(wif, PrivateKey) or isinstance(wif, PrivateKey2):
             wif = str(wif)
         try:
             pub = format(PrivateKey(wif).pubkey, prefix)
@@ -262,41 +275,61 @@ class Wallet(LegacyWallet):
     def getOwnerKeyForAccount(self, name):
         """ Obtain owner Private Key for an account from the wallet database
         """
-        account = self.rpc.get_account(name)
-        for authority in account["owner"]["key_auths"]:
-            key = self.getPrivateKeyForPublicKey(authority[0])
-            if key:
-                return key
-        return False
+        if "owner" in self.keyMap:
+            return self.keyMap.get("owner")
+        else:
+            account = self.rpc.get_account(name)
+            if not account:
+                return
+            for authority in account["owner"]["key_auths"]:
+                key = self.getPrivateKeyForPublicKey(authority[0])
+                if key:
+                    return key
+            return False
 
     def getPostingKeyForAccount(self, name):
         """ Obtain owner Posting Key for an account from the wallet database
         """
-        account = self.rpc.get_account(name)
-        for authority in account["posting"]["key_auths"]:
-            key = self.getPrivateKeyForPublicKey(authority[0])
-            if key:
-                return key
-        return False
+        if "posting" in self.keyMap:
+            return self.keyMap.get("posting")
+        else:
+            account = self.rpc.get_account(name)
+            if not account:
+                return
+            for authority in account["posting"]["key_auths"]:
+                key = self.getPrivateKeyForPublicKey(authority[0])
+                if key:
+                    return key
+            return False
 
     def getMemoKeyForAccount(self, name):
         """ Obtain owner Memo Key for an account from the wallet database
         """
-        account = self.rpc.get_account(name)
-        key = self.getPrivateKeyForPublicKey(account["memo_key"])
-        if key:
-            return key
-        return False
+        if "memo" in self.keyMap:
+            return self.keyMap.get("memo")
+        else:
+            account = self.rpc.get_account(name)
+            if not account:
+                return
+            key = self.getPrivateKeyForPublicKey(account["memo_key"])
+            if key:
+                return key
+            return False
 
     def getActiveKeyForAccount(self, name):
         """ Obtain owner Active Key for an account from the wallet database
         """
-        account = self.rpc.get_account(name)
-        for authority in account["active"]["key_auths"]:
-            key = self.getPrivateKeyForPublicKey(authority[0])
-            if key:
-                return key
-        return False
+        if "active" in self.keyMap:
+            return self.keyMap.get("active")
+        else:
+            account = self.rpc.get_account(name)
+            if not account:
+                return
+            for authority in account["active"]["key_auths"]:
+                key = self.getPrivateKeyForPublicKey(authority[0])
+                if key:
+                    return key
+            return False
 
     def getAccountFromPrivateKey(self, wif):
         """ Obtain account name from private key
@@ -327,6 +360,8 @@ class Wallet(LegacyWallet):
                     }
         else:
             account = self.rpc.get_account(name)
+            if not account:
+                return
             keyType = self.getKeyType(account, pub)
             return {"name": name,
                     "type": keyType,

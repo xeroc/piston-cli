@@ -4,6 +4,7 @@ import string
 import random
 from steemapi.steemclient import SteemNodeRPC
 from steembase.account import PrivateKey, PublicKey, Address
+from steembase import memo
 import steembase.transactions as transactions
 from .utils import (
     resolveIdentifier,
@@ -14,6 +15,7 @@ from .utils import (
 from .wallet import Wallet
 from .storage import configStorage as config
 from datetime import datetime, timedelta
+from steemexchange.exchange import SteemExchange as SteemLibExchange
 import logging
 log = logging.getLogger(__name__)
 
@@ -25,6 +27,10 @@ STEEMIT_1_PERCENT = (STEEMIT_100_PERCENT / 100)
 
 
 class AccountExistsException(Exception):
+    pass
+
+
+class VotingInvalidOnArchivedPost(Exception):
     pass
 
 
@@ -97,6 +103,8 @@ class Post(object):
             meta = json.loads(meta_str)
         except:
             pass
+        if not isinstance(meta, dict):
+            meta = {}
         post["_tags"] = meta.get("tags", [])
 
         # Retrieve the root comment
@@ -104,8 +112,8 @@ class Post(object):
 
         # Total reward
         post["total_payout_reward"] = "%.3f SBD" % (
-            float(post["total_payout_value"].split(" ")[0]) +
-            float(post["total_pending_payout_value"].split(" ")[0])
+            float(post.get("total_payout_value", "0 SBD").split(" ")[0]) +
+            float(post.get("total_pending_payout_value", "0 SBD").split(" ")[0])
         )
 
         # Store everything as attribute
@@ -207,6 +215,10 @@ class Post(object):
             :param float weight: Weight for posting (-100.0 - +100.0)
             :param str voter: Voting account
         """
+        # Test if post is archived, if so, voting is worthless but just
+        # pollutes the blockchain and account history
+        if getattr(self, "mode") == "archived":
+            raise VotingInvalidOnArchivedPost
         return self.steem.vote(self.identifier, weight, voter=voter)
 
 
@@ -248,29 +260,38 @@ class Steem(object):
     wallet = None
     rpc = None
 
-    def __init__(self, *args, **kwargs):
-        """
-            :param bool debug: Enable Debugging
-            :param wif wif: WIF private key for signing. If provided,
-                            will not load from wallet (optional). Can be
-                            single string, or array of keys.
-        """
-        self.connect(*args, **kwargs)
-        self.debug = kwargs.get("debug", False)
-        self.nobroadcast = kwargs.get("nobroadcast", False)
-
-        if "wif" in kwargs:
-            self.wallet = Wallet(self.rpc, wif=kwargs["wif"])
-        else:
-            self.wallet = Wallet(self.rpc)
-
-    def connect(self, *args, **kwargs):
+    def __init__(self,
+                 node="",
+                 rpcuser="",
+                 rpcpassword="",
+                 nobroadcast=False,
+                 debug=False,
+                 **kwargs):
         """ Connect to the Steem network.
 
             :param str node: Node to connect to *(optional)*
             :param str rpcuser: RPC user *(optional)*
             :param str rpcpassword: RPC password *(optional)*
-            :param bool nobroadcast: Do **not** broadcast a transaction!
+            :param bool nobroadcast: Do **not** broadcast a transaction! *(optional)*
+            :param bool debug: Enable Debugging *(optional)*
+            :param array,dict,string keys: Predefine the wif keys to shortcut the wallet database
+
+            Three wallet operation modes are possible:
+
+            * **Wallet Database**: Here, piston loads the keys from the
+              locally stored wallet SQLite database (see ``storage.py``).
+              To use this mode, simply call ``Steem()`` without the
+              ``keys`` parameter
+            * **Providing Keys**: Here, you can provide the keys for
+              your accounts manually. All you need to do is add the wif
+              keys for the accounts you want to use as a simple array
+              using the ``keys`` parameter to ``Steem()``.
+            * **Force keys**: This more is for advanced users and
+              requires that you know what you are doing. Here, the
+              ``keys`` parameter is a dictionary that overwrite the
+              ``active``, ``owner``, ``posting`` or ``memo`` keys for
+              any account. This mode is only used for *foreign*
+              signatures!
 
             If no node is provided, it will connect to the node of
             http://piston.rocks. It is **highly** recommended that you pick your own
@@ -282,20 +303,29 @@ class Steem(object):
 
             where ``<host>`` starts with ``ws://`` or ``wss://``.
         """
+        self._connect(node="",
+                      rpcuser="",
+                      rpcpassword="",
+                      **kwargs)
+        self.debug = debug
+        self.nobroadcast = nobroadcast
 
-        node = None
-        rpcuser = None
-        rpcpassword = None
-        if len(args):
-            node = args.pop(0)
-        if len(args):
-            rpcuser = args.pop(0)
-        if len(args):
-            rpcpassword = args.pop(0)
-        node = kwargs.pop("node", node)
-        rpcuser = kwargs.pop("rpcuser", rpcuser)
-        rpcpassword = kwargs.pop("rpcpassword", rpcpassword)
+        # Compatibility after name change from wif->keys
+        if "wif" in kwargs and "keys" not in kwargs:
+            kwargs["keys"] = kwargs["wif"]
 
+        if "keys" in kwargs:
+            self.wallet = Wallet(self.rpc, keys=kwargs["keys"])
+        else:
+            self.wallet = Wallet(self.rpc)
+
+    def _connect(self,
+                 node="",
+                 rpcuser="",
+                 rpcpassword="",
+                 **kwargs):
+        """ Connect to Steem network (internal use only)
+        """
         if not node:
             if "node" in config:
                 node = config["node"]
@@ -435,7 +465,8 @@ class Steem(object):
              permlink=None,
              meta={},
              reply_identifier=None,
-             category=""):
+             category=None,
+             tags=[]):
         """ New post
 
             :param str title: Title of the reply post
@@ -447,10 +478,14 @@ class Steem(object):
                               post.
             :param str reply_identifier: Identifier of the post to reply to. Takes the
                                          form ``@author/permlink``
-            :param str category: Allows to define a category for new posts.
-                                 It is highly recommended to provide a
-                                 category as posts end up in ``spam``
-                                 otherwise.
+            :param str category: (deprecated, see ``tags``) Allows to
+                define a category for new posts.  It is highly recommended
+                to provide a category as posts end up in ``spam`` otherwise.
+                If no category is provided but ``tags``, then the first tag
+                will be used as category
+            :param array tags: The tags to flag the post with. If no
+                category is used, then the first tag will be used as
+                category
         """
 
         if not author and config["default_author"]:
@@ -460,6 +495,24 @@ class Steem(object):
             raise ValueError(
                 "Please define an author. (Try 'piston set default_author'"
             )
+
+        if not isinstance(meta, dict):
+            try:
+                meta = json.loads(meta)
+            except:
+                meta = {}
+        if isinstance(tags, str):
+            tags = list(filter(None, (re.split("[\W_]", tags))))
+        if not category and tags:
+            # extract the first tag
+            category = tags[0]
+            tags = list(set(tags))
+            # do not use the first tag in tags
+            meta.update({"tags": tags[1:]})
+        else:
+            # store everything in tags
+            tags = list(set(tags))
+            meta.update({"tags": tags})
 
         if reply_identifier and not category:
             parent_author, parent_permlink = resolveIdentifier(reply_identifier)
@@ -643,9 +696,9 @@ class Steem(object):
                 "Call incomplete! Provide either a password or public keys!"
             )
 
-        owner   = format(posting_pubkey, prefix)
+        owner   = format(owner_pubkey, prefix)
         active  = format(active_pubkey, prefix)
-        posting = format(owner_pubkey, prefix)
+        posting = format(posting_pubkey, prefix)
         memo    = format(memo_pubkey, prefix)
 
         owner_key_authority = [[owner, 1]]
@@ -791,6 +844,33 @@ class Steem(object):
         wif = self.wallet.getActiveKeyForAccount(account)
         return self.executeOp(op, wif)
 
+    def convert(self, amount, account=None, requestid=None):
+        """ Convert SteemDollars to Steem (takes one week to settle)
+
+            :param float amount: number of VESTS to withdraw over a period of 104 weeks
+            :param str account: (optional) the source account for the transfer if not ``default_account``
+        """
+        if not account and "default_account" in config:
+            account = config["default_account"]
+        if not account:
+            raise ValueError("You need to provide an account")
+
+        if requestid:
+            requestid = int(requestid)
+        else:
+            requestid = random.getrandbits(32)
+        op = transactions.Convert(
+            **{"owner": account,
+               "requestid": requestid,
+               "amount": '{:.{prec}f} {asset}'.format(
+                   float(amount),
+                   prec=3,
+                   asset="SBD"
+               )}
+        )
+        wif = self.wallet.getActiveKeyForAccount(account)
+        return self.executeOp(op, wif)
+
     def get_content(self, identifier):
         """ Get the full content of a post.
 
@@ -929,44 +1009,19 @@ class Steem(object):
             "sbd_balance": a["sbd_balance"]
         }
 
-    def get_account_history(self, account, end=100, limit=100, only_ops=[]):
-        """ Returns the transaction history of an account
-
-            :param str account: account name to get history for
-            :param int end: sequence number of the last transaction to return
-            :param int limit: limit number of transactions to return
-            :param array only_ops: Limit generator by these operations
+    def decode_memo(self, enc_memo, account):
+        """ Try to decode an encrypted memo
         """
-        r = []
-        for op in self.loop_account_history(account, end, limit, only_ops):
-            r.append(op)
-        return r
-
-    def loop_account_history(self, account, end=100, limit=100, only_ops=[]):
-        """ Returns a generator for individual account transactions
-
-            :param str account: account name to get history for
-            :param int end: sequence number of the last transaction to return
-            :param int limit: limit number of transactions to return
-            :param array only_ops: Limit generator by these operations
-        """
-        cnt = 0
-        if end < limit:
-            limit = end
-        if limit > 100:
-            _limit = 100
-        else:
-            _limit = limit
-        while (cnt < limit) and end >= limit:
-
-            txs = self.rpc.get_account_history(account, end, _limit)
-            for i in txs:
-                if not only_ops or i[1]["op"][0] in only_ops:
-                    cnt += 1
-                    yield i
-                if cnt > limit:
-                    break
-            end = txs[0][0] - 1  # new end
+        assert enc_memo[0] == "#", "decode memo requires memos to start with '#'"
+        keys = memo.involved_keys(enc_memo)
+        wif = None
+        for key in keys:
+            wif = self.wallet.getPrivateKeyForPublicKey(str(key))
+            if wif:
+                break
+        if not wif:
+            raise MissingKeyError
+        return memo.decode_memo(PrivateKey(wif), enc_memo)
 
     def stream_comments(self, *args, **kwargs):
         """ Generator that yields posts when they come in
@@ -1004,7 +1059,7 @@ class Steem(object):
             specified weights.
 
             :param str to: Recipient of the vesting withdrawal
-            :param floag percentage: The percent of the withdraw to go
+            :param float percentage: The percent of the withdraw to go
                 to the 'to' account.
             :param str account: (optional) the vesting account
             :param bool auto_vest: Set to true if the from account
@@ -1026,3 +1081,189 @@ class Steem(object):
         )
         wif = self.wallet.getActiveKeyForAccount(account)
         return self.executeOp(op, wif)
+
+    def allow(self, foreign, weight=None, permission="posting", account=None):
+        """ Give additional access to an account by some other public
+            key or account.
+
+            :param str foreign: The foreign account that will obtain access
+            :param int weight: (optional) The weight to use. If not
+                define, the threshold will be used. If the weight is
+                smaller than the threshold, additional signatures will
+                be required. (defaults to threshold)
+            :param str permission: (optional) The actual permission to
+                modify (defaults to ``posting``)
+            :param str account: (optional) the account to allow access
+                to (defaults to ``default_author``)
+        """
+        if not account:
+            if "default_author" in config:
+                account = config["default_author"]
+        if not account:
+            raise ValueError("You need to provide an account")
+
+        if permission not in ["owner", "posting", "active"]:
+            raise ValueError(
+                "Permission needs to be either 'owner', 'posting', or 'active"
+            )
+        account = self.rpc.get_account(account)
+
+        if not weight:
+            weight = account[permission]["weight_threshold"]
+
+        authority = account[permission]
+        try:
+            pubkey = PublicKey(foreign)
+            authority["key_auths"].append([
+                str(pubkey),
+                weight
+            ])
+        except:
+            try:
+                foreign_account = self.rpc.get_account(foreign)
+                authority["account_auths"].append([
+                    foreign_account["name"],
+                    weight
+                ])
+            except:
+                raise ValueError(
+                    "Unknown foreign account or unvalid public key"
+                )
+
+        op = transactions.Account_update(
+            **{"account": account["name"],
+                permission: authority,
+                "memo_key": account["memo_key"],
+                "json_metadata": account["json_metadata"]}
+        )
+        if permission == "owner":
+            wif = self.wallet.getOwnerKeyForAccount(account["name"])
+        else:
+            wif = self.wallet.getActiveKeyForAccount(account["name"])
+        return self.executeOp(op, wif)
+
+    def disallow(self, foreign, permission="posting", account=None):
+        """ Remove additional access to an account by some other public
+            key or account.
+
+            :param str foreign: The foreign account that will obtain access
+            :param str permission: (optional) The actual permission to
+                modify (defaults to ``posting``)
+            :param str account: (optional) the account to allow access
+                to (defaults to ``default_author``)
+        """
+        if not account:
+            if "default_author" in config:
+                account = config["default_author"]
+        if not account:
+            raise ValueError("You need to provide an account")
+
+        if permission not in ["owner", "posting", "active"]:
+            raise ValueError(
+                "Permission needs to be either 'owner', 'posting', or 'active"
+            )
+        account = self.rpc.get_account(account)
+
+        authority = account[permission]
+
+        try:
+            pubkey = PublicKey(foreign)
+            authority["key_auths"] = list(filter(
+                lambda x: x[0] != str(pubkey),
+                authority["key_auths"]
+            ))
+        except:
+            try:
+                foreign_account = self.rpc.get_account(foreign)
+                authority["account_auths"] = list(filter(
+                    lambda x: x[0] != foreign_account["name"],
+                    authority["account_auths"]
+                ))
+            except:
+                raise ValueError(
+                    "Unknown foreign account or unvalid public key"
+                )
+
+        op = transactions.Account_update(
+            **{"account": account["name"],
+                permission: authority,
+                "memo_key": account["memo_key"],
+                "json_metadata": account["json_metadata"]}
+        )
+        if permission == "owner":
+            wif = self.wallet.getOwnerKeyForAccount(account["name"])
+        else:
+            wif = self.wallet.getActiveKeyForAccount(account["name"])
+        return self.executeOp(op, wif)
+
+
+class SteemConnector(object):
+
+    #: The static steem connection
+    steem = None
+
+    def __init__(self, *args, **kwargs):
+        """ This class is a singelton and makes sure that only one
+            connection to the Steem node is established and shared among
+            flask threads.
+        """
+        if not SteemConnector.steem:
+            self.connect(*args, **kwargs)
+
+    def getSteem(self):
+        return SteemConnector.steem
+
+    def connect(self, *args, **kwargs):
+        log.debug("trying to connect to %s" % config["node"])
+        try:
+            SteemConnector.steem = Steem(*args, **kwargs)
+        except:
+            print("=" * 80)
+            print(
+                "No connection to %s could be established!\n" % config["node"] +
+                "Please try again later, or select another node via:\n"
+                "    piston node wss://example.com"
+            )
+            print("=" * 80)
+            exit(1)
+
+
+class PistonExchangeConfig():
+    witness_url           = config["node"]
+    witness_user          = config["rpcuser"]
+    witness_password      = config["rpcpassword"]
+    account               = config["default_author"]
+    wif                   = None
+
+
+class SteemExchange(SteemLibExchange):
+    def __init__(self, *args, account, **kwargs):
+        # Connect to RPC so that we can properly use the piston wallet
+        Steem._connect(self, *args, **kwargs)
+
+        # Obtain a new Configuration object
+        ex_config = PistonExchangeConfig
+        if "keys" in kwargs:
+            self.wallet = Wallet(self.rpc, wif=kwargs["keys"])
+        else:
+            self.wallet = Wallet(self.rpc)
+
+        # Delete the rpc attribute so that we don't connect to a wallet
+        self.rpc = None
+
+        if not account:
+            if "default_account" in config:
+                account = config["default_account"]
+        if not account:
+            raise ValueError("You need to provide an account")
+
+        # Obtain the private key
+        ex_config.wif = self.wallet.getActiveKeyForAccount(account)
+
+        # Instead of re-implementing SteemExchange we use inheritance
+        # and accept that the module opens up a second RPC connection on
+        # it's own (for now)
+        super(SteemExchange, self).__init__(
+            ex_config,
+            safe_mode=True,
+        )

@@ -109,7 +109,7 @@ def formatTimeString(t) :
     return datetime.strptime(t, '%Y-%m-%dT%H:%M:%S')
 
 
-def strfage(time, fmt):
+def strfage(time, fmt=None):
     """ Format time/age
     """
     if not hasattr(time, "days"):  # dirty hack

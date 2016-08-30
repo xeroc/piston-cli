@@ -2,12 +2,11 @@ from .steem import Steem
 from .web_app import socketio as io
 from .storage import configStorage as config
 from flask_socketio import send, emit
-from .web_steem import WebSteem
-from .steem import Post
+from .steem import Post, SteemConnector
 import traceback
 import logging
 log = logging.getLogger(__name__)
-steem = WebSteem().getSteem()
+steem = SteemConnector().getSteem()
 
 
 def success(msg):

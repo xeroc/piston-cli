@@ -48,15 +48,6 @@ class WifPrivateKey(object):
             raise ValidationError(self.message)
 
 
-class PostCategory(object):
-    def __init__(self, message="Category may not contain spaces"):
-        self.message = message
-
-    def __call__(self, form, field):
-        if(re.search("[\t\n\v\f\r ]", field.data)):
-            raise ValidationError(self.message)
-
-
 validators = {
     'postText': [
         Required(),
@@ -66,7 +57,6 @@ validators = {
     ],
     'postCategory': [
         Required(),
-        PostCategory()
     ],
     'wif' : [
         Required(),
@@ -80,12 +70,18 @@ validators = {
 
 
 class NewPostForm(Form):
-    reply = HiddenField()
     category = TextField(
         "Tags",
         validators['postCategory'],
         render_kw={"id": "tokenfield"},
     )
+    title = TextField("Title", validators['postText'])
+    body = TextAreaField('Body', validators['postText'])
+    Submit = SubmitField("Post")
+
+
+class NewReplyForm(Form):
+    reply = HiddenField()
     title = TextField("Title", validators['postText'])
     body = TextAreaField('Body', validators['postText'])
     Submit = SubmitField("Post")

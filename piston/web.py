@@ -2,11 +2,11 @@ import re
 from .utils import strfdelta, strfage
 from .storage import configStorage as configStore
 from .web_app import app, socketio
-from .web_steem import WebSteem
+from .steem import SteemConnector
 from . import web_views, web_assets, web_socketio
 import logging
 log = logging.getLogger(__name__)
-steem = WebSteem().getSteem()
+steem = SteemConnector().getSteem()
 
 
 @app.template_filter('age')
