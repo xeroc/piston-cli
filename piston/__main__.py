@@ -604,6 +604,11 @@ def main() :
         help='Limit number of entries'
     )
     parser_history.add_argument(
+        '--memos',
+        action='store_true',
+        help='Show (decode) memos'
+    )
+    parser_history.add_argument(
         '--first',
         type=int,
         default=99999999999999,
@@ -1111,7 +1116,7 @@ def main() :
                     b[0],
                     "%s (%s)" % (b[1]["timestamp"], b[1]["block"]),
                     b[1]["op"][0],
-                    format_operation_details(b[1]["op"]),
+                    format_operation_details(b[1]["op"], memos=args.memos),
                 ])
         print(t)
 

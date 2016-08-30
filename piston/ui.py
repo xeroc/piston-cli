@@ -6,6 +6,7 @@ import frontmatter
 import re
 from .storage import configStorage as config
 from .utils import constructIdentifier
+from .steem import SteemConnector
 
 # For recursive display of a discussion thread (--comments + --parents)
 currentThreadDepth = 0
@@ -269,7 +270,7 @@ def dump_recursive_comments(rpc,
             dump_recursive_comments(rpc, post["author"], post["permlink"], depth + 1)
 
 
-def format_operation_details(op):
+def format_operation_details(op, memos=False):
     if op[0] == "vote":
         return "%s: %s" % (
             op[1]["voter"],
@@ -281,12 +282,20 @@ def format_operation_details(op):
             constructIdentifier(op[1]["author"], op[1]["permlink"])
         )
     if op[0] == "transfer":
-        return "%s -> %s %s (%s)" % (
+        str_ = "%s -> %s %s" % (
             op[1]["from"],
             op[1]["to"],
             op[1]["amount"],
-            op[1]["memo"],
         )
+
+        if memos:
+            memo = op[1]["memo"]
+            if len(memo) > 0 and memo[0] == "#":
+                steem = SteemConnector().getSteem()
+                # memo = steem.decode_memo(memo, op[1]["from"])
+                memo = steem.decode_memo(memo, op)
+            str_ += " (%s)" % memo
+        return str_
     else:
         return json.dumps(op[1])
 

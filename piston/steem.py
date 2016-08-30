@@ -4,6 +4,7 @@ import string
 import random
 from steemapi.steemclient import SteemNodeRPC
 from steembase.account import PrivateKey, PublicKey, Address
+from steembase import memo
 import steembase.transactions as transactions
 from .utils import (
     resolveIdentifier,
@@ -1007,6 +1008,20 @@ class Steem(object):
             "vesting_shares_steem" : vesting_shares_steem,
             "sbd_balance": a["sbd_balance"]
         }
+
+    def decode_memo(self, enc_memo, account):
+        """ Try to decode an encrypted memo
+        """
+        assert enc_memo[0] == "#", "decode memo requires memos to start with '#'"
+        keys = memo.involved_keys(enc_memo)
+        wif = None
+        for key in keys:
+            wif = self.wallet.getPrivateKeyForPublicKey(str(key))
+            if wif:
+                break
+        if not wif:
+            raise MissingKeyError
+        return memo.decode_memo(PrivateKey(wif), enc_memo)
 
     def stream_comments(self, *args, **kwargs):
         """ Generator that yields posts when they come in
