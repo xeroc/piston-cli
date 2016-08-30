@@ -645,6 +645,65 @@ def main() :
     )
 
     """
+        Command "allow"
+    """
+    parser_allow = subparsers.add_parser('allow', help='Allow an account/key to interact with your account')
+    parser_allow.set_defaults(command="allow")
+    parser_allow.add_argument(
+        '--account',
+        type=str,
+        nargs="?",
+        default=config["default_author"],
+        help='The account to allow action for'
+    )
+    parser_allow.add_argument(
+        'foreign_account',
+        type=str,
+        help='The account or key that will be allowed to interact as your account'
+    )
+    parser_allow.add_argument(
+        '--permission',
+        type=str,
+        default="posting",
+        choices=["owner", "posting", "active"],
+        help=('The permission to grant (defaults to "posting")')
+    )
+    parser_allow.add_argument(
+        '--weight',
+        type=int,
+        default=None,
+        help=('The weight to use instead of the (full) threshold. '
+              'If the weight is smaller than the threshold, '
+              'additional signatures are required')
+    )
+
+    """
+        Command "disallow"
+    """
+    parser_disallow = subparsers.add_parser('disallow', help='Remove allowance an account/key to interact with your account')
+    parser_disallow.set_defaults(command="disallow")
+    parser_disallow.add_argument(
+        '--account',
+        type=str,
+        nargs="?",
+        default=config["default_author"],
+        help='The account to disallow action for'
+    )
+    parser_disallow.add_argument(
+        'foreign_account',
+        type=str,
+        help='The account or key whose allowance to interact as your account will be removed'
+    )
+    parser_disallow.add_argument(
+        '--permission',
+        type=str,
+        default="posting",
+        choices=["owner", "posting", "active"],
+        help=('The permission to remove (defaults to "posting")')
+    )
+
+
+    """
         Command "web"
     """
     webconfig = subparsers.add_parser('web', help='Launch web version of piston')
@@ -1082,6 +1141,21 @@ def main() :
     elif args.command == "permissions":
         account = steem.rpc.get_account(args.account)
         print_permissions(account)
+
+    elif args.command == "allow":
+        pprint(steem.allow(
+            args.foreign_account,
+            weight=args.weight,
+            account=args.account,
+            permission=args.permission
+        ))
+
+    elif args.command == "disallow":
+        pprint(steem.disallow(
+            args.foreign_account,
+            account=args.account,
+            permission=args.permission
+        ))
 
     elif args.command == "web":
         from .web_steem import WebSteem

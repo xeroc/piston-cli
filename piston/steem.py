@@ -1044,7 +1044,7 @@ class Steem(object):
             specified weights.
 
             :param str to: Recipient of the vesting withdrawal
-            :param floag percentage: The percent of the withdraw to go
+            :param float percentage: The percent of the withdraw to go
                 to the 'to' account.
             :param str account: (optional) the vesting account
             :param bool auto_vest: Set to true if the from account
@@ -1065,6 +1065,120 @@ class Steem(object):
                }
         )
         wif = self.wallet.getActiveKeyForAccount(account)
+        return self.executeOp(op, wif)
+
+    def allow(self, foreign, weight=None, permission="posting", account=None):
+        """ Give additional access to an account by some other public
+            key or account.
+
+            :param str foreign: The foreign account that will obtain access
+            :param int weight: (optional) The weight to use. If not
+                define, the threshold will be used. If the weight is
+                smaller than the threshold, additional signatures will
+                be required. (defaults to threshold)
+            :param str permission: (optional) The actual permission to
+                modify (defaults to ``posting``)
+            :param str account: (optional) the account to allow access
+                to (defaults to ``default_author``)
+        """
+        if not account:
+            if "default_author" in config:
+                account = config["default_author"]
+        if not account:
+            raise ValueError("You need to provide an account")
+
+        if permission not in ["owner", "posting", "active"]:
+            raise ValueError(
+                "Permission needs to be either 'owner', 'posting', or 'active"
+            )
+        account = self.rpc.get_account(account)
+
+        if not weight:
+            weight = account[permission]["weight_threshold"]
+
+        authority = account[permission]
+        try:
+            pubkey = PublicKey(foreign)
+            authority["key_auths"].append([
+                str(pubkey),
+                weight
+            ])
+        except:
+            try:
+                foreign_account = self.rpc.get_account(foreign)
+                authority["account_auths"].append([
+                    foreign_account["name"],
+                    weight
+                ])
+            except:
+                raise ValueError(
+                    "Unknown foreign account or unvalid public key"
+                )
+
+        op = transactions.Account_update(
+            **{"account": account["name"],
+                permission: authority,
+                "memo_key": account["memo_key"],
+                "json_metadata": account["json_metadata"]}
+        )
+        if permission == "owner":
+            wif = self.wallet.getOwnerKeyForAccount(account["name"])
+        else:
+            wif = self.wallet.getActiveKeyForAccount(account["name"])
+        return self.executeOp(op, wif)
+
+    def disallow(self, foreign, permission="posting", account=None):
+        """ Remove additional access to an account by some other public
+            key or account.
+
+            :param str foreign: The foreign account that will obtain access
+            :param str permission: (optional) The actual permission to
+                modify (defaults to ``posting``)
+            :param str account: (optional) the account to allow access
+                to (defaults to ``default_author``)
+        """
+        if not account:
+            if "default_author" in config:
+                account = config["default_author"]
+        if not account:
+            raise ValueError("You need to provide an account")
+
+        if permission not in ["owner", "posting", "active"]:
+            raise ValueError(
+                "Permission needs to be either 'owner', 'posting', or 'active"
+            )
+        account = self.rpc.get_account(account)
+
+        authority = account[permission]
+
+        try:
+            pubkey = PublicKey(foreign)
+            authority["key_auths"] = list(filter(
+                lambda x: x[0] != str(pubkey),
+                authority["key_auths"]
+            ))
+        except:
+            try:
+                foreign_account = self.rpc.get_account(foreign)
+                authority["account_auths"] = list(filter(
+                    lambda x: x[0] != foreign_account["name"],
+                    authority["account_auths"]
+                ))
+            except:
+                raise ValueError(
+                    "Unknown foreign account or unvalid public key"
+                )
+
+        op = transactions.Account_update(
+            **{"account": account["name"],
+                permission: authority,
+                "memo_key": account["memo_key"],
+                "json_metadata": account["json_metadata"]}
+        )
+        if permission == "owner":
+            wif = self.wallet.getOwnerKeyForAccount(account["name"])
+        else:
+            wif = self.wallet.getActiveKeyForAccount(account["name"])
         return self.executeOp(op, wif)
 
 
