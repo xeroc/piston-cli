@@ -19,7 +19,8 @@ from .ui import (
     list_posts,
     markdownify,
     format_operation_details,
-    confirm
+    confirm,
+    print_permissions
 )
 from .steem import Steem, Post
 import frontmatter
@@ -631,6 +632,19 @@ def main() :
     )
 
     """
+        Command "permissions"
+    """
+    parser_permissions = subparsers.add_parser('permissions', help='Show permissions of an account')
+    parser_permissions.set_defaults(command="permissions")
+    parser_permissions.add_argument(
+        'account',
+        type=str,
+        nargs="?",
+        default=config["default_author"],
+        help='Account to show permissions for'
+    )
+
+    """
         Command "web"
     """
     webconfig = subparsers.add_parser('web', help='Launch web version of piston')
@@ -1065,6 +1079,10 @@ def main() :
             ])
         print(t)
 
+    elif args.command == "permissions":
+        account = steem.rpc.get_account(args.account)
+        print_permissions(account)
+
     elif args.command == "web":
         from .web_steem import WebSteem
         # WebSteem is a static class that ensures that
@@ -1075,6 +1093,7 @@ def main() :
                  args.nobroadcast)
         from . import web
         web.run(port=args.port, host=args.host)
+
 
     else:
         print("No valid command given")

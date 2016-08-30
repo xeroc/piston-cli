@@ -1,6 +1,6 @@
 import sys
 import json
-from prettytable import PrettyTable
+from prettytable import PrettyTable, ALL as allBorders
 from textwrap import fill, TextWrapper
 import frontmatter
 import re
@@ -320,3 +320,19 @@ def confirm(question, default="yes"):
         else:
             sys.stdout.write("Please respond with 'yes' or 'no' "
                              "(or 'y' or 'n').\n")
+
+
+def print_permissions(account):
+    t = PrettyTable(["Permission", "Threshold", "Key/Account"], hrules=allBorders)
+    t.align = "r"
+    for permission in ["owner", "active", "posting"]:
+        auths = []
+        for type_ in ["account_auths", "key_auths"]:
+            for authority in account[permission][type_]:
+                auths.append("%s (%d)" % (authority[0], authority[1]))
+        t.add_row([
+            permission,
+            account[permission]["weight_threshold"],
+            "\n".join(auths),
+        ])
+    print(t)
