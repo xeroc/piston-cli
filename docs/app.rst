@@ -7,9 +7,8 @@ Swiss army knife for interacting with the STEEM blockchain.
 Quickstart
 ##########
 
-You can start using piston by going throug out Steem hosted quickstart guide. Just run
-
-::
+You can start using piston by going throug out Steem hosted quickstart
+guide. Just run::
 
     piston read @xeroc/piston-cli-quickstart
 
@@ -20,9 +19,7 @@ Adding keys (for posting)
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Piston comes with its own encrypted wallet to which keys need to be
-added:
-
-::
+added:::
 
     piston addkey <posting-wif-key>
 
@@ -35,14 +32,12 @@ local user.
 List available Keys and accounts
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-::
+You can list the installed keys using:::
 
     piston listkeys
 
 This command will give the list of public keys to which the private keys
-are available.
-
-::
+are available.::
 
     piston listaccounts
 
@@ -52,17 +47,13 @@ registered on the network (experimental).
 Configuration
 ~~~~~~~~~~~~~
 
-``piston`` comes with its owne configuration:
-
-::
+``piston`` comes with its owne configuration:::
 
     piston set default_voter <account-name>
     piston set default_author <account-name>
 
 All configuration variables are provided with ``piston set --help``
-You can see your local configuration by calling
-
-::
+You can see your local configuration by calling::
 
     piston config
 
@@ -70,15 +61,11 @@ Listing
 ~~~~~~~
 
 ``piston`` can list, sort, and filter for posts on the STEEM blockchain.
-You can read about the parameters by
-
-::
+You can read about the parameters by::
 
     piston list --help
 
-Example:
-
-::
+Example:::
 
     $ piston list --limit 3 --sort payout
     +----------------------------------------+------------------------------------------------+----------+---------+------------------+---------------+
@@ -93,9 +80,7 @@ Reading
 ~~~~~~~
 
 The subcommand ``read`` allows to read posts and replies from STEEM by
-providing the post *identifier*. The identifier takes the form
-
-::
+providing the post *identifier*. The identifier takes the form::
 
     @author/permlink
 
@@ -105,9 +90,7 @@ The subcommands takes the optional parameters:
 -  ``--comments``: to show all comments and replies made to that post
 -  ``--parents x``: Show ``x`` parent posts
 
-See examples:
-
-::
+See examples:::
 
     $ piston read "@xeroc/piston-readme"
 
@@ -140,15 +123,11 @@ See examples:
 Categories
 ~~~~~~~~~~
 
-Existing categories can be listed via:
-
-::
+Existing categories can be listed via:::
 
     piston categories --limit 10
 
-Please see the corresponding help page for further options:
-
-::
+Please see the corresponding help page for further options:::
 
     piston categories --help
 
@@ -164,17 +143,13 @@ To post new content, you need to provide
 For posting the "posting-key" of the author needs to be added to the
 wallet.
 
-Additionally, a ``--category`` can be added as well.
-
-::
+Additionally, a ``--category`` can be added as well.::
 
     echo "Texts" | piston post --author "<author>" --category "<category>" --title "<posttitle>" --permlink "<permlink>"
     cat filename | piston post --author "<author>" --category "<category>" --title "<posttitle>" --permlink "<permlink>"
 
 If you want to provide mulitple tags to your post, you can add it to the
-frontmatter like this:
-
-::
+frontmatter like this:::
 
    ---
    author: ......
@@ -192,22 +167,16 @@ Replying
 Here, the same parameters as for simply posting new content are
 available except that instead of ``--category`` a ``replyto`` has to be
 provided to identify the post that you want the reply to be posted to.
-The ``replyto`` parameter takes the following form:
-
-::
+The ``replyto`` parameter takes the following form:::
 
     @author/permlink
 
-E.g:
-
-::
+E.g:::
 
     echo "Texts" | piston reply --file - "@xeroc/python-steem-0.1.1" --author "<author>"
     cat filename | piston reply --file - "@xeroc/python-steem-0.1.1" --author "<author>"
 
-If you want to use your favorit ``EDITOR``, you can do this by:
-
-::
+If you want to use your favorit ``EDITOR``, you can do this by:::
 
     piston reply "@xeroc/python-steem-0.1.1"
 
@@ -215,9 +184,7 @@ Editing
 ~~~~~~~
 
 With piston, you can edit your own posts with your favorite text editor
-(as defined in the environmental variable ``EDITOR``):
-
-::
+(as defined in the environmental variable ``EDITOR``):::
 
     $ piston "@xeroc/edit-test" 
     $ EDITOR="nano" piston "@xeroc/edit-test" 
@@ -229,16 +196,12 @@ Voting
 ~~~~~~
 
 With ``piston``, you can up-/downvote any post with your installed
-accounts:
-
-::
+accounts:::
 
     piston upvote --voter <voter> <identifier>
     piston downvote --voter <voter> <identifier>
 
-providing the post *identifier*. The identifier takes the form
-
-::
+providing the post *identifier*. The identifier takes the form::
 
     @author/permlink
 
@@ -248,9 +211,7 @@ You can further define the weight (default 100%) manually with
 Replies
 ~~~~~~~
 
-``piston`` can show replies to posts made by any author:
-
-::
+``piston`` can show replies to posts made by any author:::
 
     piston replies --author xeroc
 
@@ -260,9 +221,7 @@ If ``--author`` is not provided, the *default* author as defined with
 Transfer Steem
 ~~~~~~~~~~~~~~
 
-STEEM can be transfered via
-
-::
+STEEM can be transfered via::
 
     piston transfer receipient "100.000 STEEM"
 
@@ -272,9 +231,7 @@ If ``--author`` is not provided, the *default* account as defined with
 Powerup/Powerdown
 ~~~~~~~~~~~~~~~~~
 
-You can powerup/down your account with piston using:
-
-::
+You can powerup/down your account with piston using:::
 
     piston powerup "100 STEEM"
     piston powerdown "10000 VESTS"
@@ -287,26 +244,82 @@ To route your powerdows to another account automatically, you can use
 
    piston powerdownroute -h
 
+Convert
+~~~~~~~
+
+This method allows to convert SteemDollar to STEEM using the internal convertion
+rate after 1 week. Note, that when you convert, you will obtain the
+corresponding amount of STEEM only after waiting 1 week. ::
+
+    piston convert --account <account>
+
+
 Balances
 ~~~~~~~~
 
-Get an account's balance with
-
-::
+Get an account's balance with::
 
     piston balance <account>
 
 If ``<account>`` is not provided, the *default* account will be taken.
 
+Interest
+~~~~~~~~
+
+SteemDollar pay interest. You can see the details for any account using:::
+
+    piston interest <account>
+
 History
 ~~~~~~~
 
-You can get an accounts history by using
-
-::
+You can get an accounts history by using::
 
     piston history <account>
 
 Furthermore you can filter by ``types`` and limit the result by
 transaction numer. More information can be found by calling ``piston
-history -h`.
+history -h``.
+
+
+Permissions
+~~~~~~~~~~~
+
+Any account permission can be inspected using::
+
+    piston permissions [<account>]
+
+The take the following form::
+
+    +------------+-----------+-----------------------------------------------------------+
+    | Permission | Threshold |                                               Key/Account |
+    +------------+-----------+-----------------------------------------------------------+
+    |      owner |         2 |                                                fabian (1) |
+    |            |           | STM7mgtsF5XPU9tokFpEz2zN9sQ89oAcRfcaSkZLsiqfWMtRDNKkc (1) |
+    +------------+-----------+-----------------------------------------------------------+
+    |     active |         1 | STM6quoHiVnmiDEXyz4fAsrNd28G6q7qBCitWbZGo4pTfQn8SwkzD (1) |
+    +------------+-----------+-----------------------------------------------------------+
+    |    posting |         1 |                                             streemian (1) |
+    |            |           | STM6xpuUdyoRkRJ1GQmrHeNiVC3KGadjrBayo25HaTyBxBCQNwG3j (1) |
+    |            |           | STM8aJtoKdTsrRrWg3PB9XsbsCgZbVeDhQS3VUM1jkcXfVSjbv4T8 (1) |
+    +------------+-----------+-----------------------------------------------------------+
+
+The permissions are either **owner** (full control over the account),
+**active** (full control, except for changing the owner), and
+**posting** (for posting and voting). The keys can either be a public
+key or another account name while the number behind shows the weight of
+the entry. If the weight is smaller than the threshold, a single
+signature will not suffice to validate a transaction
+
+Allow/Disallow
+~~~~~~~~~~~~~~
+
+Permissions can be changed using:::
+
+    piston allow --account <account> --weight 1 <foreign_account>
+    piston disallow --permission <foreign_account>
+
+More details and the default parameters can be found via:::
+
+    piston allow --help
+    piston disallow --help
