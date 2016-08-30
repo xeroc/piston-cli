@@ -22,7 +22,7 @@ from .ui import (
     confirm,
     print_permissions
 )
-from .steem import Steem, Post
+from .steem import Steem, Post, SteemConnector
 import frontmatter
 import time
 from prettytable import PrettyTable
@@ -31,7 +31,6 @@ import logging
 log = logging.getLogger("piston")
 log.setLevel(logging.WARNING)
 log.addHandler(logging.StreamHandler())
-
 
 availableConfigurationKeys = [
     "default_author",
@@ -702,7 +701,6 @@ def main() :
         help=('The permission to remove (defaults to "posting")')
     )
 
-
     """
         Command "web"
     """
@@ -772,7 +770,7 @@ def main() :
         ""]
     if args.command not in rpc_not_required and args.command:
         if args.nowallet:
-            steem = Steem(
+            steem = SteemConnector(
                 node=args.node,
                 rpcuser=args.rpcuser,
                 rpcpassword=args.rpcpassword,
@@ -780,12 +778,12 @@ def main() :
                 wif=[],  # preload wallet with empty keys
             )
         else:
-            steem = Steem(
+            steem = SteemConnector(
                 node=args.node,
                 rpcuser=args.rpcuser,
                 rpcpassword=args.rpcpassword,
                 nobroadcast=args.nobroadcast,
-            )
+            ).getSteem()
 
     if args.command == "set":
         if (args.key in ["default_author",
@@ -1158,16 +1156,13 @@ def main() :
         ))
 
     elif args.command == "web":
-        from .web_steem import WebSteem
-        # WebSteem is a static class that ensures that
-        # the steem connection is a singelton
-        WebSteem(args.node,
-                 args.rpcuser,
-                 args.rpcpassword,
-                 args.nobroadcast)
+        SteemConnector(node=args.node,
+                       rpcuser=args.rpcuser,
+                       rpcpassword=args.rpcpassword,
+                       nobroadcast=args.nobroadcast,
+                       num_retries=1)
         from . import web
         web.run(port=args.port, host=args.host)
-
 
     else:
         print("No valid command given")

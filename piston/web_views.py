@@ -10,15 +10,14 @@ from flask import (
     abort
 )
 from .utils import resolveIdentifier
-from .steem import Post
+from .steem import Post, SteemConnector
 from .web_app import app
-from .web_steem import WebSteem
 from .storage import configStorage as configStore
 from . import web_forms
 from textwrap import indent
 import logging
 log = logging.getLogger(__name__)
-steem = WebSteem().getSteem()
+steem = SteemConnector().getSteem()
 
 
 @app.context_processor
@@ -303,7 +302,7 @@ def settings():
         configStore["rpcpass"] = settingsForm.rpcpass.data
         configStore["web:port"] = settingsForm.webport.data
         if settingsForm.node.data != oldSteemUrl:
-            steem = WebSteem().connect()
+            steem = SteemConnector().connect()
 
     return render_template('settings.html', **locals())
 
