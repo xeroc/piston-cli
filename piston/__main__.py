@@ -119,8 +119,14 @@ def main() :
     """
         Command "config"
     """
-    configconfig = subparsers.add_parser('config', help='show local configuration')
+    configconfig = subparsers.add_parser('config', help='Show local configuration')
     configconfig.set_defaults(command="config")
+
+    """
+        Command "info"
+    """
+    parser_info = subparsers.add_parser('info', help='Show infos about piston and Steem')
+    parser_info.set_defaults(command="info")
 
     """
         Command "changewalletpassphrase"
@@ -837,6 +843,25 @@ def main() :
         for key in config:
             if key in availableConfigurationKeys:  # hide internal config data
                 t.add_row([key, config[key]])
+        print(t)
+
+    elif args.command == "info":
+        t = PrettyTable(["Key", "Value"])
+        t.align = "l"
+        info = steem.rpc.get_dynamic_global_properties()
+        median_price = steem.rpc.get_current_median_history_price()
+        steem_per_mvest = (
+            float(info["total_vesting_fund_steem"].split(" ")[0]) /
+            (float(info["total_vesting_shares"].split(" ")[0]) / 1e6)
+        )
+        price = (
+            float(median_price["base"].split(" ")[0]) /
+            float(median_price["quote"].split(" ")[0])
+        )
+        for key in info:
+            t.add_row([key, info[key]])
+        t.add_row(["steem per mvest", steem_per_mvest])
+        t.add_row(["internal price", price])
         print(t)
 
     elif args.command == "changewalletpassphrase":
