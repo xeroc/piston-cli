@@ -495,7 +495,7 @@ def main() :
     parser_powerup.add_argument(
         'amount',
         type=str,
-        help='Amount to powerup including asset (e.g.: 100.000 STEEM)'
+        help='Amount of VESTS to powerup'
     )
     parser_powerup.add_argument(
         '--account',
@@ -520,7 +520,7 @@ def main() :
     parser_powerdown.add_argument(
         'amount',
         type=str,
-        help='Amount to powerdown including asset (e.g.: 100.000 VESTS)'
+        help='Amount of VESTS to powerdown'
     )
     parser_powerdown.add_argument(
         '--account',
