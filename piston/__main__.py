@@ -680,6 +680,13 @@ def main() :
               'If the weight is smaller than the threshold, '
               'additional signatures are required')
     )
+    parser_allow.add_argument(
+        '--threshold',
+        type=int,
+        default=None,
+        help=('The permission\'s threshold that needs to be reached '
+              'by signatures to be able to interact')
+    )
 
     """
         Command "disallow"
@@ -704,6 +711,13 @@ def main() :
         default="posting",
         choices=["owner", "posting", "active"],
         help=('The permission to remove (defaults to "posting")')
+    )
+    parser_disallow.add_argument(
+        '--threshold',
+        type=int,
+        default=None,
+        help=('The permission\'s threshold that needs to be reached '
+              'by signatures to be able to interact')
     )
 
     """
@@ -1150,14 +1164,16 @@ def main() :
             args.foreign_account,
             weight=args.weight,
             account=args.account,
-            permission=args.permission
+            permission=args.permission,
+            threshold=args.threshold
         ))
 
     elif args.command == "disallow":
         pprint(steem.disallow(
             args.foreign_account,
             account=args.account,
-            permission=args.permission
+            permission=args.permission,
+            threshold=args.threshold
         ))
 
     elif args.command == "web":

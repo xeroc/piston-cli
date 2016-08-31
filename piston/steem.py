@@ -1082,7 +1082,17 @@ class Steem(object):
         wif = self.wallet.getActiveKeyForAccount(account)
         return self.executeOp(op, wif)
 
-    def allow(self, foreign, weight=None, permission="posting", account=None):
+    def _test_weights_treshold(self, authority):
+        weights = 0
+        for a in authority["account_auths"]:
+            weights += a[1]
+        for a in authority["key_auths"]:
+            weights += a[1]
+        if authority["weight_threshold"] > weights:
+            raise ValueError("Threshold too restrictive!")
+
+    def allow(self, foreign, weight=None, permission="posting",
+              account=None, threshold=None):
         """ Give additional access to an account by some other public
             key or account.
 
@@ -1095,6 +1105,8 @@ class Steem(object):
                 modify (defaults to ``posting``)
             :param str account: (optional) the account to allow access
                 to (defaults to ``default_author``)
+            :param int threshold: The threshold that needs to be reached
+                by signatures to be able to interact
         """
         if not account:
             if "default_author" in config:
@@ -1129,6 +1141,9 @@ class Steem(object):
                 raise ValueError(
                     "Unknown foreign account or unvalid public key"
                 )
+        if threshold:
+            authority["weight_threshold"] = threshold
+            self._test_weights_treshold(authority)
 
         op = transactions.Account_update(
             **{"account": account["name"],
@@ -1142,7 +1157,8 @@ class Steem(object):
             wif = self.wallet.getActiveKeyForAccount(account["name"])
         return self.executeOp(op, wif)
 
-    def disallow(self, foreign, permission="posting", account=None):
+    def disallow(self, foreign, permission="posting", 
+                 account=None, threshold=None):
         """ Remove additional access to an account by some other public
             key or account.
 
@@ -1151,6 +1167,8 @@ class Steem(object):
                 modify (defaults to ``posting``)
             :param str account: (optional) the account to allow access
                 to (defaults to ``default_author``)
+            :param int threshold: The threshold that needs to be reached
+                by signatures to be able to interact
         """
         if not account:
             if "default_author" in config:
@@ -1163,11 +1181,13 @@ class Steem(object):
                 "Permission needs to be either 'owner', 'posting', or 'active"
             )
         account = self.rpc.get_account(account)
-
         authority = account[permission]
 
         try:
             pubkey = PublicKey(foreign)
+            affected_items = list(
+                filter(lambda x: x[0] == str(pubkey),
+                       authority["key_auths"]))
             authority["key_auths"] = list(filter(
                 lambda x: x[0] != str(pubkey),
                 authority["key_auths"]
@@ -1175,6 +1195,9 @@ class Steem(object):
         except:
             try:
                 foreign_account = self.rpc.get_account(foreign)
+                affected_items = list(
+                    filter(lambda x: x[0] == foreign_account["name"],
+                           authority["account_auths"]))
                 authority["account_auths"] = list(filter(
                     lambda x: x[0] != foreign_account["name"],
                     authority["account_auths"]
@@ -1183,6 +1206,24 @@ class Steem(object):
                 raise ValueError(
                     "Unknown foreign account or unvalid public key"
                 )
+
+        removed_weight = affected_items[0][1]
+
+        # Define threshold
+        if threshold:
+            authority["weight_threshold"] = threshold
+
+        # Correct threshold (at most by the amount removed from the
+        # authority)
+        try:
+            self._test_weights_treshold(authority)
+        except:
+            log.critical(
+                "The account's threshold will be reduced by %d"
+                % (removed_weight)
+            )
+            authority["weight_threshold"] -= removed_weight
+            self._test_weights_treshold(authority)
 
         op = transactions.Account_update(
             **{"account": account["name"],
