@@ -1119,6 +1119,7 @@ class Steem(object):
                 "Permission needs to be either 'owner', 'posting', or 'active"
             )
         account = self.rpc.get_account(account)
+        assert account, "Unknown account"
 
         if not weight:
             weight = account[permission]["weight_threshold"]
@@ -1157,7 +1158,7 @@ class Steem(object):
             wif = self.wallet.getActiveKeyForAccount(account["name"])
         return self.executeOp(op, wif)
 
-    def disallow(self, foreign, permission="posting", 
+    def disallow(self, foreign, permission="posting",
                  account=None, threshold=None):
         """ Remove additional access to an account by some other public
             key or account.
@@ -1181,6 +1182,7 @@ class Steem(object):
                 "Permission needs to be either 'owner', 'posting', or 'active"
             )
         account = self.rpc.get_account(account)
+        assert account, "Unknown account"
         authority = account[permission]
 
         try:
@@ -1235,6 +1237,35 @@ class Steem(object):
             wif = self.wallet.getOwnerKeyForAccount(account["name"])
         else:
             wif = self.wallet.getActiveKeyForAccount(account["name"])
+        return self.executeOp(op, wif)
+
+    def update_memo_key(self, key, account=None):
+        """ Update an account's memo public key
+
+            This method does **not** add any private keys to your
+            wallet but merely changes the memo public key.
+
+            :param str key: New memo public key
+            :param str account: (optional) the account to allow access
+                to (defaults to ``default_author``)
+        """
+        if not account:
+            if "default_author" in config:
+                account = config["default_author"]
+        if not account:
+            raise ValueError("You need to provide an account")
+
+        pubkey = PublicKey(key)  # raises exception if invalid
+
+        account = self.rpc.get_account(account)
+        assert account, "Unknown account"
+
+        op = transactions.Account_update(
+            **{"account": account["name"],
+                "memo_key": key,
+                "json_metadata": account["json_metadata"]}
+        )
+        wif = self.wallet.getActiveKeyForAccount(account["name"])
         return self.executeOp(op, wif)
 
 

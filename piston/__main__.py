@@ -721,6 +721,25 @@ def main() :
     )
 
     """
+        Command "updateMemoKey"
+    """
+    parser_updateMemoKey = subparsers.add_parser('updatememokey', help='Update an account\'s memo key')
+    parser_updateMemoKey.set_defaults(command="updatememokey")
+    parser_updateMemoKey.add_argument(
+        '--account',
+        type=str,
+        nargs="?",
+        default=config["default_author"],
+        help='The account to updateMemoKey action for'
+    )
+    parser_updateMemoKey.add_argument(
+        '--key',
+        type=str,
+        default=None,
+        help='The new memo key'
+    )
+
+    """
         Command "web"
     """
     webconfig = subparsers.add_parser('web', help='Launch web version of piston')
@@ -1174,6 +1193,35 @@ def main() :
             account=args.account,
             permission=args.permission,
             threshold=args.threshold
+        ))
+
+    elif args.command == "updatememokey":
+        if not args.key:
+            # Loop until both match
+            from steembase.account import PasswordKey, PublicKey
+            import getpass
+            while True :
+                pw = getpass.getpass("Memo Key Password: ")
+                if not pw:
+                    print("You cannot chosen an empty password!")
+                    continue
+                else:
+                    pwck = getpass.getpass(
+                        "Confirm Memo Key Passphrase: "
+                    )
+                    if (pw == pwck) :
+                        break
+                    else :
+                        print("Given Passphrases do not match!")
+            memo_key = PasswordKey(args.account, pw, role="memo")
+            args.key  = format(memo_key.get_public_key(), "STM")
+            memo_privkey = memo_key.get_private_key()
+            # Add the key to the wallet
+            if not args.nobroadcast:
+                steem.wallet.addPrivateKey(memo_privkey)
+        pprint(steem.update_memo_key(
+            args.key,
+            account=args.account
         ))
 
     elif args.command == "web":
