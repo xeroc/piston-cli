@@ -1,5 +1,5 @@
-from steembase.account import PrivateKey
-from graphenebase import bip38, PrivateKey as PrivateKey2
+from steembase.account import PrivateKey, GraphenePrivateKey
+from graphenebase import bip38
 import os
 import json
 from appdirs import user_data_dir
@@ -233,7 +233,7 @@ class Wallet(LegacyWallet):
         """ Add a private key to the wallet database
         """
         # it could be either graphenebase or steembase so we can't check the type directly
-        if isinstance(wif, PrivateKey) or isinstance(wif, PrivateKey2):
+        if isinstance(wif, PrivateKey) or isinstance(wif, GraphenePrivateKey):
             wif = str(wif)
         try:
             pub = format(PrivateKey(wif).pubkey, prefix)
