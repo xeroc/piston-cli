@@ -264,7 +264,6 @@ class Steem(object):
                  node="",
                  rpcuser="",
                  rpcpassword="",
-                 nobroadcast=False,
                  debug=False,
                  **kwargs):
         """ Connect to the Steem network.
@@ -303,12 +302,12 @@ class Steem(object):
 
             where ``<host>`` starts with ``ws://`` or ``wss://``.
         """
-        self._connect(node="",
-                      rpcuser="",
-                      rpcpassword="",
+        self._connect(node=node,
+                      rpcuser=rpcuser,
+                      rpcpassword=rpcpassword,
                       **kwargs)
         self.debug = debug
-        self.nobroadcast = nobroadcast
+        self.nobroadcast = kwargs.get("nobroadcast", False)
 
         # Compatibility after name change from wif->keys
         if "wif" in kwargs and "keys" not in kwargs:
