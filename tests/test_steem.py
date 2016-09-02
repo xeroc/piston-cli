@@ -1,6 +1,12 @@
 import unittest
 import piston
-from piston.steem import Steem, Post, MissingKeyError, VotingInvalidOnArchivedPost
+from piston.steem import (
+    Steem,
+    Post,
+    MissingKeyError,
+    VotingInvalidOnArchivedPost,
+    InsufficientAuthorityError
+)
 
 identifier = "@xeroc/piston"
 testaccount = "xeroc"
@@ -20,6 +26,8 @@ class Testcases(unittest.TestCase) :
     def test_reply(self):
         try:
             self.post.reply(body="foobar", title="", author=testaccount, meta=None)
+        except InsufficientAuthorityError:
+            pass
         except MissingKeyError:
             pass
 
@@ -27,6 +35,8 @@ class Testcases(unittest.TestCase) :
         try:
             self.post.upvote(voter=testaccount)
         except VotingInvalidOnArchivedPost:
+            pass
+        except InsufficientAuthorityError:
             pass
         except MissingKeyError:
             pass
@@ -36,18 +46,24 @@ class Testcases(unittest.TestCase) :
             self.post.downvote(voter=testaccount)
         except VotingInvalidOnArchivedPost:
             pass
+        except InsufficientAuthorityError:
+            pass
         except MissingKeyError:
             pass
 
     def test_edit(self):
         try:
             steem.edit(identifier, "Foobar")
+        except InsufficientAuthorityError:
+            pass
         except MissingKeyError:
             pass
 
     def test_post(self):
         try:
             steem.post("title", "body", meta={"foo": "bar"}, author=testaccount)
+        except InsufficientAuthorityError:
+            pass
         except MissingKeyError:
             pass
 
@@ -58,24 +74,32 @@ class Testcases(unittest.TestCase) :
                                  password="foobar foo bar hello world",
                                  storekeys=False
                                  )
+        except InsufficientAuthorityError:
+            pass
         except MissingKeyError:
             pass
 
     def test_transfer(self):
         try:
             steem.transfer("fabian", 10, "STEEM", account=testaccount)
+        except InsufficientAuthorityError:
+            pass
         except MissingKeyError:
             pass
 
     def test_withdraw_vesting(self):
         try:
             steem.withdraw_vesting(10, account=testaccount)
+        except InsufficientAuthorityError:
+            pass
         except MissingKeyError:
             pass
 
     def test_transfer_to_vesting(self):
         try:
             steem.transfer_to_vesting(10, to=testaccount, account=testaccount)
+        except InsufficientAuthorityError:
+            pass
         except MissingKeyError:
             pass
 
