@@ -745,6 +745,17 @@ def main() :
     )
 
     """
+        Command "importaccount"
+    """
+    parser_importaccount = subparsers.add_parser('importaccount', help='Import an account using a passphrase')
+    parser_importaccount.set_defaults(command="importaccount")
+    parser_importaccount.add_argument(
+        'account',
+        type=str,
+        help='Account name'
+    )
+
+    """
         Command "updateMemoKey"
     """
     parser_updateMemoKey = subparsers.add_parser('updatememokey', help='Update an account\'s memo key')
@@ -1287,6 +1298,39 @@ def main() :
             creator=args.account,
             password=pw,
         ))
+
+    elif args.command == "importaccount":
+        from steembase.account import PasswordKey
+        import getpass
+        password = getpass.getpass("Account Passphrase: ")
+
+        posting_key = PasswordKey(args.account, password, role="posting")
+        active_key  = PasswordKey(args.account, password, role="active")
+        memo_key    = PasswordKey(args.account, password, role="memo")
+        posting_pubkey = format(posting_key.get_public_key(), "STM")
+        active_pubkey  = format(active_key.get_public_key(), "STM")
+        memo_pubkey    = format(memo_key.get_public_key(), "STM")
+
+        account = steem.rpc.get_account(args.account)
+
+        imported = False
+        if active_pubkey in [x[0] for x in account["active"]["key_auths"]]:
+            active_privkey = active_key.get_private_key()
+            steem.wallet.addPrivateKey(active_privkey)
+            imported = True
+
+        if posting_pubkey in [x[0] for x in account["posting"]["key_auths"]]:
+            posting_privkey = posting_key.get_private_key()
+            steem.wallet.addPrivateKey(posting_privkey)
+            imported = True
+
+        if memo_pubkey == account["memo_key"]:
+            memo_privkey = memo_key.get_private_key()
+            steem.wallet.addPrivateKey(memo_privkey)
+            imported = True
+
+        if not imported:
+            print("No keys matched! Invalid password?")
 
     elif args.command == "web":
         SteemConnector(node=args.node,
