@@ -1376,17 +1376,7 @@ def main() :
         else:
             tx = sys.stdin.read()
         tx = eval(tx)
-        missing_signatures = tx.get("missing_signatures", [])
-        if not missing_signatures:
-            print("Invalid Transaction Format")
-        wifs = []
-        for pub in missing_signatures:
-            wif = steem.wallet.getPrivateKeyForPublicKey(pub)
-            if wif:
-                wifs.append(wif)
-            else:
-                print("No key available for %s" % pub, file=sys.stderr)
-        pprint(steem.sign(tx, wifs))
+        pprint(steem.sign(tx))
 
     elif args.command == "broadcast":
         if args.file and args.file != "-":

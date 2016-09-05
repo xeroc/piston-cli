@@ -436,17 +436,27 @@ class Steem(object):
 
             :param dict tx: The transaction to be signed and returned
             :param string wifs: One or many wif keys to use for signing
-                                a transaction
+                a transaction. If not present, the keys will be loaded
+                from the wallet as defined in "missing_signatures" key
+                of the transactions.
         """
         if not isinstance(wifs, list):
             wifs = [wifs]
-        if isinstance(tx, dict):
-            try:
-                tx = transactions.Signed_Transaction(**tx)
-            except:
-                raise ValueError("Invalid Transaction Format")
-        if not isinstance(tx, transactions.Signed_Transaction):
+
+        if not isinstance(tx, dict):
             raise ValueError("Invalid Transaction Format")
+
+        if not any(wifs):
+            missing_signatures = tx.get("missing_signatures", [])
+            for pub in missing_signatures:
+                wif = self.wallet.getPrivateKeyForPublicKey(pub)
+                if wif:
+                    wifs.append(wif)
+        try:
+            tx = transactions.Signed_Transaction(**tx)
+        except:
+            raise ValueError("Invalid Transaction Format")
+
         return tx.sign(wifs).json()
 
     def broadcast(self, tx):
