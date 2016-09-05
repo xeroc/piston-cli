@@ -727,6 +727,24 @@ def main() :
     )
 
     """
+        Command "newaccount"
+    """
+    parser_newaccount = subparsers.add_parser('newaccount', help='Create a new account')
+    parser_newaccount.set_defaults(command="newaccount")
+    parser_newaccount.add_argument(
+        'accountname',
+        type=str,
+        help='New account name'
+    )
+    parser_newaccount.add_argument(
+        '--account',
+        type=str,
+        required=False,
+        default=config["default_author"],
+        help='Account that pays the fee'
+    )
+
+    """
         Command "updateMemoKey"
     """
     parser_updateMemoKey = subparsers.add_parser('updatememokey', help='Update an account\'s memo key')
@@ -1226,7 +1244,7 @@ def main() :
             from steembase.account import PasswordKey, PublicKey
             import getpass
             while True :
-                pw = getpass.getpass("Memo Key Password: ")
+                pw = getpass.getpass("Memo Key Passphrase: ")
                 if not pw:
                     print("You cannot chosen an empty password!")
                     continue
@@ -1247,6 +1265,27 @@ def main() :
         pprint(steem.update_memo_key(
             args.key,
             account=args.account
+        ))
+
+    elif args.command == "newaccount":
+        import getpass
+        while True :
+            pw = getpass.getpass("New Account Passphrase: ")
+            if not pw:
+                print("You cannot chosen an empty password!")
+                continue
+            else:
+                pwck = getpass.getpass(
+                    "Confirm New Account Passphrase: "
+                )
+                if (pw == pwck) :
+                    break
+                else :
+                    print("Given Passphrases do not match!")
+        pprint(steem.create_account(
+            args.accountname,
+            creator=args.account,
+            password=pw,
         ))
 
     elif args.command == "web":
