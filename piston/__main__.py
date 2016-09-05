@@ -3,6 +3,7 @@
 import sys
 import os
 import argparse
+import json
 from pprint import pprint
 from steembase.account import PrivateKey, PublicKey, Address
 import steembase.transactions as transactions
@@ -26,11 +27,8 @@ from .steem import Steem, Post, SteemConnector
 import frontmatter
 import time
 from prettytable import PrettyTable
-
 import logging
-log = logging.getLogger("piston")
-log.setLevel(logging.WARNING)
-log.addHandler(logging.StreamHandler())
+
 
 availableConfigurationKeys = [
     "default_author",
@@ -90,6 +88,16 @@ def main() :
         '--nowallet', '-p',
         action='store_true',
         help='Do not load the wallet'
+    )
+    parser.add_argument(
+        '--unsigned', '-x',
+        action='store_true',
+        help='Do not try to sign the transaction'
+    )
+    parser.add_argument(
+        '--expires', '-e',
+        default=30,
+        help='Expiration time in seconds (defaults to 30)'
     )
     parser.add_argument(
         '--verbose', '-v',
@@ -727,6 +735,35 @@ def main() :
     )
 
     """
+        Command "newaccount"
+    """
+    parser_newaccount = subparsers.add_parser('newaccount', help='Create a new account')
+    parser_newaccount.set_defaults(command="newaccount")
+    parser_newaccount.add_argument(
+        'accountname',
+        type=str,
+        help='New account name'
+    )
+    parser_newaccount.add_argument(
+        '--account',
+        type=str,
+        required=False,
+        default=config["default_author"],
+        help='Account that pays the fee'
+    )
+
+    """
+        Command "importaccount"
+    """
+    parser_importaccount = subparsers.add_parser('importaccount', help='Import an account using a passphrase')
+    parser_importaccount.set_defaults(command="importaccount")
+    parser_importaccount.add_argument(
+        'account',
+        type=str,
+        help='Account name'
+    )
+
+    """
         Command "updateMemoKey"
     """
     parser_updateMemoKey = subparsers.add_parser('updatememokey', help='Update an account\'s memo key')
@@ -743,6 +780,30 @@ def main() :
         type=str,
         default=None,
         help='The new memo key'
+    )
+
+    """
+        Command "sign"
+    """
+    parser_sign = subparsers.add_parser('sign', help='Sign a provided transaction with available and required keys')
+    parser_sign.set_defaults(command="sign")
+    parser_sign.add_argument(
+        '--file',
+        type=str,
+        required=False,
+        help='Load transaction from file. If "-", read from stdin (defaults to "-")'
+    )
+
+    """
+        Command "broadcast"
+    """
+    parser_broadcast = subparsers.add_parser('broadcast', help='broadcast a signed transaction')
+    parser_broadcast.set_defaults(command="broadcast")
+    parser_broadcast.add_argument(
+        '--file',
+        type=str,
+        required=False,
+        help='Load transaction from file. If "-", read from stdin (defaults to "-")'
     )
 
     """
@@ -769,7 +830,7 @@ def main() :
     args = parser.parse_args()
 
     # Logging
-    log = logging.getLogger("piston")
+    log = logging.getLogger(__name__)
     verbosity = ["critical",
                  "error",
                  "warn",
@@ -810,24 +871,28 @@ def main() :
     rpc_not_required = [
         "set",
         "config",
-        "web"
+        "web",
         ""]
     if args.command not in rpc_not_required and args.command:
+        options = {
+            "node": args.node,
+            "rpcuser": args.rpcuser,
+            "rpcpassword": args.rpcpassword,
+            "nobroadcast": args.nobroadcast,
+            "unsigned": args.unsigned,
+            "expires": args.expires
+        }
+
+        # preload wallet with empty keys
         if args.nowallet:
-            steem = SteemConnector(
-                node=args.node,
-                rpcuser=args.rpcuser,
-                rpcpassword=args.rpcpassword,
-                nobroadcast=args.nobroadcast,
-                wif=[],  # preload wallet with empty keys
-            )
-        else:
-            steem = SteemConnector(
-                node=args.node,
-                rpcuser=args.rpcuser,
-                rpcpassword=args.rpcpassword,
-                nobroadcast=args.nobroadcast,
-            ).getSteem()
+            options.update({"wif": []})
+
+        # Signing only requires the wallet, no connection
+        # essential for offline/coldstorage signing
+        if args.command == "sign":
+            options.update({"offline": True})
+
+        steem = SteemConnector(**options).getSteem()
 
     if args.command == "set":
         if (args.key in ["default_author",
@@ -1155,7 +1220,6 @@ def main() :
         print(t)
 
     elif args.command == "history":
-        import json
         t = PrettyTable(["#", "time/block", "Operation", "Details"])
         t.align = "r"
         if isinstance(args.account, str):
@@ -1223,10 +1287,10 @@ def main() :
     elif args.command == "updatememokey":
         if not args.key:
             # Loop until both match
-            from steembase.account import PasswordKey, PublicKey
+            from steembase.account import PasswordKey
             import getpass
             while True :
-                pw = getpass.getpass("Memo Key Password: ")
+                pw = getpass.getpass("Memo Key Passphrase: ")
                 if not pw:
                     print("You cannot chosen an empty password!")
                     continue
@@ -1248,6 +1312,93 @@ def main() :
             args.key,
             account=args.account
         ))
+
+    elif args.command == "newaccount":
+        import getpass
+        while True :
+            pw = getpass.getpass("New Account Passphrase: ")
+            if not pw:
+                print("You cannot chosen an empty password!")
+                continue
+            else:
+                pwck = getpass.getpass(
+                    "Confirm New Account Passphrase: "
+                )
+                if (pw == pwck) :
+                    break
+                else :
+                    print("Given Passphrases do not match!")
+        pprint(steem.create_account(
+            args.accountname,
+            creator=args.account,
+            password=pw,
+        ))
+
+    elif args.command == "importaccount":
+        from steembase.account import PasswordKey
+        import getpass
+        password = getpass.getpass("Account Passphrase: ")
+
+        posting_key = PasswordKey(args.account, password, role="posting")
+        active_key  = PasswordKey(args.account, password, role="active")
+        memo_key    = PasswordKey(args.account, password, role="memo")
+        posting_pubkey = format(posting_key.get_public_key(), "STM")
+        active_pubkey  = format(active_key.get_public_key(), "STM")
+        memo_pubkey    = format(memo_key.get_public_key(), "STM")
+
+        account = steem.rpc.get_account(args.account)
+
+        imported = False
+        if active_pubkey in [x[0] for x in account["active"]["key_auths"]]:
+            active_privkey = active_key.get_private_key()
+            steem.wallet.addPrivateKey(active_privkey)
+            imported = True
+
+        if posting_pubkey in [x[0] for x in account["posting"]["key_auths"]]:
+            posting_privkey = posting_key.get_private_key()
+            steem.wallet.addPrivateKey(posting_privkey)
+            imported = True
+
+        if memo_pubkey == account["memo_key"]:
+            memo_privkey = memo_key.get_private_key()
+            steem.wallet.addPrivateKey(memo_privkey)
+            imported = True
+
+        if not imported:
+            print("No keys matched! Invalid password?")
+
+    elif args.command == "sign":
+        if args.file and args.file != "-":
+            if not os.path.isfile(args.file):
+                raise Exception("File %s does not exist!" % args.file)
+            with open(args.file) as fp:
+                tx = fp.read()
+        else:
+            tx = sys.stdin.read()
+        tx = eval(tx)
+        missing_signatures = tx.get("missing_signatures", [])
+        if not missing_signatures:
+            print("Invalid Transaction Format")
+        wifs = []
+        for pub in missing_signatures:
+            wif = steem.wallet.getPrivateKeyForPublicKey(pub)
+            if wif:
+                wifs.append(wif)
+            else:
+                print("No key available for %s" % pub, file=sys.stderr)
+        pprint(steem.sign(tx, wifs))
+
+    elif args.command == "broadcast":
+        if args.file and args.file != "-":
+            if not os.path.isfile(args.file):
+                raise Exception("File %s does not exist!" % args.file)
+            with open(args.file) as fp:
+                tx = fp.read()
+        else:
+            tx = sys.stdin.read()
+        tx = eval(tx)
+        steem.broadcast(tx)
+
 
     elif args.command == "web":
         SteemConnector(node=args.node,
