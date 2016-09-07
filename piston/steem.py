@@ -607,7 +607,7 @@ class Steem(object):
             tags = list(set(tags))
             # do not use the first tag in tags
             meta.update({"tags": tags[1:]})
-        else:
+        elif tags:
             # store everything in tags
             tags = list(set(tags))
             meta.update({"tags": tags})

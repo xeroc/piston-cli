@@ -1066,7 +1066,8 @@ def main() :
 
         post = frontmatter.Post(original_post["body"], **{
             "title": original_post["title"] + " (immutable)",
-            "author": original_post["author"] + " (immutable)"
+            "author": original_post["author"] + " (immutable)",
+            "tags": original_post["_tags"]
         })
 
         meta, json_meta, edited_message = yaml_parse_file(args, initial_content=post)
