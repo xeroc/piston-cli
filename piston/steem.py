@@ -453,30 +453,34 @@ class Steem(object):
                 if wif:
                     wifs.append(wif)
         try:
-            tx = transactions.Signed_Transaction(**tx)
+            signedtx = transactions.Signed_Transaction(**tx)
         except:
             raise ValueError("Invalid Transaction Format")
 
-        return tx.sign(wifs).json()
+        signedtx.sign(wifs)
+        tx["signatures"].extend(signedtx.json().get("signatures"))
+
+        return tx
 
     def broadcast(self, tx):
         """ Broadcast a transaction to the Steem network
 
             :param tx tx: Signed transaction to broadcast
         """
+        if self.nobroadcast:
+            log.warning("Not broadcasting anything!")
+            return tx
+
         try:
             if not self.rpc.verify_authority(tx):
                 raise InsufficientAuthorityError
         except:
             raise InsufficientAuthorityError
 
-        if not self.nobroadcast:
-            try:
-                self.rpc.broadcast_transaction(tx, api="network_broadcast")
-            except:
-                raise BroadcastingError
-        else:
-            log.warning("Not broadcasting anything!")
+        try:
+            self.rpc.broadcast_transaction(tx, api="network_broadcast")
+        except:
+            raise BroadcastingError
 
         return tx
 
@@ -607,7 +611,7 @@ class Steem(object):
             tags = list(set(tags))
             # do not use the first tag in tags
             meta.update({"tags": tags[1:]})
-        else:
+        elif tags:
             # store everything in tags
             tags = list(set(tags))
             meta.update({"tags": tags})
