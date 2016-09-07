@@ -453,11 +453,14 @@ class Steem(object):
                 if wif:
                     wifs.append(wif)
         try:
-            tx = transactions.Signed_Transaction(**tx)
+            signedtx = transactions.Signed_Transaction(**tx)
         except:
             raise ValueError("Invalid Transaction Format")
 
-        return tx.sign(wifs).json()
+        signedtx.sign(wifs)
+        tx["signatures"].extend(signedtx.json().get("signatures"))
+
+        return tx
 
     def broadcast(self, tx):
         """ Broadcast a transaction to the Steem network
