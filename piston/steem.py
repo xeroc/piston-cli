@@ -34,6 +34,10 @@ class VotingInvalidOnArchivedPost(Exception):
     pass
 
 
+class InsufficientAuthorityError(Exception):
+    pass
+
+
 class Post(object):
     """ This object gets instanciated by Steem.streams and is used as an
         abstraction layer for Comments in Steem
@@ -264,7 +268,6 @@ class Steem(object):
                  node="",
                  rpcuser="",
                  rpcpassword="",
-                 nobroadcast=False,
                  debug=False,
                  **kwargs):
         """ Connect to the Steem network.
@@ -275,6 +278,7 @@ class Steem(object):
             :param bool nobroadcast: Do **not** broadcast a transaction! *(optional)*
             :param bool debug: Enable Debugging *(optional)*
             :param array,dict,string keys: Predefine the wif keys to shortcut the wallet database
+            :param bool offline: Boolean to prevent connecting to network (defaults to ``False``)
 
             Three wallet operation modes are possible:
 
@@ -303,12 +307,16 @@ class Steem(object):
 
             where ``<host>`` starts with ``ws://`` or ``wss://``.
         """
-        self._connect(node="",
-                      rpcuser="",
-                      rpcpassword="",
-                      **kwargs)
+        if not kwargs.pop("offline", False):
+            self._connect(node=node,
+                          rpcuser=rpcuser,
+                          rpcpassword=rpcpassword,
+                          **kwargs)
+
         self.debug = debug
-        self.nobroadcast = nobroadcast
+        self.nobroadcast = kwargs.get("nobroadcast", False)
+        self.unsigned = kwargs.pop("unsigned", False)
+        self.expiration = int(kwargs.pop("expires", 30))
 
         # Compatibility after name change from wif->keys
         if "wif" in kwargs and "keys" not in kwargs:
@@ -340,25 +348,72 @@ class Steem(object):
 
         self.rpc = SteemNodeRPC(node, rpcuser, rpcpassword, **kwargs)
 
-    def executeOp(self, op, wif=None):
-        """ Execute an operation by signing it with the ``wif`` key and
-            broadcasting it to the Steem network
+    def finalizeOp(self, op, account, permission):
+        """ This method obtains the required private keys if present in
+            the wallet, finalizes the transaction, signs it and
+            broadacasts it
+
+            :param operation op: The operation to broadcast
+            :param operation account: The account that authorizes the
+                operation
+            :param string permission: The required permission for
+                signing (active, owner, posting)
+        """
+        if self.unsigned:
+            tx = self.constructTx(op, None)
+            accountObj = self.rpc.get_account(account)
+            authority = accountObj.get(permission)
+            # We add a required_authorities to be able to identify
+            # how to sign later. This is an array, because we
+            # may later want to allow multiple operations per tx
+            tx.update({"required_authorities": {
+                account: authority
+            }})
+            for account_auth in authority["account_auths"]:
+                account_auth_account = self.rpc.get_account(account_auth[0])
+                tx["required_authorities"].update({
+                    account_auth[0]: account_auth_account.get(permission)
+                })
+
+            # Try to resolve required signatures for offline signing
+            tx["missing_signatures"] = [
+                x[0] for x in authority["key_auths"]
+            ]
+            # Add one recursion of keys from account_auths:
+            for account_auth in authority["account_auths"]:
+                account_auth_account = self.rpc.get_account(account_auth[0])
+                tx["missing_signatures"].extend(
+                    [x[0] for x in account_auth_account[permission]["key_auths"]]
+                )
+            return tx
+        else:
+            if permission == "active":
+                wif = self.wallet.getActiveKeyForAccount(account)
+            elif permission == "posting":
+                wif = self.wallet.getPostingKeyForAccount(account)
+            elif permission == "owner":
+                wif = self.wallet.getOwnerKeyForAccount(account)
+            else:
+                raise ValueError("Invalid permission")
+            tx = self.constructTx(op, wif)
+            return self.broadcast(tx)
+
+    def constructTx(self, op, wifs=[]):
+        """ Execute an operation by signing it with the ``wif`` key
 
             :param Object op: The operation to be signed and broadcasts as
                               provided by the ``transactions`` class.
-            :param string wif: The wif key to use for signing a transaction
-
-            **TODO**: The full node could, given the operations, give us a
-            set of public keys that are required for signing, then the
-            public keys could used to identify the wif-keys from the wallet.
-
+            :param string wifs: One or many wif keys to use for signing
+                                a transaction
         """
-        # overwrite wif with default wif if available
-        if not wif:
+        if not isinstance(wifs, list):
+            wifs = [wifs]
+
+        if not any(wifs) and not self.unsigned:
             raise MissingKeyError
 
         ops = [transactions.Operation(op)]
-        expiration = transactions.formatTimeFromNow(30)
+        expiration = transactions.formatTimeFromNow(self.expiration)
         ref_block_num, ref_block_prefix = transactions.getBlockParams(self.rpc)
         tx = transactions.Signed_Transaction(
             ref_block_num=ref_block_num,
@@ -366,11 +421,54 @@ class Steem(object):
             expiration=expiration,
             operations=ops
         )
-        tx = tx.sign([wif])
-        tx = transactions.JsonObj(tx)
+        if not self.unsigned:
+            tx = tx.sign(wifs)
+
+        tx = tx.json()
 
         if self.debug:
             log.debug(str(tx))
+
+        return tx
+
+    def sign(self, tx, wifs=[]):
+        """ Sign a provided transaction witht he provided key(s)
+
+            :param dict tx: The transaction to be signed and returned
+            :param string wifs: One or many wif keys to use for signing
+                a transaction. If not present, the keys will be loaded
+                from the wallet as defined in "missing_signatures" key
+                of the transactions.
+        """
+        if not isinstance(wifs, list):
+            wifs = [wifs]
+
+        if not isinstance(tx, dict):
+            raise ValueError("Invalid Transaction Format")
+
+        if not any(wifs):
+            missing_signatures = tx.get("missing_signatures", [])
+            for pub in missing_signatures:
+                wif = self.wallet.getPrivateKeyForPublicKey(pub)
+                if wif:
+                    wifs.append(wif)
+        try:
+            tx = transactions.Signed_Transaction(**tx)
+        except:
+            raise ValueError("Invalid Transaction Format")
+
+        return tx.sign(wifs).json()
+
+    def broadcast(self, tx):
+        """ Broadcast a transaction to the Steem network
+
+            :param tx tx: Signed transaction to broadcast
+        """
+        try:
+            if not self.rpc.verify_authority(tx):
+                raise InsufficientAuthorityError
+        except:
+            raise InsufficientAuthorityError
 
         if not self.nobroadcast:
             try:
@@ -542,8 +640,8 @@ class Steem(object):
                "body": body,
                "json_metadata": meta}
         )
-        wif = self.wallet.getPostingKeyForAccount(author)
-        return self.executeOp(op, wif)
+
+        return self.finalizeOp(op, author, "posting")
 
     def vote(self,
              identifier,
@@ -578,8 +676,8 @@ class Steem(object):
                "permlink": post_permlink,
                "weight": int(weight * STEEMIT_1_PERCENT)}
         )
-        wif = self.wallet.getPostingKeyForAccount(voter)
-        return self.executeOp(op, wif)
+
+        return self.finalizeOp(op, voter, "posting")
 
     def create_account(self,
                        account_name,
@@ -740,8 +838,8 @@ class Steem(object):
                          'key_auths': posting_key_authority,
                          'weight_threshold': 1}}
         op = transactions.Account_create(**s)
-        wif = self.wallet.getActiveKeyForAccount(creator)
-        return self.executeOp(op, wif)
+
+        return self.finalizeOp(op, creator, "active")
 
     def transfer(self, to, amount, asset, memo="", account=None):
         """ Transfer SBD or STEEM to another account.
@@ -785,8 +883,7 @@ class Steem(object):
                "memo": memo
                }
         )
-        wif = self.wallet.getActiveKeyForAccount(account)
-        return self.executeOp(op, wif)
+        return self.finalizeOp(op, account, "active")
 
     def withdraw_vesting(self, amount, account=None):
         """ Withdraw VESTS from the vesting account.
@@ -809,8 +906,8 @@ class Steem(object):
                ),
                }
         )
-        wif = self.wallet.getActiveKeyForAccount(account)
-        return self.executeOp(op, wif)
+
+        return self.finalizeOp(op, account, "active")
 
     def transfer_to_vesting(self, amount, to=None, account=None):
         """ Vest STEEM
@@ -841,8 +938,8 @@ class Steem(object):
                ),
                }
         )
-        wif = self.wallet.getActiveKeyForAccount(account)
-        return self.executeOp(op, wif)
+
+        return self.finalizeOp(op, account, "active")
 
     def convert(self, amount, account=None, requestid=None):
         """ Convert SteemDollars to Steem (takes one week to settle)
@@ -868,8 +965,8 @@ class Steem(object):
                    asset="SBD"
                )}
         )
-        wif = self.wallet.getActiveKeyForAccount(account)
-        return self.executeOp(op, wif)
+
+        return self.finalizeOp(op, account, "active")
 
     def get_content(self, identifier):
         """ Get the full content of a post.
@@ -1079,10 +1176,20 @@ class Steem(object):
                "auto_vest": auto_vest
                }
         )
-        wif = self.wallet.getActiveKeyForAccount(account)
-        return self.executeOp(op, wif)
 
-    def allow(self, foreign, weight=None, permission="posting", account=None):
+        return self.finalizeOp(op, account, "active")
+
+    def _test_weights_treshold(self, authority):
+        weights = 0
+        for a in authority["account_auths"]:
+            weights += a[1]
+        for a in authority["key_auths"]:
+            weights += a[1]
+        if authority["weight_threshold"] > weights:
+            raise ValueError("Threshold too restrictive!")
+
+    def allow(self, foreign, weight=None, permission="posting",
+              account=None, threshold=None):
         """ Give additional access to an account by some other public
             key or account.
 
@@ -1095,6 +1202,8 @@ class Steem(object):
                 modify (defaults to ``posting``)
             :param str account: (optional) the account to allow access
                 to (defaults to ``default_author``)
+            :param int threshold: The threshold that needs to be reached
+                by signatures to be able to interact
         """
         if not account:
             if "default_author" in config:
@@ -1107,6 +1216,7 @@ class Steem(object):
                 "Permission needs to be either 'owner', 'posting', or 'active"
             )
         account = self.rpc.get_account(account)
+        assert account, "Unknown account"
 
         if not weight:
             weight = account[permission]["weight_threshold"]
@@ -1129,6 +1239,9 @@ class Steem(object):
                 raise ValueError(
                     "Unknown foreign account or unvalid public key"
                 )
+        if threshold:
+            authority["weight_threshold"] = threshold
+            self._test_weights_treshold(authority)
 
         op = transactions.Account_update(
             **{"account": account["name"],
@@ -1137,12 +1250,12 @@ class Steem(object):
                 "json_metadata": account["json_metadata"]}
         )
         if permission == "owner":
-            wif = self.wallet.getOwnerKeyForAccount(account["name"])
+            return self.finalizeOp(op, account["name"], "owner")
         else:
-            wif = self.wallet.getActiveKeyForAccount(account["name"])
-        return self.executeOp(op, wif)
+            return self.finalizeOp(op, account["name"], "active")
 
-    def disallow(self, foreign, permission="posting", account=None):
+    def disallow(self, foreign, permission="posting",
+                 account=None, threshold=None):
         """ Remove additional access to an account by some other public
             key or account.
 
@@ -1151,6 +1264,8 @@ class Steem(object):
                 modify (defaults to ``posting``)
             :param str account: (optional) the account to allow access
                 to (defaults to ``default_author``)
+            :param int threshold: The threshold that needs to be reached
+                by signatures to be able to interact
         """
         if not account:
             if "default_author" in config:
@@ -1163,11 +1278,14 @@ class Steem(object):
                 "Permission needs to be either 'owner', 'posting', or 'active"
             )
         account = self.rpc.get_account(account)
-
+        assert account, "Unknown account"
         authority = account[permission]
 
         try:
             pubkey = PublicKey(foreign)
+            affected_items = list(
+                filter(lambda x: x[0] == str(pubkey),
+                       authority["key_auths"]))
             authority["key_auths"] = list(filter(
                 lambda x: x[0] != str(pubkey),
                 authority["key_auths"]
@@ -1175,6 +1293,9 @@ class Steem(object):
         except:
             try:
                 foreign_account = self.rpc.get_account(foreign)
+                affected_items = list(
+                    filter(lambda x: x[0] == foreign_account["name"],
+                           authority["account_auths"]))
                 authority["account_auths"] = list(filter(
                     lambda x: x[0] != foreign_account["name"],
                     authority["account_auths"]
@@ -1184,6 +1305,24 @@ class Steem(object):
                     "Unknown foreign account or unvalid public key"
                 )
 
+        removed_weight = affected_items[0][1]
+
+        # Define threshold
+        if threshold:
+            authority["weight_threshold"] = threshold
+
+        # Correct threshold (at most by the amount removed from the
+        # authority)
+        try:
+            self._test_weights_treshold(authority)
+        except:
+            log.critical(
+                "The account's threshold will be reduced by %d"
+                % (removed_weight)
+            )
+            authority["weight_threshold"] -= removed_weight
+            self._test_weights_treshold(authority)
+
         op = transactions.Account_update(
             **{"account": account["name"],
                 permission: authority,
@@ -1191,10 +1330,37 @@ class Steem(object):
                 "json_metadata": account["json_metadata"]}
         )
         if permission == "owner":
-            wif = self.wallet.getOwnerKeyForAccount(account["name"])
+            return self.finalizeOp(op, account["name"], "owner")
         else:
-            wif = self.wallet.getActiveKeyForAccount(account["name"])
-        return self.executeOp(op, wif)
+            return self.finalizeOp(op, account["name"], "active")
+
+    def update_memo_key(self, key, account=None):
+        """ Update an account's memo public key
+
+            This method does **not** add any private keys to your
+            wallet but merely changes the memo public key.
+
+            :param str key: New memo public key
+            :param str account: (optional) the account to allow access
+                to (defaults to ``default_author``)
+        """
+        if not account:
+            if "default_author" in config:
+                account = config["default_author"]
+        if not account:
+            raise ValueError("You need to provide an account")
+
+        PublicKey(key)  # raises exception if invalid
+
+        account = self.rpc.get_account(account)
+        assert account, "Unknown account"
+
+        op = transactions.Account_update(
+            **{"account": account["name"],
+                "memo_key": key,
+                "json_metadata": account["json_metadata"]}
+        )
+        return self.finalizeOp(op, account["name"], "active")
 
 
 class SteemConnector(object):
