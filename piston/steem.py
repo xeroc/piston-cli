@@ -464,19 +464,20 @@ class Steem(object):
 
             :param tx tx: Signed transaction to broadcast
         """
+        if self.nobroadcast:
+            log.warning("Not broadcasting anything!")
+            return tx
+
         try:
             if not self.rpc.verify_authority(tx):
                 raise InsufficientAuthorityError
         except:
             raise InsufficientAuthorityError
 
-        if not self.nobroadcast:
-            try:
-                self.rpc.broadcast_transaction(tx, api="network_broadcast")
-            except:
-                raise BroadcastingError
-        else:
-            log.warning("Not broadcasting anything!")
+        try:
+            self.rpc.broadcast_transaction(tx, api="network_broadcast")
+        except:
+            raise BroadcastingError
 
         return tx
 

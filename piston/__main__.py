@@ -1390,7 +1390,6 @@ def main() :
         tx = eval(tx)
         steem.broadcast(tx)
 
-
     elif args.command == "web":
         SteemConnector(node=args.node,
                        rpcuser=args.rpcuser,
