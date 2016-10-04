@@ -39,6 +39,7 @@ setup(name='steem-piston',
                         "python-frontmatter==0.2.1",
                         "prettytable==0.7.2",
                         "colorama==0.3.6",
+                        "scrypt==0.7.1"
                         ],
       setup_requires=['pytest-runner'],
       tests_require=['pytest'],
