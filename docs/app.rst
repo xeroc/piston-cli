@@ -316,10 +316,60 @@ Allow/Disallow
 
 Permissions can be changed using:::
 
-    piston allow --account <account> --weight 1 <foreign_account>
-    piston disallow --permission <foreign_account>
+    piston allow --account <account> --weight 1 --permission posting --threshold 1 <foreign_account>
+    piston disallow --permission <permissions> <foreign_account>
 
 More details and the default parameters can be found via:::
 
     piston allow --help
     piston disallow --help
+
+Update Memo Key
+~~~~~~~~~~~~~~~
+
+The memo key of your account can be updated with
+
+    piston updatememokey --key <KEY>
+
+If no ``key`` is provided, it will ask for a password from which the
+key will be derived
+
+Create a new account
+~~~~~~~~~~~~~~~~~~~~
+
+Piston let's you create new accounts on the Steem blockchain.
+
+.. note:: 
+
+    Creating new accounts will cost you a fee!
+
+It works like this:
+
+    piston newaccount <accountname>
+
+and it will ask you to provide a new password. During creation, piston
+will derive the new keys from the password (and the account name) and
+store them in the wallet (except for the owner key)
+
+.. note::
+
+    ``newaccount`` will **not** store the owner private key in the
+    wallet!
+
+Import Account
+~~~~~~~~~~~~~~
+
+You can import your existing account into piston by using
+
+    piston importaccount --account <accountname>
+
+It will ask you to provide the passphrase from which the private key
+will be derived. If you already have a private key, you can use `addkey`
+instead.
+
+Sign/Broadcast Transaction
+~~~~~~~~~~~~~~~~
+
+Unsigned (but properly prepared) transactions can be signed with
+``sign``. Signed transactions can be broadcast using ``broadcast``.
+These feature is described in :doc:`<coldstorage.rst>` and :doc:`<multisig.rst>`.
