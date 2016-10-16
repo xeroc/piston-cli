@@ -825,6 +825,17 @@ def main() :
     )
 
     """
+        Command "orderbook"
+    """
+    orderbook = subparsers.add_parser('orderbook', help='Obtain orderbook of the internal market')
+    orderbook.set_defaults(command="orderbook")
+    orderbook.add_argument(
+        '--chart',
+        action='store_true',
+        help="Enable charting (requires matplotlib)"
+    )
+
+    """
         Parse Arguments
     """
     args = parser.parse_args()
@@ -1398,6 +1409,42 @@ def main() :
                        num_retries=1)
         from . import web
         web.run(port=args.port, host=args.host)
+
+    elif args.command == "orderbook":
+        if args.chart:
+            try:
+                import matplotlib.pyplot as plt
+            except:
+                print("To use --chart, you need gnuplot and gnuplot-py installed")
+                sys.exit(1)
+        orderbook = steem.dex().returnOrderBook()
+        t = PrettyTable(["bid SBD", "sum bids SBD", "bid STEEM", "sum bids STEEM",
+                         "bid price", "+", "ask price",
+                         "ask STEEM", "sum asks steem", "ask SBD", "sum asks SBD"])
+        t.align = "r"
+        bidssteem = 0
+        bidssbd = 0
+        askssteem = 0
+        askssbd = 0
+        for i,o in enumerate(orderbook["asks"]):
+            bidssbd += orderbook["bids"][i]["sbd"]
+            bidssteem += orderbook["bids"][i]["steem"]
+            askssbd += orderbook["asks"][i]["sbd"]
+            askssteem += orderbook["asks"][i]["steem"]
+            t.add_row([
+                "%.3f Ṩ" % orderbook["bids"][i]["sbd"],
+                "%.3f ∑" % bidssbd,
+                "%.3f ȿ" % orderbook["bids"][i]["steem"],
+                "%.3f ∑" % bidssteem,
+                "%.3f Ṩ/ȿ" % orderbook["bids"][i]["price"],
+                "|",
+                "%.3f Ṩ/ȿ" % orderbook["asks"][i]["price"],
+                "%.3f ȿ" % orderbook["asks"][i]["steem"],
+                "%.3f ∑" % askssteem,
+                "%.3f Ṩ" % orderbook["asks"][i]["sbd"],
+                "%.3f ∑" % askssbd,
+                ])
+        print(t)
 
     else:
         print("No valid command given")
