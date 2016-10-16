@@ -15,7 +15,7 @@ from .utils import (
 from .wallet import Wallet
 from .storage import configStorage as config
 from datetime import datetime, timedelta
-from steemexchange.exchange import SteemExchange as SteemLibExchange
+from steemexchange.exchange import SteemExchange as SteemExchange
 import logging
 log = logging.getLogger(__name__)
 
@@ -1366,6 +1366,49 @@ class Steem(object):
         )
         return self.finalizeOp(op, account["name"], "active")
 
+    # Exchange stuff
+    def dex(self, account=None, loadactivekey=False):
+        ex_config = PistonExchangeConfig
+        if not account:
+            if "default_account" in config:
+                ex_config.account = config["default_account"]
+        else:
+            ex_config.account = account
+        if loadactivekey:
+            if not ex_config.account:
+                raise ValueError("You need to provide an account")
+            ex_config.wif = self.wallet.getActiveKeyForAccount(
+                ex_config.account
+            )
+        return SteemExchange(
+            ex_config,
+            safe_mode=True,
+        )
+
+    def returnOrderBook(self, *args):
+        return self.dex().returnOrderBook(*args)
+
+    def returnTicker(self):
+        return self.dex().returnTicker()
+
+    def return24Volume(self):
+        return self.dex().return24Volume()
+
+    def returnTradeHistory(self, *args):
+        return self.dex().returnTradeHistory(*args)
+
+    def returnMarketHistoryBuckets(self):
+        return self.dex().returnMarketHistoryBuckets()
+
+    def returnMarketHistory(self, *args):
+        return self.dex().returnMarketHistory(*args)
+
+    def buy(self, *args, account=None):
+        return self.dex(account=account, loadactivekey=True).buy(*args)
+
+    def sell(self, *args, account=None):
+        return self.dex(account=account, loadactivekey=True).sell(*args)
+
 
 class SteemConnector(object):
 
@@ -1402,38 +1445,5 @@ class PistonExchangeConfig():
     witness_url           = config["node"]
     witness_user          = config["rpcuser"]
     witness_password      = config["rpcpassword"]
-    account               = config["default_author"]
+    account               = config["default_account"]
     wif                   = None
-
-
-class SteemExchange(SteemLibExchange):
-    def __init__(self, *args, account, **kwargs):
-        # Connect to RPC so that we can properly use the piston wallet
-        Steem._connect(self, *args, **kwargs)
-
-        # Obtain a new Configuration object
-        ex_config = PistonExchangeConfig
-        if "keys" in kwargs:
-            self.wallet = Wallet(self.rpc, wif=kwargs["keys"])
-        else:
-            self.wallet = Wallet(self.rpc)
-
-        # Delete the rpc attribute so that we don't connect to a wallet
-        self.rpc = None
-
-        if not account:
-            if "default_account" in config:
-                account = config["default_account"]
-        if not account:
-            raise ValueError("You need to provide an account")
-
-        # Obtain the private key
-        ex_config.wif = self.wallet.getActiveKeyForAccount(account)
-
-        # Instead of re-implementing SteemExchange we use inheritance
-        # and accept that the module opens up a second RPC connection on
-        # it's own (for now)
-        super(SteemExchange, self).__init__(
-            ex_config,
-            safe_mode=True,
-        )
