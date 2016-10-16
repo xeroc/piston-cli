@@ -2,7 +2,7 @@
 
 from setuptools import setup
 import sys
-from .piston.__version__ import __VERSION__
+from piston.__version__ import __VERSION__
 
 assert sys.version_info[0] == 3, "Piston requires Python > 3"
 
