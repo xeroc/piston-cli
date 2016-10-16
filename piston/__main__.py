@@ -7,6 +7,7 @@ import json
 from pprint import pprint
 from steembase.account import PrivateKey, PublicKey, Address
 import steembase.transactions as transactions
+from .__version__ import __VERSION__
 from .storage import configStorage as config
 from .utils import (
     resolveIdentifier,
@@ -105,6 +106,9 @@ def main() :
         default=3,
         help='Verbosity'
     )
+    parser.add_argument('--version', action='version',
+                        version='%(prog)s {version}'.format(version=__VERSION__))
+
     subparsers = parser.add_subparsers(help='sub-command help')
 
     """
