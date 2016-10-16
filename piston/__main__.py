@@ -22,7 +22,8 @@ from .ui import (
     markdownify,
     format_operation_details,
     confirm,
-    print_permissions
+    print_permissions,
+    get_terminal
 )
 from .steem import Steem, Post, SteemConnector
 import frontmatter
@@ -681,6 +682,7 @@ def main() :
     parser_allow.add_argument(
         'foreign_account',
         type=str,
+        nargs="?",
         help='The account or key that will be allowed to interact as your account'
     )
     parser_allow.add_argument(
@@ -1284,6 +1286,11 @@ def main() :
         print_permissions(account)
 
     elif args.command == "allow":
+        if not args.foreign_account:
+            from steembase.account import PasswordKey
+            pwd = get_terminal(text="Password for Key Derivation: ", confirm=True)
+            args.foreign_account = format(PasswordKey(args.account, pwd, args.permission).get_public(), "STM")
+            print( args.foreign_account )
         pprint(steem.allow(
             args.foreign_account,
             weight=args.weight,
@@ -1304,21 +1311,8 @@ def main() :
         if not args.key:
             # Loop until both match
             from steembase.account import PasswordKey
-            import getpass
-            while True :
-                pw = getpass.getpass("Memo Key Passphrase: ")
-                if not pw:
-                    print("You cannot chosen an empty password!")
-                    continue
-                else:
-                    pwck = getpass.getpass(
-                        "Confirm Memo Key Passphrase: "
-                    )
-                    if (pw == pwck) :
-                        break
-                    else :
-                        print("Given Passphrases do not match!")
-            memo_key = PasswordKey(args.account, pw, role="memo")
+            pw = get_terminal(text="Password for Memo Key: ", confirm=True, allowedempty=False)
+            memo_key = PasswordKey(args.account, pw, "memo")
             args.key  = format(memo_key.get_public_key(), "STM")
             memo_privkey = memo_key.get_private_key()
             # Add the key to the wallet

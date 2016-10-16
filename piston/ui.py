@@ -345,3 +345,23 @@ def print_permissions(account):
             "\n".join(auths),
         ])
     print(t)
+
+
+def get_terminal(text="Password", confirm=False, allowedempty=False):
+    import getpass
+    while True :
+        pw = getpass.getpass(text)
+        if not pw and not allowedempty:
+            print("Cannot be empty!")
+            continue
+        else:
+            if not confirm:
+                break
+            pwck = getpass.getpass(
+                "Confirm " + text
+            )
+            if (pw == pwck) :
+                break
+            else :
+                print("Not matching!")
+    return pw
