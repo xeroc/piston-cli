@@ -1411,11 +1411,33 @@ def main() :
     elif args.command == "orderbook":
         if args.chart:
             try:
-                import matplotlib.pyplot as plt
+                import numpy
+                import Gnuplot
+                from itertools import accumulate
             except:
                 print("To use --chart, you need gnuplot and gnuplot-py installed")
                 sys.exit(1)
         orderbook = steem.dex().returnOrderBook()
+
+        if args.chart:
+            g = Gnuplot.Gnuplot()
+            g.title("Steem internal market - SBD:STEEM")
+            g.xlabel("price")
+            g.ylabel("volume")
+            g("""
+                set style data line
+                set term xterm
+                set border 15
+            """)
+            xbids = [x["price"] for x in orderbook["bids"]]
+            ybids = list(accumulate([x["sbd"] for x in orderbook["bids"]]))
+            dbids = Gnuplot.Data (xbids, ybids, with_="lines")
+            xasks = [x["price"] for x in orderbook["asks"]]
+            yasks = list(accumulate([x["sbd"] for x in orderbook["asks"]]))
+            dasks = Gnuplot.Data (xasks, yasks, with_="lines")
+            g("set terminal dumb")
+            g.plot(dbids, dasks)  # write SVG data directly to stdout ...
+
         t = PrettyTable(["bid SBD", "sum bids SBD", "bid STEEM", "sum bids STEEM",
                          "bid price", "+", "ask price",
                          "ask STEEM", "sum asks steem", "ask SBD", "sum asks SBD"])
