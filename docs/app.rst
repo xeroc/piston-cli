@@ -228,6 +228,18 @@ STEEM can be transfered via::
 If ``--author`` is not provided, the *default* account as defined with
 ``piston set author`` will be taken.
 
+Buy/Sell STEEM/SBD
+~~~~~~~~~~~~~~~~~~
+
+You can of course sell your assets in the internal decentralized exchange that
+is integrated into the STEEM blockchain by using:::
+
+    piston buy <amount> STEEM <price in SBD per STEEM>
+    piston buy <amount> SBD <price in SBD per STEEM>
+
+    piston sell <amount> STEEM <price in SBD per STEEM>
+    piston sell <amount> SBD <price in SBD per STEEM>
+
 Powerup/Powerdown
 ~~~~~~~~~~~~~~~~~
 

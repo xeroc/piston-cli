@@ -348,6 +348,37 @@ class Steem(object):
 
         self.rpc = SteemNodeRPC(node, rpcuser, rpcpassword, **kwargs)
 
+    def _addUnsignedTxParameters(self, tx, account, permission):
+        """ This is a private method that adds side information to a
+            unsigned/partial transaction in order to simplify later
+            signing (e.g. for multisig or coldstorage)
+        """
+        accountObj = self.rpc.get_account(account)
+        authority = accountObj.get(permission)
+        # We add a required_authorities to be able to identify
+        # how to sign later. This is an array, because we
+        # may later want to allow multiple operations per tx
+        tx.update({"required_authorities": {
+            account: authority
+        }})
+        for account_auth in authority["account_auths"]:
+            account_auth_account = self.rpc.get_account(account_auth[0])
+            tx["required_authorities"].update({
+                account_auth[0]: account_auth_account.get(permission)
+            })
+
+        # Try to resolve required signatures for offline signing
+        tx["missing_signatures"] = [
+            x[0] for x in authority["key_auths"]
+        ]
+        # Add one recursion of keys from account_auths:
+        for account_auth in authority["account_auths"]:
+            account_auth_account = self.rpc.get_account(account_auth[0])
+            tx["missing_signatures"].extend(
+                [x[0] for x in account_auth_account[permission]["key_auths"]]
+            )
+        return tx
+
     def finalizeOp(self, op, account, permission):
         """ This method obtains the required private keys if present in
             the wallet, finalizes the transaction, signs it and
@@ -361,31 +392,7 @@ class Steem(object):
         """
         if self.unsigned:
             tx = self.constructTx(op, None)
-            accountObj = self.rpc.get_account(account)
-            authority = accountObj.get(permission)
-            # We add a required_authorities to be able to identify
-            # how to sign later. This is an array, because we
-            # may later want to allow multiple operations per tx
-            tx.update({"required_authorities": {
-                account: authority
-            }})
-            for account_auth in authority["account_auths"]:
-                account_auth_account = self.rpc.get_account(account_auth[0])
-                tx["required_authorities"].update({
-                    account_auth[0]: account_auth_account.get(permission)
-                })
-
-            # Try to resolve required signatures for offline signing
-            tx["missing_signatures"] = [
-                x[0] for x in authority["key_auths"]
-            ]
-            # Add one recursion of keys from account_auths:
-            for account_auth in authority["account_auths"]:
-                account_auth_account = self.rpc.get_account(account_auth[0])
-                tx["missing_signatures"].extend(
-                    [x[0] for x in account_auth_account[permission]["key_auths"]]
-                )
-            return tx
+            return self._addUnsignedTxParameters(tx, account, permission)
         else:
             if permission == "active":
                 wif = self.wallet.getActiveKeyForAccount(account)
@@ -1374,7 +1381,7 @@ class Steem(object):
                 ex_config.account = config["default_account"]
         else:
             ex_config.account = account
-        if loadactivekey:
+        if loadactivekey and not self.unsigned:
             if not ex_config.account:
                 raise ValueError("You need to provide an account")
             ex_config.wif = self.wallet.getActiveKeyForAccount(
@@ -1404,10 +1411,18 @@ class Steem(object):
         return self.dex().returnMarketHistory(*args)
 
     def buy(self, *args, account=None):
-        return self.dex(account=account, loadactivekey=True).buy(*args)
+        tx = self.dex(account=account, loadactivekey=True).buy(*args)
+        if self.unsigned:
+            return self._addUnsignedTxParameters(tx, account, "active")
+        else:
+            return tx
 
     def sell(self, *args, account=None):
-        return self.dex(account=account, loadactivekey=True).sell(*args)
+        tx = self.dex(account=account, loadactivekey=True).sell(*args)
+        if self.unsigned:
+            return self._addUnsignedTxParameters(tx, account, "active")
+        else:
+            return tx
 
 
 class SteemConnector(object):

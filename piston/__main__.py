@@ -842,6 +842,64 @@ def main() :
     )
 
     """
+        Command "buy"
+    """
+    parser_buy = subparsers.add_parser('buy', help='Buy STEEM or SBD from the internal market')
+    parser_buy.set_defaults(command="buy")
+    parser_buy.add_argument(
+        'amount',
+        type=float,
+        help='Amount to buy'
+    )
+    parser_buy.add_argument(
+        'asset',
+        type=str,
+        choices=["STEEM", "SBD"],
+        help='Asset to buy (i.e. STEEM or SDB)'
+    )
+    parser_buy.add_argument(
+        'price',
+        type=float,
+        help='Limit buy price denoted in (SBD per STEEM)'
+    )
+    parser_buy.add_argument(
+        '--account',
+        type=str,
+        required=False,
+        default=config["default_account"],
+        help='Buy with this account (defaults to "default_account")'
+    )
+
+    """
+        Command "sell"
+    """
+    parser_sell = subparsers.add_parser('sell', help='Sell STEEM or SBD from the internal market')
+    parser_sell.set_defaults(command="sell")
+    parser_sell.add_argument(
+        'amount',
+        type=float,
+        help='Amount to sell'
+    )
+    parser_sell.add_argument(
+        'asset',
+        type=str,
+        choices=["STEEM", "SBD"],
+        help='Asset to sell (i.e. STEEM or SDB)'
+    )
+    parser_sell.add_argument(
+        'price',
+        type=float,
+        help='Limit sell price denoted in (SBD per STEEM)'
+    )
+    parser_sell.add_argument(
+        '--account',
+        type=str,
+        required=False,
+        default=config["default_account"],
+        help='Sell from this account (defaults to "default_account")'
+    )
+
+    """
         Parse Arguments
     """
     args = parser.parse_args()
@@ -1463,6 +1521,30 @@ def main() :
                 "%.3f Ṩ" % orderbook["asks"][i]["sbd"],
                 "%.3f ∑" % askssbd])
         print(t)
+
+    elif args.command == "buy":
+        if args.asset == "SBD":
+            price = 1.0 / args.price
+        else:
+            price = args.price
+        pprint(steem.buy(
+            args.amount,
+            args.asset,
+            price,
+            account=args.account
+        ))
+
+    elif args.command == "sell":
+        if args.asset == "SBD":
+            price = 1.0 / args.price
+        else:
+            price = args.price
+        pprint(steem.sell(
+            args.amount,
+            args.asset,
+            price,
+            account=args.account
+        ))
 
     else:
         print("No valid command given")
