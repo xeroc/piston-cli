@@ -1290,7 +1290,6 @@ def main() :
             from steembase.account import PasswordKey
             pwd = get_terminal(text="Password for Key Derivation: ", confirm=True)
             args.foreign_account = format(PasswordKey(args.account, pwd, args.permission).get_public(), "STM")
-            print( args.foreign_account )
         pprint(steem.allow(
             args.foreign_account,
             weight=args.weight,
@@ -1431,10 +1430,10 @@ def main() :
             """)
             xbids = [x["price"] for x in orderbook["bids"]]
             ybids = list(accumulate([x["sbd"] for x in orderbook["bids"]]))
-            dbids = Gnuplot.Data (xbids, ybids, with_="lines")
+            dbids = Gnuplot.Data(xbids, ybids, with_="lines")
             xasks = [x["price"] for x in orderbook["asks"]]
             yasks = list(accumulate([x["sbd"] for x in orderbook["asks"]]))
-            dasks = Gnuplot.Data (xasks, yasks, with_="lines")
+            dasks = Gnuplot.Data(xasks, yasks, with_="lines")
             g("set terminal dumb")
             g.plot(dbids, dasks)  # write SVG data directly to stdout ...
 
@@ -1446,7 +1445,7 @@ def main() :
         bidssbd = 0
         askssteem = 0
         askssbd = 0
-        for i,o in enumerate(orderbook["asks"]):
+        for i, o in enumerate(orderbook["asks"]):
             bidssbd += orderbook["bids"][i]["sbd"]
             bidssteem += orderbook["bids"][i]["steem"]
             askssbd += orderbook["asks"][i]["sbd"]
@@ -1462,8 +1461,7 @@ def main() :
                 "%.3f ȿ" % orderbook["asks"][i]["steem"],
                 "%.3f ∑" % askssteem,
                 "%.3f Ṩ" % orderbook["asks"][i]["sbd"],
-                "%.3f ∑" % askssbd,
-                ])
+                "%.3f ∑" % askssbd])
         print(t)
 
     else:
