@@ -30,6 +30,10 @@ class AccountExistsException(Exception):
     pass
 
 
+class AccountDoesNotExistsException(Exception):
+    pass
+
+
 class VotingInvalidOnArchivedPost(Exception):
     pass
 
@@ -354,6 +358,8 @@ class Steem(object):
             signing (e.g. for multisig or coldstorage)
         """
         accountObj = self.rpc.get_account(account)
+        if not accountObj:
+            raise AccountDoesNotExistsException(accountObj)
         authority = accountObj.get(permission)
         # We add a required_authorities to be able to identify
         # how to sign later. This is an array, because we
@@ -363,6 +369,8 @@ class Steem(object):
         }})
         for account_auth in authority["account_auths"]:
             account_auth_account = self.rpc.get_account(account_auth[0])
+            if not account_auth_account:
+                raise AccountDoesNotExistsException(account_auth_account)
             tx["required_authorities"].update({
                 account_auth[0]: account_auth_account.get(permission)
             })
@@ -374,6 +382,8 @@ class Steem(object):
         # Add one recursion of keys from account_auths:
         for account_auth in authority["account_auths"]:
             account_auth_account = self.rpc.get_account(account_auth[0])
+            if not account_auth_account:
+                raise AccountDoesNotExistsException(account_auth_account)
             tx["missing_signatures"].extend(
                 [x[0] for x in account_auth_account[permission]["key_auths"]]
             )
@@ -875,6 +885,8 @@ class Steem(object):
             if not memo_wif:
                 raise MissingKeyError("Memo key for %s missing!" % account)
             to_account = self.rpc.get_account(to)
+            if not to_account:
+                raise AccountDoesNotExistsException(to_account)
             nonce = str(random.getrandbits(64))
             memo = Memo.encode_memo(
                 PrivateKey(memo_wif),
@@ -1104,6 +1116,8 @@ class Steem(object):
         if not account:
             raise ValueError("You need to provide an account")
         a = self.rpc.get_account(account)
+        if not a:
+            raise AccountDoesNotExistsException(account)
         info = self.rpc.get_dynamic_global_properties()
         steem_per_mvest = (
             float(info["total_vesting_fund_steem"].split(" ")[0]) /
@@ -1145,6 +1159,8 @@ class Steem(object):
             :param str account: Account name to get interest for
         """
         account = self.rpc.get_account(account)
+        if not account:
+            raise AccountDoesNotExistsException(account)
         last_payment = formatTimeString(account["sbd_last_interest_payment"])
         next_payment = last_payment + timedelta(days=30)
         interest_rate = self.info()["sbd_interest_rate"] / 100  # the result is in percent!
@@ -1227,7 +1243,8 @@ class Steem(object):
                 "Permission needs to be either 'owner', 'posting', or 'active"
             )
         account = self.rpc.get_account(account)
-        assert account, "Unknown account"
+        if not account:
+            raise AccountDoesNotExistsException(account)
 
         if not weight:
             weight = account[permission]["weight_threshold"]
@@ -1289,7 +1306,8 @@ class Steem(object):
                 "Permission needs to be either 'owner', 'posting', or 'active"
             )
         account = self.rpc.get_account(account)
-        assert account, "Unknown account"
+        if not account:
+            raise AccountDoesNotExistsException(account)
         authority = account[permission]
 
         try:
@@ -1364,7 +1382,8 @@ class Steem(object):
         PublicKey(key)  # raises exception if invalid
 
         account = self.rpc.get_account(account)
-        assert account, "Unknown account"
+        if not account:
+            raise AccountDoesNotExistsException(account)
 
         op = transactions.Account_update(
             **{"account": account["name"],
@@ -1389,7 +1408,7 @@ class Steem(object):
             )
         return SteemExchange(
             ex_config,
-            safe_mode=True,
+            safe_mode=self.nobroadcast or self.unsigned,
         )
 
     def returnOrderBook(self, *args):
