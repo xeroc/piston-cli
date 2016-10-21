@@ -15,7 +15,7 @@ from .utils import (
 from .wallet import Wallet
 from .storage import configStorage as config
 from datetime import datetime, timedelta
-from steemexchange.exchange import SteemExchange as SteemLibExchange
+from steemexchange.exchange import SteemExchange as SteemExchange
 import logging
 log = logging.getLogger(__name__)
 
@@ -27,6 +27,10 @@ STEEMIT_1_PERCENT = (STEEMIT_100_PERCENT / 100)
 
 
 class AccountExistsException(Exception):
+    pass
+
+
+class AccountDoesNotExistsException(Exception):
     pass
 
 
@@ -348,6 +352,43 @@ class Steem(object):
 
         self.rpc = SteemNodeRPC(node, rpcuser, rpcpassword, **kwargs)
 
+    def _addUnsignedTxParameters(self, tx, account, permission):
+        """ This is a private method that adds side information to a
+            unsigned/partial transaction in order to simplify later
+            signing (e.g. for multisig or coldstorage)
+        """
+        accountObj = self.rpc.get_account(account)
+        if not accountObj:
+            raise AccountDoesNotExistsException(accountObj)
+        authority = accountObj.get(permission)
+        # We add a required_authorities to be able to identify
+        # how to sign later. This is an array, because we
+        # may later want to allow multiple operations per tx
+        tx.update({"required_authorities": {
+            account: authority
+        }})
+        for account_auth in authority["account_auths"]:
+            account_auth_account = self.rpc.get_account(account_auth[0])
+            if not account_auth_account:
+                raise AccountDoesNotExistsException(account_auth_account)
+            tx["required_authorities"].update({
+                account_auth[0]: account_auth_account.get(permission)
+            })
+
+        # Try to resolve required signatures for offline signing
+        tx["missing_signatures"] = [
+            x[0] for x in authority["key_auths"]
+        ]
+        # Add one recursion of keys from account_auths:
+        for account_auth in authority["account_auths"]:
+            account_auth_account = self.rpc.get_account(account_auth[0])
+            if not account_auth_account:
+                raise AccountDoesNotExistsException(account_auth_account)
+            tx["missing_signatures"].extend(
+                [x[0] for x in account_auth_account[permission]["key_auths"]]
+            )
+        return tx
+
     def finalizeOp(self, op, account, permission):
         """ This method obtains the required private keys if present in
             the wallet, finalizes the transaction, signs it and
@@ -361,31 +402,7 @@ class Steem(object):
         """
         if self.unsigned:
             tx = self.constructTx(op, None)
-            accountObj = self.rpc.get_account(account)
-            authority = accountObj.get(permission)
-            # We add a required_authorities to be able to identify
-            # how to sign later. This is an array, because we
-            # may later want to allow multiple operations per tx
-            tx.update({"required_authorities": {
-                account: authority
-            }})
-            for account_auth in authority["account_auths"]:
-                account_auth_account = self.rpc.get_account(account_auth[0])
-                tx["required_authorities"].update({
-                    account_auth[0]: account_auth_account.get(permission)
-                })
-
-            # Try to resolve required signatures for offline signing
-            tx["missing_signatures"] = [
-                x[0] for x in authority["key_auths"]
-            ]
-            # Add one recursion of keys from account_auths:
-            for account_auth in authority["account_auths"]:
-                account_auth_account = self.rpc.get_account(account_auth[0])
-                tx["missing_signatures"].extend(
-                    [x[0] for x in account_auth_account[permission]["key_auths"]]
-                )
-            return tx
+            return self._addUnsignedTxParameters(tx, account, permission)
         else:
             if permission == "active":
                 wif = self.wallet.getActiveKeyForAccount(account)
@@ -868,6 +885,8 @@ class Steem(object):
             if not memo_wif:
                 raise MissingKeyError("Memo key for %s missing!" % account)
             to_account = self.rpc.get_account(to)
+            if not to_account:
+                raise AccountDoesNotExistsException(to_account)
             nonce = str(random.getrandbits(64))
             memo = Memo.encode_memo(
                 PrivateKey(memo_wif),
@@ -1097,6 +1116,8 @@ class Steem(object):
         if not account:
             raise ValueError("You need to provide an account")
         a = self.rpc.get_account(account)
+        if not a:
+            raise AccountDoesNotExistsException(account)
         info = self.rpc.get_dynamic_global_properties()
         steem_per_mvest = (
             float(info["total_vesting_fund_steem"].split(" ")[0]) /
@@ -1138,6 +1159,8 @@ class Steem(object):
             :param str account: Account name to get interest for
         """
         account = self.rpc.get_account(account)
+        if not account:
+            raise AccountDoesNotExistsException(account)
         last_payment = formatTimeString(account["sbd_last_interest_payment"])
         next_payment = last_payment + timedelta(days=30)
         interest_rate = self.info()["sbd_interest_rate"] / 100  # the result is in percent!
@@ -1220,7 +1243,8 @@ class Steem(object):
                 "Permission needs to be either 'owner', 'posting', or 'active"
             )
         account = self.rpc.get_account(account)
-        assert account, "Unknown account"
+        if not account:
+            raise AccountDoesNotExistsException(account)
 
         if not weight:
             weight = account[permission]["weight_threshold"]
@@ -1282,7 +1306,8 @@ class Steem(object):
                 "Permission needs to be either 'owner', 'posting', or 'active"
             )
         account = self.rpc.get_account(account)
-        assert account, "Unknown account"
+        if not account:
+            raise AccountDoesNotExistsException(account)
         authority = account[permission]
 
         try:
@@ -1357,7 +1382,8 @@ class Steem(object):
         PublicKey(key)  # raises exception if invalid
 
         account = self.rpc.get_account(account)
-        assert account, "Unknown account"
+        if not account:
+            raise AccountDoesNotExistsException(account)
 
         op = transactions.Account_update(
             **{"account": account["name"],
@@ -1365,6 +1391,57 @@ class Steem(object):
                 "json_metadata": account["json_metadata"]}
         )
         return self.finalizeOp(op, account["name"], "active")
+
+    # Exchange stuff
+    def dex(self, account=None, loadactivekey=False):
+        ex_config = PistonExchangeConfig
+        if not account:
+            if "default_account" in config:
+                ex_config.account = config["default_account"]
+        else:
+            ex_config.account = account
+        if loadactivekey and not self.unsigned:
+            if not ex_config.account:
+                raise ValueError("You need to provide an account")
+            ex_config.wif = self.wallet.getActiveKeyForAccount(
+                ex_config.account
+            )
+        return SteemExchange(
+            ex_config,
+            safe_mode=self.nobroadcast or self.unsigned,
+        )
+
+    def returnOrderBook(self, *args):
+        return self.dex().returnOrderBook(*args)
+
+    def returnTicker(self):
+        return self.dex().returnTicker()
+
+    def return24Volume(self):
+        return self.dex().return24Volume()
+
+    def returnTradeHistory(self, *args):
+        return self.dex().returnTradeHistory(*args)
+
+    def returnMarketHistoryBuckets(self):
+        return self.dex().returnMarketHistoryBuckets()
+
+    def returnMarketHistory(self, *args):
+        return self.dex().returnMarketHistory(*args)
+
+    def buy(self, *args, account=None):
+        tx = self.dex(account=account, loadactivekey=True).buy(*args)
+        if self.unsigned:
+            return self._addUnsignedTxParameters(tx, account, "active")
+        else:
+            return tx
+
+    def sell(self, *args, account=None):
+        tx = self.dex(account=account, loadactivekey=True).sell(*args)
+        if self.unsigned:
+            return self._addUnsignedTxParameters(tx, account, "active")
+        else:
+            return tx
 
 
 class SteemConnector(object):
@@ -1402,38 +1479,5 @@ class PistonExchangeConfig():
     witness_url           = config["node"]
     witness_user          = config["rpcuser"]
     witness_password      = config["rpcpassword"]
-    account               = config["default_author"]
+    account               = config["default_account"]
     wif                   = None
-
-
-class SteemExchange(SteemLibExchange):
-    def __init__(self, *args, account, **kwargs):
-        # Connect to RPC so that we can properly use the piston wallet
-        Steem._connect(self, *args, **kwargs)
-
-        # Obtain a new Configuration object
-        ex_config = PistonExchangeConfig
-        if "keys" in kwargs:
-            self.wallet = Wallet(self.rpc, wif=kwargs["keys"])
-        else:
-            self.wallet = Wallet(self.rpc)
-
-        # Delete the rpc attribute so that we don't connect to a wallet
-        self.rpc = None
-
-        if not account:
-            if "default_account" in config:
-                account = config["default_account"]
-        if not account:
-            raise ValueError("You need to provide an account")
-
-        # Obtain the private key
-        ex_config.wif = self.wallet.getActiveKeyForAccount(account)
-
-        # Instead of re-implementing SteemExchange we use inheritance
-        # and accept that the module opens up a second RPC connection on
-        # it's own (for now)
-        super(SteemExchange, self).__init__(
-            ex_config,
-            safe_mode=True,
-        )

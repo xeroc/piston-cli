@@ -2,16 +2,15 @@
 
 from setuptools import setup
 import sys
+from piston.__version__ import __VERSION__
 
 assert sys.version_info[0] == 3, "Piston requires Python > 3"
 
-VERSION = '0.3.3'
-
 setup(name='steem-piston',
-      version=VERSION,
+      version=__VERSION__,
       description='Command line tool to interface with the STEEM network',
       long_description=open('README.md').read(),
-      download_url='https://github.com/xeroc/piston/tarball/' + VERSION,
+      download_url='https://github.com/xeroc/piston/tarball/' + __VERSION__,
       author='Fabian Schuh',
       author_email='<Fabian@BitShares.eu>',
       maintainer='Fabian Schuh',
@@ -32,13 +31,14 @@ setup(name='steem-piston',
               'piston = piston.__main__:main',
           ],
       },
-      install_requires=["steem>=0.2.2",
+      install_requires=["steem>=0.2.3",
                         "pycrypto==2.6.1",
                         "diff-match-patch==20121119",
                         "appdirs==1.4.0",
                         "python-frontmatter==0.2.1",
                         "prettytable==0.7.2",
                         "colorama==0.3.6",
+                        "scrypt==0.7.1"
                         ],
       setup_requires=['pytest-runner'],
       tests_require=['pytest'],

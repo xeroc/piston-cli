@@ -54,13 +54,30 @@ auto-reply bot can be coded with just a few lines of code:
        if "Boobie" in c["body"]:
            print(c.reply(".. doobidoo"))
 
-Contents
+General
 ========
+
 .. toctree::
     :maxdepth: 2
 
     installation
-    app
-    lib
     contrib
     public-api
+
+Standalone App
+==============
+
+.. toctree::
+    :maxdepth: 2
+
+    app
+    multisig
+    coldstorage
+
+Library
+=======
+
+.. toctree::
+    :maxdepth: 2
+
+    lib
