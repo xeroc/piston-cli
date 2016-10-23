@@ -1479,7 +1479,7 @@ def main() :
         if args.chart:
             g = Gnuplot.Gnuplot()
             g.title("Steem internal market - SBD:STEEM")
-            g.xlabel("price")
+            g.xlabel("price in SBD")
             g.ylabel("volume")
             g("""
                 set style data line

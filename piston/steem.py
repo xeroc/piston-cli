@@ -946,10 +946,7 @@ class Steem(object):
             raise ValueError("You need to provide an account")
 
         if not to:
-            if "default_account" in config:
-                to = config["default_account"]
-        if not to:
-            raise ValueError("You need to provide a 'to' account")
+            to = account  # powerup on the same account
 
         op = transactions.Transfer_to_vesting(
             **{"from": account,
