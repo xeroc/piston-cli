@@ -954,8 +954,7 @@ class Steem(object):
                "amount": '{:.{prec}f} {asset}'.format(
                    float(amount),
                    prec=3,
-                   asset="STEEM"
-               ),
+                   asset="STEEM")
                }
         )
 

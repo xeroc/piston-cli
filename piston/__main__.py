@@ -521,7 +521,7 @@ def main() :
         '--to',
         type=str,
         required=False,
-        default=config["default_author"],
+        default=None,
         help='Powerup this account'
     )
 
