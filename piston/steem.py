@@ -1033,6 +1033,18 @@ class Steem(object):
             discussions.append(Post(self, post))
         return discussions
 
+    def get_promoted(self):
+        """ Get promoted posts
+        """
+        state = self.rpc.get_state("/promoted")
+        # why is there a empty key in the struct?
+        promoted = state["discussion_idx"][''].get("promoted", [])
+        r = []
+        for p in promoted:
+            post = state["content"].get(p)
+            r.append(Post(self, post))
+        return r
+
     def get_posts(self, limit=10,
                   sort="hot",
                   category=None,
