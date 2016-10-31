@@ -1400,7 +1400,46 @@ class Steem(object):
         )
         return self.finalizeOp(op, account["name"], "active")
 
+    def approve_witness(self, witness, account=None, approve=True):
+        """ Vote **for** a witness. This method adds a witness to your
+            set of approved witnesses. To remove witnesses see
+            ``disapprove_witness``.
+
+            :param str witness: witness to approve
+            :param str account: (optional) the account to allow access
+                to (defaults to ``default_author``)
+        """
+
+        if not account:
+            if "default_author" in config:
+                account = config["default_author"]
+        if not account:
+            raise ValueError("You need to provide an account")
+
+        account = self.rpc.get_account(account)
+        if not account:
+            raise AccountDoesNotExistsException(account)
+
+        op = transactions.Account_witness_vote(
+            **{"account": account["name"],
+               "witness": witness,
+               "approve": approve,
+               })
+        return self.finalizeOp(op, account["name"], "active")
+
+    def disapprove_witness(self, witness, account=None, approve=True):
+        """ Remove vote for a witness. This method removes
+            a witness from your set of approved witnesses. To add
+            witnesses see ``approve_witness``.
+
+            :param str witness: witness to approve
+            :param str account: (optional) the account to allow access
+                to (defaults to ``default_author``)
+        """
+        return self.approve_witness(self, witness=witness, account=account, approve=False)
+    #######################################################
     # Exchange stuff
+    #######################################################
     def dex(self, account=None, loadactivekey=False):
         ex_config = PistonExchangeConfig
         if not account:

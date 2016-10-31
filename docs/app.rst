@@ -380,8 +380,16 @@ will be derived. If you already have a private key, you can use `addkey`
 instead.
 
 Sign/Broadcast Transaction
-~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Unsigned (but properly prepared) transactions can be signed with
 ``sign``. Signed transactions can be broadcast using ``broadcast``.
 These feature is described in :doc:`<coldstorage.rst>` and :doc:`<multisig.rst>`.
+
+Approve/Disapprove Witnesses
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+With piston, you can also approve and disapprove witnesses who are
+producing blocks on the Steem blockchain:::
+
+    piston approve_witness <witnessname>
+    piston disapprove_witness <witnessname>

@@ -796,6 +796,42 @@ def main() :
     )
 
     """
+        Command "approve_witness"
+    """
+    parser_approvewitness = subparsers.add_parser('approve_witness', help='Approve a witnesses')
+    parser_approvewitness.set_defaults(command="approve_witness")
+    parser_approvewitness.add_argument(
+        'witness',
+        type=str,
+        help='Witness to approve'
+    )
+    parser_approvewitness.add_argument(
+        '--account',
+        type=str,
+        required=False,
+        default=config["default_author"],
+        help='Your account'
+    )
+
+    """
+        Command "disapprove_witness"
+    """
+    parser_disapprovewitness = subparsers.add_parser('disapprove_witness', help='Disapprove a witnesses')
+    parser_disapprovewitness.set_defaults(command="disapprove_witness")
+    parser_disapprovewitness.add_argument(
+        'witness',
+        type=str,
+        help='Witness to disapprove'
+    )
+    parser_disapprovewitness.add_argument(
+        '--account',
+        type=str,
+        required=False,
+        default=config["default_author"],
+        help='Your account'
+    )
+
+    """
         Command "sign"
     """
     parser_sign = subparsers.add_parser('sign', help='Sign a provided transaction with available and required keys')
@@ -1551,6 +1587,18 @@ def main() :
             args.amount,
             args.asset,
             price,
+            account=args.account
+        ))
+
+    elif args.command == "approve_witness":
+        pprint(steem.approve_witness(
+            args.witness,
+            account=args.account
+        ))
+
+    elif args.command == "disapprove_witness":
+        pprint(steem.disapprove_witness(
+            args.witness,
             account=args.account
         ))
 
