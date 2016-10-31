@@ -640,6 +640,13 @@ def main() :
         default=[],
         help='Show only these operation types'
     )
+    parser_history.add_argument(
+        '--exclude_types',
+        type=str,
+        nargs="*",
+        default=[],
+        help='Do not show operations of this type'
+    )
 
     """
         Command "interest"
@@ -1308,7 +1315,8 @@ def main() :
                 a,
                 args.first,
                 limit=args.limit,
-                only_ops=args.types
+                only_ops=args.types,
+                exclude_ops=args.exclude_types
             ):
                 t.add_row([
                     b[0],
