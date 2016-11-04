@@ -993,8 +993,7 @@ class Steem(object):
             :param str identifier: Identifier for the post to upvote Takes
                                    the form ``@author/permlink``
         """
-        post_author, post_permlink = resolveIdentifier(identifier)
-        return Post(self, self.rpc.get_content(post_author, post_permlink))
+        return Post(self, identifier)
 
     def get_recommended(self, user):
         """ (obsolete) Get recommended posts for user
