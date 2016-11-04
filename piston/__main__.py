@@ -628,6 +628,11 @@ def main() :
         help='Show (decode) memos'
     )
     parser_history.add_argument(
+        '--csv',
+        action='store_true',
+        help='Output in CSV format'
+    )
+    parser_history.add_argument(
         '--first',
         type=int,
         default=99999999999999,
@@ -1339,8 +1344,14 @@ def main() :
         print(t)
 
     elif args.command == "history":
-        t = PrettyTable(["#", "time/block", "Operation", "Details"])
-        t.align = "r"
+        header = ["#", "time (block)", "operation", "details"]
+        if args.csv:
+            import csv
+            t = csv.writer(sys.stdout, delimiter=";")
+            t.writerow(header)
+        else:
+            t = PrettyTable(header)
+            t.align = "r"
         if isinstance(args.account, str):
             args.account = [args.account]
         if isinstance(args.types, str):
@@ -1354,13 +1365,18 @@ def main() :
                 only_ops=args.types,
                 exclude_ops=args.exclude_types
             ):
-                t.add_row([
+                row = [
                     b[0],
                     "%s (%s)" % (b[1]["timestamp"], b[1]["block"]),
                     b[1]["op"][0],
                     format_operation_details(b[1]["op"], memos=args.memos),
-                ])
-        print(t)
+                ]
+                if args.csv:
+                    t.writerow(row)
+                else:
+                    t.add_row(row)
+        if not args.csv:
+            print(t)
 
     elif args.command == "interest":
         t = PrettyTable(["Account",
