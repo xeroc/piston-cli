@@ -1010,9 +1010,7 @@ class Steem(object):
         posts = state["accounts"][user].get("blog", [])
         r = []
         for p in posts:
-            post = state["content"]["%s/%s" % (
-                user, p   # FIXME, this is a inconsistency in steem backend
-            )]
+            post = state["content"][p]
             r.append(Post(self, post))
         return r
 
@@ -1436,9 +1434,11 @@ class Steem(object):
                 to (defaults to ``default_author``)
         """
         return self.approve_witness(self, witness=witness, account=account, approve=False)
+
     #######################################################
     # Exchange stuff
     #######################################################
+
     def dex(self, account=None, loadactivekey=False):
         ex_config = PistonExchangeConfig
         if not account:
