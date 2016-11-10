@@ -10,7 +10,7 @@ from flask import (
     abort
 )
 from .utils import resolveIdentifier
-from .steem import Post, SteemConnector
+from .steem import Post, SteemConnector, Amount
 from .web_app import app
 from .storage import configStorage as configStore
 from . import web_forms
@@ -90,17 +90,17 @@ def user_funds(user):
     info = steem.rpc.get_dynamic_global_properties()
     median_price = steem.rpc.get_current_median_history_price()
     steem_per_mvest = (
-        float(info["total_vesting_fund_steem"].split(" ")[0]) /
-        (float(info["total_vesting_shares"].split(" ")[0]) / 1e6)
+        Amount(info["total_vesting_fund_steem"]).amount /
+        (Amount(info["total_vesting_shares"]).amount / 1e6)
     )
     price = (
-        float(median_price["base"].split(" ")[0]) /
-        float(median_price["quote"].split(" ")[0])
+        Amount(median_price["base"]).amount /
+        Amount(median_price["quote"]).amount
     )
-    vesting_shares = float(user["vesting_shares"].split(" ")[0]) / 1e6 * steem_per_mvest
-    vets_shares = float(user["vesting_shares"].split(" ")[0])
-    steem_balance = float(user["balance"].split(" ")[0])
-    sbd_balance = float(user["sbd_balance"].split(" ")[0])
+    vesting_shares = Amount(user["vesting_shares"]) / 1e6 * steem_per_mvest
+    vets_shares = Amount(user["vesting_shares"]).amount
+    steem_balance = Amount(user["balance"]).amount
+    sbd_balance = Amount(user["sbd_balance"]).amount
 
     latestOp = request.args.get('latestOp')
     if latestOp:

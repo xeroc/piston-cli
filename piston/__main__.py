@@ -25,7 +25,7 @@ from .ui import (
     print_permissions,
     get_terminal
 )
-from .steem import Steem, Post, SteemConnector
+from .steem import Steem, Post, SteemConnector, Amount
 import frontmatter
 import time
 from prettytable import PrettyTable
@@ -1039,12 +1039,12 @@ def main() :
         info = steem.rpc.get_dynamic_global_properties()
         median_price = steem.rpc.get_current_median_history_price()
         steem_per_mvest = (
-            float(info["total_vesting_fund_steem"].split(" ")[0]) /
-            (float(info["total_vesting_shares"].split(" ")[0]) / 1e6)
+            Amount(info["total_vesting_fund_steem"]).amount /
+            (Amount(info["total_vesting_shares"]).amount / 1e6)
         )
         price = (
-            float(median_price["base"].split(" ")[0]) /
-            float(median_price["quote"].split(" ")[0])
+            Amount(median_price["base"]).amount /
+            Amount(median_price["quote"]).amount
         )
         for key in info:
             t.add_row([key, info[key]])
@@ -1328,7 +1328,9 @@ def main() :
         ))
 
     elif args.command == "balance":
-        t = PrettyTable(["Account", "STEEM", "SBD", "VESTS", "VESTS (in STEEM)"])
+        t = PrettyTable(["Account", "STEEM", "SBD", "VESTS",
+                         "VESTS (in STEEM)", "Savings (STEEM)",
+                         "Savings (SBD)"])
         t.align = "r"
         if isinstance(args.account, str):
             args.account = [args.account]
@@ -1339,7 +1341,9 @@ def main() :
                 b["balance"],
                 b["sbd_balance"],
                 b["vesting_shares"],
-                b["vesting_shares_steem"]
+                b["vesting_shares_steem"],
+                b["savings_balance"],
+                b["savings_sbd_balance"]
             ])
         print(t)
 

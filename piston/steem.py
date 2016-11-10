@@ -42,6 +42,23 @@ class InsufficientAuthorityError(Exception):
     pass
 
 
+class Amount(object):
+    def __init__(self, amountString):
+        self.amount, self.asset = amountString.split(" ")
+        self.amount = float(self.amount)
+
+    def __str__(self):
+        if self.asset == "SBD":
+            prec = 3
+        elif self.asset == "STEEM":
+            prec = 3
+        elif self.asset == "VESTS":
+            prec = 6
+        else:
+            prec = 6
+        return "{:.{prec}f} {}".format(self.amount, self.asset, prec=prec)
+
+
 class Post(object):
     """ This object gets instanciated by Steem.streams and is used as an
         abstraction layer for Comments in Steem
@@ -120,8 +137,8 @@ class Post(object):
 
         # Total reward
         post["total_payout_reward"] = "%.3f SBD" % (
-            float(post.get("total_payout_value", "0 SBD").split(" ")[0]) +
-            float(post.get("total_pending_payout_value", "0 SBD").split(" ")[0])
+            Amount(post.get("total_payout_value", "0 SBD")).amount +
+            Amount(post.get("total_pending_payout_value", "0 SBD")).amount
         )
 
         # Store everything as attribute
@@ -181,11 +198,11 @@ class Post(object):
             r.append(Post(self.steem, post))
         if sort == "total_payout_value":
             r = sorted(r, key=lambda x: float(
-                x["total_payout_value"].split(" ")[0]
+                Amount(x["total_payout_value"]).amount
             ), reverse=True)
         elif sort == "total_payout_reward":
             r = sorted(r, key=lambda x: float(
-                x["total_payout_reward"].split(" ")[0]
+                Amount(x["total_payout_reward"]).amount
             ), reverse=True)
         else:
             r = sorted(r, key=lambda x: x[sort])
@@ -1125,15 +1142,18 @@ class Steem(object):
             raise AccountDoesNotExistsException(account)
         info = self.rpc.get_dynamic_global_properties()
         steem_per_mvest = (
-            float(info["total_vesting_fund_steem"].split(" ")[0]) /
-            (float(info["total_vesting_shares"].split(" ")[0]) / 1e6)
+            Amount(info["total_vesting_fund_steem"]).amount /
+            (Amount(info["total_vesting_shares"]).amount / 1e6)
         )
-        vesting_shares_steem = float(a["vesting_shares"].split(" ")[0]) / 1e6 * steem_per_mvest
+        vesting_shares_steem = "%f STEEM" % (Amount(a["vesting_shares"]).amount / 1e6 * steem_per_mvest)
         return {
-            "balance": a["balance"],
-            "vesting_shares" : a["vesting_shares"],
-            "vesting_shares_steem" : vesting_shares_steem,
-            "sbd_balance": a["sbd_balance"]
+            "balance": Amount(a["balance"]),
+            "vesting_shares" : Amount(a["vesting_shares"]),
+            "sbd_balance": Amount(a["sbd_balance"]),
+            "savings_balance": Amount(a["savings_balance"]),
+            "savings_sbd_balance": Amount(a["savings_sbd_balance"]),
+            # computed amounts
+            "vesting_shares_steem" : Amount(vesting_shares_steem),
         }
 
     def decode_memo(self, enc_memo, account):
