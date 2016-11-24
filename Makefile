@@ -8,6 +8,7 @@ clean: clean-build clean-pyc
 
 clean-build:
 	rm -fr build/ dist/ *.egg-info .eggs/ .tox/ __pycache__/ .cache/ .coverage htmlcov src
+	rm -rf contrib/tmp/piston/
 
 clean-pyc:
 	find . -name '*.pyc' -exec rm -f {} +

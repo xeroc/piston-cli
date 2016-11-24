@@ -4,7 +4,6 @@ from .utils import (
     derivePermlink,
     formatTimeString
 )
-from .steem import Steem
 import re
 import json
 from .amount import Amount
@@ -25,7 +24,7 @@ class Post(object):
     steem = None
 
     def __init__(self, steem, post):
-        if not isinstance(steem, Steem):
+        if steem.__class__.__name__ != "Steem":
             raise ValueError(
                 "First argument must be instance of Steem()"
             )
@@ -101,7 +100,9 @@ class Post(object):
         for key in post:
             setattr(self, key, post[key])
 
-    def _getOpeningPost(self, post):
+    def _getOpeningPost(self, post=None):
+        if not post:
+            post = self
         m = re.match("/([^/]*)/@([^/]*)/([^#]*).*",
                      post.get("url", ""))
         if not m:

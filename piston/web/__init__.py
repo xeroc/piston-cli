@@ -3,7 +3,7 @@ from ..utils import strfdelta, strfage
 from ..storage import configStorage as configStore
 from .app import app, socketio
 from ..steem import SteemConnector
-from . import views, assets, socketio
+from . import views, assets
 import logging
 log = logging.getLogger(__name__)
 steem = SteemConnector().getSteem()
