@@ -1156,6 +1156,9 @@ class Steem(object):
             "vesting_shares_steem" : Amount(vesting_shares_steem),
         }
 
+    def get_account_history(self, *args, **kwargs):
+        return self.rpc.account_history(*args, **kwargs)
+
     def decode_memo(self, enc_memo, account):
         """ Try to decode an encrypted memo
         """
