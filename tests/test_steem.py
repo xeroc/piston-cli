@@ -2,10 +2,12 @@ import unittest
 import piston
 from piston.steem import (
     Steem,
-    Post,
     MissingKeyError,
-    VotingInvalidOnArchivedPost,
     InsufficientAuthorityError
+)
+from piston.post import (
+    Post,
+    VotingInvalidOnArchivedPost
 )
 
 identifier = "@xeroc/piston"
