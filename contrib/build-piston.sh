@@ -1,9 +1,6 @@
 #!/bin/bash
 
-$BRANCH="develop"
-WINEPREFIX=~/.wine/
-PYHOME=c:/Python34
-PYTHON="wine $PYHOME/python.exe -OO -B"
+source environment.sh
 
 cd `dirname $0`
 set -e
@@ -35,6 +32,15 @@ cp tmp/piston/piston.py tmp/piston/cli.py
 
 # build standalone version
 $PYTHON "C:/pyinstaller/pyinstaller.py" --noconfirm --ascii --paths=$PYHOME\Lib\site-packages -c piston.spec
-$PYTHON "C:/pyinstaller/pyinstaller.py" --noconfirm --ascii --paths=$PYHOME\Lib\site-packages -c -F piston.spec
+# $PYTHON "C:/pyinstaller/pyinstaller.py" --noconfirm --ascii --paths=$PYHOME\Lib\site-packages -c -F piston.spec
+
+# build NSIS installer
+wine "$WINEPREFIX/drive_c/Program Files (x86)/NSIS/makensis.exe" /DPRODUCT_VERSION=$VERSION piston.nsi
+
+cd dist
+mv piston-setup.exe $NAME_ROOT-$VERSION-setup.exe
+mv piston $NAME_ROOT-$VERSION
+zip -r $NAME_ROOT-$VERSION.zip $NAME_ROOT-$VERSION
+cd ..
 
 echo "Done."

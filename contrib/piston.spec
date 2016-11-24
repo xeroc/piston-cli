@@ -1,7 +1,8 @@
-home = "tmp\\piston"
+home = "tmp/piston"
 
-a = Analysis(
-    ['tmp/piston/cli.py'],
+a = Analysis([
+        home + '/cli.py'
+    ],
     pathex=[
         "C:\\Python34\\libs\\",
         "C:\\Python34\\Lib\\site-packages",
@@ -14,34 +15,40 @@ a = Analysis(
     hiddenimports=[
         "piston.__main__",
         "scrypt", "_scrypt",
-#        "piston.web",
     ]
 )
-pyz = PYZ(a.pure, a.zipped_data)
+pyz = PYZ(
+    a.pure,
+    a.zipped_data
+)
+
 exe = EXE(
     pyz,
     a.scripts,
-    #######################
-    # a.binaries,
-    # a.zipfiles,
-    # a.datas,
-    #######################
+    ##########
+    #a.binaries,
+    #a.datas,
+    ##########
     exclude_binaries=True,
-    #######################
-    name='piston',
+    name='piston.exe',
     debug=False,
-    strip=False,
-    upx=True,
+    strip=None,
+    upx=False,
+    #icon=home+'icons/piston.ico',
     console=True
 )
+
 coll = COLLECT(
     exe,
     a.binaries,
     a.zipfiles,
     a.datas,
-    strip=False,
+    strip=None,
     upx=True,
-    name='piston'
+    debug=False,
+    # icon=home+'icons/piston.ico',
+    console=True,
+    name=os.path.join('dist', 'piston')
 )
 
 # vim: ts=4 sw=4 expandtab ft=python
