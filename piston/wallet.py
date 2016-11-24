@@ -4,7 +4,6 @@ import os
 import json
 from appdirs import user_data_dir
 import logging
-from .wallet_legacy import LegacyWallet
 
 log = logging.getLogger(__name__)
 prefix = "STM"
@@ -15,7 +14,7 @@ class InvalidWifError(Exception):
     pass
 
 
-class Wallet(LegacyWallet):
+class Wallet():
     keys = []
     rpc = None
     masterpassword = None
@@ -167,18 +166,6 @@ class Wallet(LegacyWallet):
         pwd = self.getPassword(confirm=True)
         masterpwd = self.MasterPassword(pwd)
         self.masterpassword = masterpwd.decrypted_master
-
-    def migrateFromJSON(self):
-        """ (Legacy) Migrate code from former wallet database
-        """
-        # Open Legacy Wallet and populate self.keys
-        self.ensureOpen()
-        self.newWallet()
-        numKeys = len(self.keys)
-        for i, key in enumerate(self.keys):
-            self.addPrivateKey(key)
-            log.critical("Migrated key %d of %d" % (i + 1, numKeys))
-        log.critical("Migration completed")
 
     def encrypt_wif(self, wif):
         """ Encrypt a wif key

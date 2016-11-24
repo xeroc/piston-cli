@@ -1,3 +1,2 @@
 include *.md
-recursive-include piston/templates *
-recursive-include piston/static *
+recursive-include piston/web *
