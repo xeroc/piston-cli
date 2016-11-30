@@ -4,6 +4,7 @@ import sys
 import os
 import argparse
 import json
+import re
 from pprint import pprint
 from steembase.account import PrivateKey, PublicKey, Address
 import steembase.transactions as transactions
@@ -140,6 +141,12 @@ def main() :
     """
     parser_info = subparsers.add_parser('info', help='Show infos about piston and Steem')
     parser_info.set_defaults(command="info")
+    parser_info.add_argument(
+        'objects',
+        nargs='*',
+        type=str,
+        help='General information about the blockchain, a block, an account name, a post, a public key, ...'
+    )
 
     """
         Command "changewalletpassphrase"
@@ -1034,23 +1041,85 @@ def main() :
         print(t)
 
     elif args.command == "info":
-        t = PrettyTable(["Key", "Value"])
-        t.align = "l"
-        info = steem.rpc.get_dynamic_global_properties()
-        median_price = steem.rpc.get_current_median_history_price()
-        steem_per_mvest = (
-            Amount(info["total_vesting_fund_steem"]).amount /
-            (Amount(info["total_vesting_shares"]).amount / 1e6)
-        )
-        price = (
-            Amount(median_price["base"]).amount /
-            Amount(median_price["quote"]).amount
-        )
-        for key in info:
-            t.add_row([key, info[key]])
-        t.add_row(["steem per mvest", steem_per_mvest])
-        t.add_row(["internal price", price])
-        print(t)
+        if not args.objects:
+            t = PrettyTable(["Key", "Value"])
+            t.align = "l"
+            info = steem.rpc.get_dynamic_global_properties()
+            median_price = steem.rpc.get_current_median_history_price()
+            steem_per_mvest = (
+                Amount(info["total_vesting_fund_steem"]).amount /
+                (Amount(info["total_vesting_shares"]).amount / 1e6)
+            )
+            price = (
+                Amount(median_price["base"]).amount /
+                Amount(median_price["quote"]).amount
+            )
+            for key in info:
+                t.add_row([key, info[key]])
+            t.add_row(["steem per mvest", steem_per_mvest])
+            t.add_row(["internal price", price])
+            print(t)
+
+        for obj in args.objects:
+            # Block
+            if re.match("^[0-9]*$", obj):
+                block = steem.rpc.get_block(obj)
+                if block:
+                    t = PrettyTable(["Key", "Value"])
+                    t.align = "l"
+                    for key in sorted(block):
+                        value = block[key]
+                        if key == "transactions":
+                            value = json.dumps(value, indent=4)
+                        t.add_row([key, value])
+                    print(t)
+                else:
+                    print("Block number %s unknown" % obj)
+            # Account name
+            if re.match("^[a-zA-Z0-9\._]{2,16}$", obj):
+                account = steem.rpc.get_account(obj)
+                if account:
+                    t = PrettyTable(["Key", "Value"])
+                    t.align = "l"
+                    for key in sorted(account):
+                        value = account[key]
+                        if (key == "posting" or
+                                key == "witness_votes" or
+                                key == "active" or
+                                key == "owner" or
+                                key == "json_metadata"):
+                            value = json.dumps(value, indent=4)
+                        t.add_row([key, value])
+                    print(t)
+                else:
+                    print("Account %s unknown" % obj)
+            # Public Key
+            if re.match("^STM.{48,55}$", obj):
+                account = steem.wallet.getAccountFromPublicKey(obj)
+                if account:
+                    t = PrettyTable(["Account"])
+                    t.align = "l"
+                    t.add_row(account)
+                    print(t)
+                else:
+                    print("Public Key not known" % obj)
+            # Post identifier
+            if re.match("^@.{3,16}/.*$", obj):
+                post = steem.get_content(obj)
+                if post:
+                    t = PrettyTable(["Key", "Value"])
+                    t.align = "l"
+                    for key in sorted(post):
+                        if (key == "tags" or
+                                key == "json_metadata"):
+                            value = json.dumps(value, indent=4)
+                        value = str(post[key])
+                        t.add_row([key, value])
+                    print(t)
+                else:
+                    print("Post now known" % obj)
+        else:
+            print("Couldn't identify object to read")
 
     elif args.command == "changewalletpassphrase":
         steem.wallet.changePassphrase()
