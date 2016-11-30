@@ -787,6 +787,13 @@ def main() :
         type=str,
         help='Account name'
     )
+    parser_importaccount.add_argument(
+        '--roles',
+        type=str,
+        nargs="*",
+        default=["active", "posting", "memo"],  # no owner
+        help='Import specified keys (owner, active, posting, memo)'
+    )
 
     """
         Command "updateMemoKey"
@@ -1538,34 +1545,47 @@ def main() :
         from steembase.account import PasswordKey
         import getpass
         password = getpass.getpass("Account Passphrase: ")
-
-        posting_key = PasswordKey(args.account, password, role="posting")
-        active_key  = PasswordKey(args.account, password, role="active")
-        memo_key    = PasswordKey(args.account, password, role="memo")
-        posting_pubkey = format(posting_key.get_public_key(), "STM")
-        active_pubkey  = format(active_key.get_public_key(), "STM")
-        memo_pubkey    = format(memo_key.get_public_key(), "STM")
-
         account = steem.rpc.get_account(args.account)
-
         imported = False
-        if active_pubkey in [x[0] for x in account["active"]["key_auths"]]:
-            active_privkey = active_key.get_private_key()
-            steem.wallet.addPrivateKey(active_privkey)
-            imported = True
 
-        if posting_pubkey in [x[0] for x in account["posting"]["key_auths"]]:
-            posting_privkey = posting_key.get_private_key()
-            steem.wallet.addPrivateKey(posting_privkey)
-            imported = True
+        if "owner" in args.roles:
+            owner_key    = PasswordKey(args.account, password, role="owner")
+            owner_pubkey = format(owner_key.get_public_key(), "STM")
+            if owner_pubkey in [x[0] for x in account["owner"]["key_auths"]]:
+                print("Importing owner key!")
+                owner_privkey = owner_key.get_private_key()
+                steem.wallet.addPrivateKey(owner_privkey)
+                imported = True
 
-        if memo_pubkey == account["memo_key"]:
-            memo_privkey = memo_key.get_private_key()
-            steem.wallet.addPrivateKey(memo_privkey)
-            imported = True
+        if "active" in args.roles:
+            active_key    = PasswordKey(args.account, password, role="active")
+            active_pubkey = format(active_key.get_public_key(), "STM")
+            if active_pubkey in [x[0] for x in account["active"]["key_auths"]]:
+                print("Importing active key!")
+                active_privkey = active_key.get_private_key()
+                steem.wallet.addPrivateKey(active_privkey)
+                imported = True
+
+        if "posting" in args.roles:
+            posting_key    = PasswordKey(args.account, password, role="posting")
+            posting_pubkey = format(posting_key.get_public_key(), "STM")
+            if posting_pubkey in [x[0] for x in account["posting"]["key_auths"]]:
+                print("Importing posting key!")
+                posting_privkey = posting_key.get_private_key()
+                steem.wallet.addPrivateKey(posting_privkey)
+                imported = True
+
+        if "memo" in args.roles:
+            memo_key    = PasswordKey(args.account, password, role="memo")
+            memo_pubkey = format(memo_key.get_public_key(), "STM")
+            if memo_pubkey == account["memo_key"]:
+                print("Importing memo key!")
+                memo_privkey = memo_key.get_private_key()
+                steem.wallet.addPrivateKey(memo_privkey)
+                imported = True
 
         if not imported:
-            print("No keys matched! Invalid password?")
+            print("No matching key(s) found. Password correct?")
 
     elif args.command == "sign":
         if args.file and args.file != "-":

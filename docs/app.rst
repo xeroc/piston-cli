@@ -393,3 +393,18 @@ producing blocks on the Steem blockchain:::
 
     piston approve_witness <witnessname>
     piston disapprove_witness <witnessname>
+
+Info
+~~~~
+Piston can read data from the blockchain and present it to the user in
+tabular form. It can automatically identify:
+
+* block numbers (``1000021``)
+* account names (``piston``)
+* public keys (``STMxxxxxxxxxx``)
+* post identifiers (`@<accountname>/<permlink>``)
+* general blockchain parameters
+
+The corresponding data can be presented using:::
+
+    piston info [block_num [account name [pubkey [identifier]]]]
