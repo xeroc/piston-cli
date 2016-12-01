@@ -962,6 +962,24 @@ def main() :
     )
 
     """
+        Command "resteem"
+    """
+    parser_resteem = subparsers.add_parser('resteem', help='Resteem an existing post')
+    parser_resteem.set_defaults(command="resteem")
+    parser_resteem.add_argument(
+        'identifier',
+        type=str,
+        help='@author/permlink-identifier of the post to resteem'
+    )
+    parser_resteem.add_argument(
+        '--account',
+        type=str,
+        required=False,
+        default=config["default_author"],
+        help='Resteem as this user (requires to have the key installed in the wallet)'
+    )
+
+    """
         Parse Arguments
     """
     args = parser.parse_args()
@@ -1708,6 +1726,12 @@ def main() :
     elif args.command == "disapprove_witness":
         pprint(steem.disapprove_witness(
             args.witness,
+            account=args.account
+        ))
+
+    elif args.command == "resteem":
+        pprint(steem.resteem(
+            args.identifier,
             account=args.account
         ))
 

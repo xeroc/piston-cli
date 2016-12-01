@@ -408,3 +408,9 @@ tabular form. It can automatically identify:
 The corresponding data can be presented using:::
 
     piston info [block_num [account name [pubkey [identifier]]]]
+
+Resteem
+~~~~~~~
+Existing posts can be resteemed using:::
+
+    piston resteem [--account <account>] @author/permlink

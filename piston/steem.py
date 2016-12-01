@@ -1233,7 +1233,6 @@ class Steem(object):
             :param str account: (optional) the account to allow access
                 to (defaults to ``default_author``)
         """
-
         if not account:
             if "default_author" in config:
                 account = config["default_author"]
@@ -1261,6 +1260,55 @@ class Steem(object):
                 to (defaults to ``default_author``)
         """
         return self.approve_witness(self, witness=witness, account=account, approve=False)
+
+    def custom_json(self, id, json, required_auths=[], required_posting_auths=[]):
+        """ Create a custom json operation
+
+            :param str id: identifier for the custom json (max length 32 bytes)
+            :param json json: the json data to put into the custom_json operation
+            :param list required_auths: (optional) required auths
+            :param list required_posting_auths: (optional) posting auths
+        """
+        account = None
+        if len(required_auths):
+            account = required_auths[0]
+        elif len(required_posting_auths):
+            account = required_posting_auths[0]
+        else:
+            raise Exception("At least on account needs to be specified")
+        op = transactions.Custom_json(
+            **{"json": json,
+               "required_auths": required_auths,
+               "required_posting_auths": required_posting_auths,
+               "id": id})
+        return self.finalizeOp(op, account, "posting")
+
+    def resteem(self, identifier, account=None):
+        """ Resteem a post
+
+            :param str identifier: post identifier (@<account>/<permlink>)
+            :param str account: (optional) the account to allow access
+                to (defaults to ``default_author``)
+        """
+        if not account:
+            if "default_author" in config:
+                account = config["default_author"]
+        if not account:
+            raise ValueError("You need to provide an account")
+        author, permlink = resolveIdentifier(identifier)
+        return self.custom_json(
+            id="follow",
+            json=["reblog",
+                  {"account": account,
+                   "author": "chainsquad",
+                   "permlink": "streemian-com-to-open-its-doors-and-offer-a-20-discount"
+                   }],
+            required_posting_auths=[account]
+        )
+
+    def reblog(self, *args, **kwargs):
+        """ See resteem() """
+        self.resteem(*args, **kwargs)
 
     #######################################################
     # Exchange stuff
