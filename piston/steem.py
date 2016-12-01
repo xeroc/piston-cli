@@ -2,7 +2,7 @@ import re
 import json
 import string
 import random
-from steemapi.steemclient import SteemNodeRPC
+from steemapi.steemnoderpc import SteemNodeRPC, NoAccessApi
 from steembase.account import PrivateKey, PublicKey, Address
 from steembase import memo
 import steembase.transactions as transactions
@@ -124,6 +124,14 @@ class Steem(object):
 
             where ``<host>`` starts with ``ws://`` or ``wss://``.
         """
+        # More specific set of APIs to register to
+        if "apis" not in kwargs:
+            kwargs["apis"] = [
+                "database",
+                "network_broadcast",
+                "account_by_key_api"
+            ]
+
         if not kwargs.pop("offline", False):
             self._connect(node=node,
                           rpcuser=rpcuser,
@@ -1329,12 +1337,17 @@ class SteemConnector(object):
         log.debug("trying to connect to %s" % config["node"])
         try:
             SteemConnector.steem = Steem(*args, **kwargs)
-        except:
+        except NoAccessApi as e:
             print("=" * 80)
+            print(str(e))
+            print("=" * 80)
+            exit(1)
+        except Exception as e:
             print(
                 "No connection to %s could be established!\n" % config["node"] +
                 "Please try again later, or select another node via:\n"
-                "    piston node wss://example.com"
+                "    piston node wss://example.com\n\n"
+                "Error: \n" + str(e)
             )
             print("=" * 80)
             exit(1)
