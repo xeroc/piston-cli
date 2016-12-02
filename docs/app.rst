@@ -414,3 +414,10 @@ Resteem
 Existing posts can be resteemed using:::
 
     piston resteem [--account <account>] @author/permlink
+
+Follow/Unfollow
+~~~~~~~~~~~~~~~
+You can follow and unfollow someones blog posts by:::
+
+    piston follow <accountname>
+    piston unfollow <accountname>
