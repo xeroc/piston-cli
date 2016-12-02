@@ -980,6 +980,58 @@ def main() :
     )
 
     """
+        Command "follow"
+    """
+    parser_follow = subparsers.add_parser('follow', help='Follow another account')
+    parser_follow.set_defaults(command="follow")
+    parser_follow.add_argument(
+        'follow',
+        type=str,
+        help='Account to follow'
+    )
+    parser_follow.add_argument(
+        '--account',
+        type=str,
+        required=False,
+        default=config["default_account"],
+        help='Follow from this account'
+    )
+    parser_follow.add_argument(
+        '--what',
+        type=str,
+        required=False,
+        nargs="*",
+        default=["blog"],
+        help='Follow these objects (defaults to "blog")'
+    )
+
+    """
+        Command "unfollow"
+    """
+    parser_unfollow = subparsers.add_parser('unfollow', help='unfollow another account')
+    parser_unfollow.set_defaults(command="unfollow")
+    parser_unfollow.add_argument(
+        'unfollow',
+        type=str,
+        help='Account to unfollow'
+    )
+    parser_unfollow.add_argument(
+        '--account',
+        type=str,
+        required=False,
+        default=config["default_account"],
+        help='Unfollow from this account'
+    )
+    parser_unfollow.add_argument(
+        '--what',
+        type=str,
+        required=False,
+        nargs="*",
+        default=[],
+        help='Unfollow these objects (defaults to "blog")'
+    )
+
+    """
         Parse Arguments
     """
     args = parser.parse_args()
@@ -1732,6 +1784,20 @@ def main() :
     elif args.command == "resteem":
         pprint(steem.resteem(
             args.identifier,
+            account=args.account
+        ))
+
+    elif args.command == "follow":
+        pprint(steem.follow(
+            args.follow,
+            what=args.what,
+            account=args.account
+        ))
+
+    elif args.command == "unfollow":
+        pprint(steem.unfollow(
+            args.unfollow,
+            what=args.what,
             account=args.account
         ))
 

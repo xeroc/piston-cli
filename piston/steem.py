@@ -1306,6 +1306,40 @@ class Steem(object):
             required_posting_auths=[account]
         )
 
+    def unfollow(self, unfollow, what=["blog"], account=None):
+        """ Unfollow another account's blog
+
+            :param str unfollow: Follow this account
+            :param list what: List of states to follow (defaults to ``['blog']``)
+            :param str account: (optional) the account to allow access
+                to (defaults to ``default_account``)
+        """
+        # FIXME: removing 'blog' from the array requires to first read
+        # the follow.what from the blockchain
+        return self.follow(unfollow, what=[], account=account)
+
+    def follow(self, follow, what=["blog"], account=None):
+        """ Follow another account's blog
+
+            :param str follow: Follow this account
+            :param list what: List of states to follow (defaults to ``['blog']``)
+            :param str account: (optional) the account to allow access
+                to (defaults to ``default_account``)
+        """
+        if not account:
+            if "default_account" in config:
+                account = config["default_account"]
+        if not account:
+            raise ValueError("You need to provide an account")
+        return self.custom_json(
+            id="follow",
+            json=['follow', {
+                'follower': account,
+                'following': follow,
+                'what': what}],
+            required_posting_auths=[account]
+        )
+
     def reblog(self, *args, **kwargs):
         """ See resteem() """
         self.resteem(*args, **kwargs)
