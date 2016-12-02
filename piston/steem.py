@@ -1300,8 +1300,8 @@ class Steem(object):
             id="follow",
             json=["reblog",
                   {"account": account,
-                   "author": "chainsquad",
-                   "permlink": "streemian-com-to-open-its-doors-and-offer-a-20-discount"
+                   "author": author,
+                   "permlink": permlink
                    }],
             required_posting_auths=[account]
         )
