@@ -1135,7 +1135,7 @@ def main() :
                 t.add_row([key, info[key]])
             t.add_row(["steem per mvest", steem_per_mvest])
             t.add_row(["internal price", price])
-            print(t)
+            print(t.get_string(sortby="Key"))
 
         for obj in args.objects:
             # Block
@@ -1153,7 +1153,7 @@ def main() :
                 else:
                     print("Block number %s unknown" % obj)
             # Account name
-            if re.match("^[a-zA-Z0-9\._]{2,16}$", obj):
+            elif re.match("^[a-zA-Z0-9\._]{2,16}$", obj):
                 account = steem.rpc.get_account(obj)
                 if account:
                     t = PrettyTable(["Key", "Value"])
@@ -1171,7 +1171,7 @@ def main() :
                 else:
                     print("Account %s unknown" % obj)
             # Public Key
-            if re.match("^STM.{48,55}$", obj):
+            elif re.match("^STM.{48,55}$", obj):
                 account = steem.wallet.getAccountFromPublicKey(obj)
                 if account:
                     t = PrettyTable(["Account"])
@@ -1181,7 +1181,7 @@ def main() :
                 else:
                     print("Public Key not known" % obj)
             # Post identifier
-            if re.match("^@.{3,16}/.*$", obj):
+            elif re.match("^@.{3,16}/.*$", obj):
                 post = steem.get_content(obj)
                 if post:
                     t = PrettyTable(["Key", "Value"])
@@ -1195,8 +1195,8 @@ def main() :
                     print(t)
                 else:
                     print("Post now known" % obj)
-        else:
-            print("Couldn't identify object to read")
+            else:
+                print("Couldn't identify object to read")
 
     elif args.command == "changewalletpassphrase":
         steem.wallet.changePassphrase()
