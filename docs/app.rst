@@ -402,7 +402,7 @@ tabular form. It can automatically identify:
 * block numbers (``1000021``)
 * account names (``piston``)
 * public keys (``STMxxxxxxxxxx``)
-* post identifiers (`@<accountname>/<permlink>``)
+* post identifiers (``@<accountname>/<permlink>``)
 * general blockchain parameters
 
 The corresponding data can be presented using:::
