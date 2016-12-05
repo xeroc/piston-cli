@@ -276,12 +276,12 @@ def format_operation_details(op, memos=False):
             op[1]["voter"],
             constructIdentifier(op[1]["author"], op[1]["permlink"])
         )
-    if op[0] == "comment":
+    elif op[0] == "comment":
         return "%s: %s" % (
             op[1]["author"],
             constructIdentifier(op[1]["author"], op[1]["permlink"])
         )
-    if op[0] == "transfer":
+    elif op[0] == "transfer":
         str_ = "%s -> %s %s" % (
             op[1]["from"],
             op[1]["to"],
@@ -296,6 +296,10 @@ def format_operation_details(op, memos=False):
                 memo = steem.decode_memo(memo, op)
             str_ += " (%s)" % memo
         return str_
+    elif op[0] == "interest":
+        return "%s" % (
+            op[1]["interest"]
+        )
     else:
         return json.dumps(op[1])
 
