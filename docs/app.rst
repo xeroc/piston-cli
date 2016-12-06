@@ -421,3 +421,11 @@ You can follow and unfollow someones blog posts by:::
 
     piston follow <accountname>
     piston unfollow <accountname>
+
+Profile
+~~~~~~~
+Piston can help you set your profile variables (through
+``json_metadata``):::
+
+    piston setprofile profile.url "http://chainsquad.com"
+    piston setprofile --pair "profile.url=http://chainsquad.com" "profile.name=ChainSquad GmbH" 
