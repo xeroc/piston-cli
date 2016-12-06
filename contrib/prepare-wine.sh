@@ -53,8 +53,8 @@ git clone -b $BRANCH $GIT_URL piston
 
 # Libraries
 wine $PYHOME/Scripts/pip.exe install https://github.com/xeroc/python-graphenelib/archive/develop.zip#egg=graphenelib --upgrade
-wine $PYHOME/Scripts/pip.exe install https://github.com/xeroc/python-steem/archive/develop.zip#egg=steem --upgrade
-wine $PYHOME/Scripts/pip.exe install pefile steem-piston
+wine $PYHOME/Scripts/pip.exe install pefile
+wine $PYHOME/Scripts/pip.exe install setuptools --upgrade
 wine $PYHOME/Scripts/pip.exe install https://pypi.python.org/packages/7d/fc/3e65f21be05f5f1bafa8f2262fea474c6dd84cc7dc226d453dd488675305/scrypt-0.7.1-cp34-none-win32.whl
 
 # add dlls needed for pyinstaller:

@@ -2,16 +2,26 @@
 
 source environment.sh
 
+# Let's begin!
 cd `dirname $0`
 set -e
+
+# Install Steem
+wine $PYHOME/Scripts/pip.exe install https://github.com/xeroc/python-steem/archive/develop.zip#egg=steem --upgrade
 
 cd tmp
 
 # GIT repository found, update it
 echo "Pull"
-cd piston
-git checkout $BRANCH
-git pull
+if [ -d piston ];
+ then
+  cd piston
+  git checkout $BRANCH
+  git pull
+ else
+  git clone -b $BRANCH $GIT_URL piston
+  cd piston
+fi
 
 $PYTHON setup.py install
 

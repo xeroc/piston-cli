@@ -9,11 +9,12 @@ a = Analysis([
         home,
     ],
     datas=[
-        (home + '/piston/templates', 'templates'),
-        (home + '/piston/static', 'static'),
+        # (home + '/piston/web/templates', 'web/templates'),
+        # (home + '/piston/web/static', 'web/static'),
     ],
     hiddenimports=[
         "piston.__main__",
+        # "piston.web.__init__",
         "scrypt", "_scrypt",
     ]
 )
