@@ -1,15 +1,10 @@
-class Amount(object):
-    def __init__(self, amountString):
-        self.amount, self.asset = amountString.split(" ")
-        self.amount = float(self.amount)
+import warnings
+from steem.amount import Amount as AmountSteem
 
-    def __str__(self):
-        if self.asset == "SBD":
-            prec = 3
-        elif self.asset == "STEEM":
-            prec = 3
-        elif self.asset == "VESTS":
-            prec = 6
-        else:
-            prec = 6
-        return "{:.{prec}f} {}".format(self.amount, self.asset, prec=prec)
+
+class Amount(AmountSteem):
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "[DeprecationWarning] Please replace 'import piston.amount' by 'import steem.amount'"
+        )
+        super(Amount, self).__init__(*args, **kwargs)
