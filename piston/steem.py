@@ -1363,10 +1363,13 @@ class Steem(object):
         if not account:
             raise AccountDoesNotExistsException(account)
 
+        account["json_metadata"] = Profile(account["json_metadata"])
+        account["json_metadata"].update(profile)
+
         op = transactions.Account_update(
             **{"account": account["name"],
                 "memo_key": account["memo_key"],
-                "json_metadata": str(profile)}
+                "json_metadata": account["json_metadata"]}
         )
         return self.finalizeOp(op, account["name"], "active")
 

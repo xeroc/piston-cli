@@ -1,9 +1,10 @@
 import json
+import collections
 
 
 class DotDict(dict):
 
-    def __init__(self, keys, values):
+    def __init__(self, *args):
         """ This class simplifies the use of "."-separated
             keys when defining a nested dictionary:::
 
@@ -14,16 +15,21 @@ class DotDict(dict):
                 {"profile": {"url": "http:", "img": "foobar"}}
 
         """
-        tree = {}
-        for i, item in enumerate(keys):
-            t = tree
-            parts = item.split('.')
-            for j, part in enumerate(parts):
-                if j < len(parts) - 1:
-                    t = t.setdefault(part, {})
-                else:
-                    t[part] = values[i]
-        self.tree = tree
+        if len(args) == 2:
+            for i, item in enumerate(args[0]):
+                t = self
+                parts = item.split('.')
+                for j, part in enumerate(parts):
+                    if j < len(parts) - 1:
+                        t = t.setdefault(part, {})
+                    else:
+                        t[part] = args[1][i]
+        elif len(args) == 1 and isinstance(args[0], dict):
+            for k, v in args[0].items():
+                self[k] = v
+        elif len(args) == 1 and isinstance(args[0], str):
+            for k, v in json.loads(args[0]).items():
+                self[k] = v
 
 
 class Profile(DotDict):
@@ -37,10 +43,22 @@ class Profile(DotDict):
         super(Profile, self).__init__(*args, **kwargs)
 
     def __str__(self):
-        return json.dumps(self.tree)
+        return json.dumps(self)
+
+    def update(self, u):
+        t = self.copy()
+        for k, v in u.items():
+            if isinstance(v, collections.Mapping):
+                r = t[k].update(v)
+                t[k] = r
+            else:
+                if k not in t:
+                    t[k] = u[k]
+        return t
 
 
 if __name__ == '__main__':
     keys = ['profile.url', 'profile.img']
     values = ["http:", "foobar"]
     print(Profile(keys, values))
+    print(Profile({"foo": "bar"}))
