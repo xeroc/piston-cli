@@ -815,10 +815,10 @@ def main() :
     )
 
     """
-        Command "approve_witness"
+        Command "approvewitness"
     """
-    parser_approvewitness = subparsers.add_parser('approve_witness', help='Approve a witnesses')
-    parser_approvewitness.set_defaults(command="approve_witness")
+    parser_approvewitness = subparsers.add_parser('approvewitness', help='Approve a witnesses')
+    parser_approvewitness.set_defaults(command="approvewitness")
     parser_approvewitness.add_argument(
         'witness',
         type=str,
@@ -833,10 +833,10 @@ def main() :
     )
 
     """
-        Command "disapprove_witness"
+        Command "disapprovewitness"
     """
-    parser_disapprovewitness = subparsers.add_parser('disapprove_witness', help='Disapprove a witnesses')
-    parser_disapprovewitness.set_defaults(command="disapprove_witness")
+    parser_disapprovewitness = subparsers.add_parser('disapprovewitness', help='Disapprove a witnesses')
+    parser_disapprovewitness.set_defaults(command="disapprovewitness")
     parser_disapprovewitness.add_argument(
         'witness',
         type=str,
@@ -1802,13 +1802,13 @@ def main() :
             account=args.account
         ))
 
-    elif args.command == "approve_witness":
+    elif args.command == "approvewitness":
         pprint(steem.approve_witness(
             args.witness,
             account=args.account
         ))
 
-    elif args.command == "disapprove_witness":
+    elif args.command == "disapprovewitness":
         pprint(steem.disapprove_witness(
             args.witness,
             account=args.account

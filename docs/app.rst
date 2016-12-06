@@ -391,8 +391,8 @@ Approve/Disapprove Witnesses
 With piston, you can also approve and disapprove witnesses who are
 producing blocks on the Steem blockchain:::
 
-    piston approve_witness <witnessname>
-    piston disapprove_witness <witnessname>
+    piston approvewitness <witnessname>
+    piston disapprovewitness <witnessname>
 
 Info
 ~~~~
