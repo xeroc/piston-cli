@@ -429,3 +429,7 @@ Piston can help you set your profile variables (through
 
     piston setprofile profile.url "http://chainsquad.com"
     piston setprofile --pair "profile.url=http://chainsquad.com" "profile.name=ChainSquad GmbH" 
+
+Keys can be removed with:::
+
+    piston delprofile profile.url

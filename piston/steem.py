@@ -16,7 +16,6 @@ from .post import (
     Post,
     VotingInvalidOnArchivedPost
 )
-from .profile import Profile
 from .wallet import Wallet
 from .storage import configStorage as config
 from .amount import Amount
@@ -1348,11 +1347,10 @@ class Steem(object):
     def update_account_profile(self, profile, account=None):
         """ Update an account's meta data (json_meta)
 
-            :param dict json: The meta data to use (use Profile() from profile.py)
+            :param dict json: The meta data to use (i.e. use Profile() from profile.py)
             :param str account: (optional) the account to allow access
                 to (defaults to ``default_account``)
         """
-        assert isinstance(profile, Profile)
         if not account:
             if "default_author" in config:
                 account = config["default_account"]
@@ -1363,13 +1361,10 @@ class Steem(object):
         if not account:
             raise AccountDoesNotExistsException(account)
 
-        account["json_metadata"] = Profile(account["json_metadata"])
-        account["json_metadata"].update(profile)
-
         op = transactions.Account_update(
             **{"account": account["name"],
                 "memo_key": account["memo_key"],
-                "json_metadata": account["json_metadata"]}
+                "json_metadata": profile}
         )
         return self.finalizeOp(op, account["name"], "active")
 

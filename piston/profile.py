@@ -52,6 +52,13 @@ class Profile(DotDict):
             else:
                 self[k] = u[k]
 
+    def remove(self, key):
+        parts = key.split(".")
+        if len(parts) > 1:
+            self[parts[0]].pop(".".join(parts[1:]))
+        else:
+            super(Profile, self).pop(parts[0], None)
+
 
 if __name__ == '__main__':
     keys = ['profile.url', 'profile.img']

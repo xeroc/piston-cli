@@ -1065,6 +1065,25 @@ def main() :
     )
 
     """
+        Command "delprofile"
+    """
+    parser_delprofile = subparsers.add_parser('delprofile', help='Set a variable in an account\'s profile')
+    parser_delprofile.set_defaults(command="delprofile")
+    parser_delprofile.add_argument(
+        '--account',
+        type=str,
+        required=False,
+        default=config["default_author"],
+        help='delprofile as this user (requires to have the key installed in the wallet)'
+    )
+    parser_delprofile.add_argument(
+        'variable',
+        type=str,
+        nargs='*',
+        help='Variable to set'
+    )
+
+    """
         Parse Arguments
     """
     args = parser.parse_args()
@@ -1193,11 +1212,15 @@ def main() :
                     t.align = "l"
                     for key in sorted(account):
                         value = account[key]
+                        if (key == "json_metadata"):
+                            value = json.dumps(
+                                json.loads(value),
+                                indent=4
+                            )
                         if (key == "posting" or
                                 key == "witness_votes" or
                                 key == "active" or
-                                key == "owner" or
-                                key == "json_metadata"):
+                                key == "owner"):
                             value = json.dumps(value, indent=4)
                         t.add_row([key, value])
                     print(t)
@@ -1849,8 +1872,29 @@ def main() :
 
         profile = Profile(keys, values)
 
+        account = steem.rpc.get_account(args.account)
+        if not account:
+            raise AccountDoesNotExistsException(account)
+        account["json_metadata"] = Profile(account["json_metadata"])
+        account["json_metadata"].update(profile)
+
         pprint(steem.update_account_profile(
-            profile,
+            account["json_metadata"],
+            account=args.account
+        ))
+
+    elif args.command == "delprofile":
+        from .profile import Profile
+        account = steem.rpc.get_account(args.account)
+        if not account:
+            raise AccountDoesNotExistsException(account)
+        account["json_metadata"] = Profile(account["json_metadata"])
+
+        for var in args.variable:
+            account["json_metadata"].remove(var)
+
+        pprint(steem.update_account_profile(
+            account["json_metadata"],
             account=args.account
         ))
 
