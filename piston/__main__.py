@@ -1848,6 +1848,7 @@ def main() :
             values.append(args.value)
 
         profile = Profile(keys, values)
+
         pprint(steem.update_account_profile(
             profile,
             account=args.account

@@ -46,15 +46,11 @@ class Profile(DotDict):
         return json.dumps(self)
 
     def update(self, u):
-        t = self.copy()
         for k, v in u.items():
             if isinstance(v, collections.Mapping):
-                r = t[k].update(v)
-                t[k] = r
+                self.setdefault(k, {}).update(v)
             else:
-                if k not in t:
-                    t[k] = u[k]
-        return t
+                self[k] = u[k]
 
 
 if __name__ == '__main__':
