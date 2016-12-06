@@ -6,5 +6,6 @@ __ALL__ = [
     "utils",
     "steem",
     "amount",
-    "post"
+    "post",
+    "profile"
 ]

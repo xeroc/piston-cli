@@ -16,6 +16,7 @@ from .post import (
     Post,
     VotingInvalidOnArchivedPost
 )
+from .profile import Profile
 from .wallet import Wallet
 from .storage import configStorage as config
 from .amount import Amount
@@ -1343,6 +1344,31 @@ class Steem(object):
     def reblog(self, *args, **kwargs):
         """ See resteem() """
         self.resteem(*args, **kwargs)
+
+    def update_account_profile(self, profile, account=None):
+        """ Update an account's meta data (json_meta)
+
+            :param dict json: The meta data to use (use Profile() from profile.py)
+            :param str account: (optional) the account to allow access
+                to (defaults to ``default_account``)
+        """
+        assert isinstance(profile, Profile)
+        if not account:
+            if "default_author" in config:
+                account = config["default_account"]
+        if not account:
+            raise ValueError("You need to provide an account")
+
+        account = self.rpc.get_account(account)
+        if not account:
+            raise AccountDoesNotExistsException(account)
+
+        op = transactions.Account_update(
+            **{"account": account["name"],
+                "memo_key": account["memo_key"],
+                "json_metadata": str(profile)}
+        )
+        return self.finalizeOp(op, account["name"], "active")
 
     #######################################################
     # Exchange stuff

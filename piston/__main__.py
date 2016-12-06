@@ -1032,6 +1032,39 @@ def main() :
     )
 
     """
+        Command "setprofile"
+    """
+    parser_setprofile = subparsers.add_parser('setprofile', help='Set a variable in an account\'s profile')
+    parser_setprofile.set_defaults(command="setprofile")
+    parser_setprofile.add_argument(
+        '--account',
+        type=str,
+        required=False,
+        default=config["default_author"],
+        help='setprofile as this user (requires to have the key installed in the wallet)'
+    )
+    parser_setprofileA = parser_setprofile.add_argument_group('Multiple keys at once')
+    parser_setprofileA.add_argument(
+        '--pair',
+        type=str,
+        nargs='*',
+        help='"Key=Value" pairs'
+    )
+    parser_setprofileB = parser_setprofile.add_argument_group('Just a single key')
+    parser_setprofileB.add_argument(
+        'variable',
+        type=str,
+        nargs='?',
+        help='Variable to set'
+    )
+    parser_setprofileB.add_argument(
+        'value',
+        type=str,
+        nargs='?',
+        help='Value to set'
+    )
+
+    """
         Parse Arguments
     """
     args = parser.parse_args()
@@ -1798,6 +1831,25 @@ def main() :
         pprint(steem.unfollow(
             args.unfollow,
             what=args.what,
+            account=args.account
+        ))
+
+    elif args.command == "setprofile":
+        from .profile import Profile
+        keys = []
+        values = []
+        if args.pair:
+            for pair in args.pair:
+                key, value = pair.split("=")
+                keys.append(key)
+                values.append(value)
+        if args.variable and args.value:
+            keys.append(args.variable)
+            values.append(args.value)
+
+        profile = Profile(keys, values)
+        pprint(steem.update_account_profile(
+            profile,
             account=args.account
         ))
 
