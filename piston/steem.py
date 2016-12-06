@@ -4,6 +4,12 @@ from steem.steem import SteemConnector as SteemConnectorSteem
 from steem.steem import ExchangeConfig as ExchangeConfigSteem
 from steem.post import Post as PostSteem
 from steem.amount import Amount as AmountSteem
+from steem.steem import AccountDoesNotExistsException
+
+from steem.steem import (
+    MissingKeyError,
+    InsufficientAuthorityError
+)
 
 
 class Steem(SteemSteem):

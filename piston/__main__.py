@@ -31,6 +31,7 @@ from .ui import (
     print_permissions,
     get_terminal
 )
+from steem.steem import AccountDoesNotExistsException
 
 
 availableConfigurationKeys = [
