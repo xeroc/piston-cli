@@ -1,6 +1,5 @@
 import unittest
-import piston
-from piston.utils import (
+from steem.utils import (
     constructIdentifier,
     sanitizePermlink,
     derivePermlink,

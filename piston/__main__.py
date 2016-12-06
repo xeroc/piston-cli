@@ -8,14 +8,19 @@ import re
 from pprint import pprint
 from steembase.account import PrivateKey, PublicKey, Address
 import steembase.transactions as transactions
-from .__version__ import __VERSION__
-from .storage import configStorage as config
-from .utils import (
+from steem.storage import configStorage as config
+from steem.utils import (
     resolveIdentifier,
     yaml_parse_file,
     formatTime,
     strfage,
 )
+from steem.steem import Steem, Post, SteemConnector, Amount
+import frontmatter
+import time
+from prettytable import PrettyTable
+import logging
+from .__version__ import __VERSION__
 from .ui import (
     dump_recursive_parents,
     dump_recursive_comments,
@@ -26,11 +31,7 @@ from .ui import (
     print_permissions,
     get_terminal
 )
-from .steem import Steem, Post, SteemConnector, Amount
-import frontmatter
-import time
-from prettytable import PrettyTable
-import logging
+from steem.steem import AccountDoesNotExistsException
 
 
 availableConfigurationKeys = [
