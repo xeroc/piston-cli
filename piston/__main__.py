@@ -159,12 +159,6 @@ def main() :
         Command "addkey"
     """
     addkey = subparsers.add_parser('addkey', help='Add a new key to the wallet')
-    addkey.add_argument(
-        'wifkeys',
-        nargs='*',
-        type=str,
-        help='the private key in wallet import format (wif)'
-    )
     addkey.set_defaults(command="addkey")
 
     """
@@ -1259,31 +1253,31 @@ def main() :
         steem.wallet.changePassphrase()
 
     elif args.command == "addkey":
-        pub = None
-        if len(args.wifkeys):
-            for wifkey in args.wifkeys:
-                pub = (steem.wallet.addPrivateKey(wifkey))
-                if pub:
-                    print(pub)
-        else:
-            import getpass
-            wifkey = ""
-            while True:
-                wifkey = getpass.getpass('Private Key (wif) [Enter to quit]:')
-                if not wifkey:
-                    break
-                pub = (steem.wallet.addPrivateKey(wifkey))
-                if pub:
-                    print(pub)
+        import getpass
+        while True:
+            wifkey = getpass.getpass('Private Key (wif) [Enter to quit]:')
+            if not wifkey:
+                break
+            try:
+                steem.wallet.addPrivateKey(wifkey)
+            except Exception as e:
+                print(str(e))
+                continue
 
-        if pub:
-            name = steem.wallet.getAccountFromPublicKey(pub)
-            print("Setting new default user: %s" % name)
-            print("You can change these settings with:")
-            print("    piston set default_author x")
-            print("    piston set default_voter x")
-            config["default_author"] = name
-            config["default_voter"] = name
+            installedKeys = steem.wallet.getPublicKeys()
+            if len(installedKeys) == 1:
+                name = steem.wallet.getAccountFromPublicKey(installedKeys[0])
+                print("=" * 30)
+                print("Setting new default user: %s" % name)
+                print()
+                print("You can change these settings with:")
+                print("    piston set default_author <account>")
+                print("    piston set default_voter <account>")
+                print("    piston set default_account <account>")
+                print("=" * 30)
+                config["default_author"] = name
+                config["default_voter"] = name
+                config["default_account"] = name
 
     elif args.command == "delkey":
         if confirm(
