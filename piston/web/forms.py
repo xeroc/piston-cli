@@ -58,7 +58,7 @@ validators = {
     'postCategory': [
         Required(),
     ],
-    'wif' : [
+    'wif': [
         Required(),
         WifPrivateKey()
     ],

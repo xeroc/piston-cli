@@ -57,7 +57,7 @@ availableConfigurationKeys = [
 ]
 
 
-def main() :
+def main():
     global args
 
     parser = argparse.ArgumentParser(
@@ -1634,7 +1634,7 @@ def main() :
             from steembase.account import PasswordKey
             pw = get_terminal(text="Password for Memo Key: ", confirm=True, allowedempty=False)
             memo_key = PasswordKey(args.account, pw, "memo")
-            args.key  = format(memo_key.get_public_key(), "STM")
+            args.key = format(memo_key.get_public_key(), "STM")
             memo_privkey = memo_key.get_private_key()
             # Add the key to the wallet
             if not args.nobroadcast:
@@ -1646,7 +1646,7 @@ def main() :
 
     elif args.command == "newaccount":
         import getpass
-        while True :
+        while True:
             pw = getpass.getpass("New Account Passphrase: ")
             if not pw:
                 print("You cannot chosen an empty password!")
@@ -1655,9 +1655,9 @@ def main() :
                 pwck = getpass.getpass(
                     "Confirm New Account Passphrase: "
                 )
-                if (pw == pwck) :
+                if (pw == pwck):
                     break
-                else :
+                else:
                     print("Given Passphrases do not match!")
         pprint(steem.create_account(
             args.accountname,
@@ -1673,7 +1673,7 @@ def main() :
         imported = False
 
         if "owner" in args.roles:
-            owner_key    = PasswordKey(args.account, password, role="owner")
+            owner_key = PasswordKey(args.account, password, role="owner")
             owner_pubkey = format(owner_key.get_public_key(), "STM")
             if owner_pubkey in [x[0] for x in account["owner"]["key_auths"]]:
                 print("Importing owner key!")
@@ -1682,7 +1682,7 @@ def main() :
                 imported = True
 
         if "active" in args.roles:
-            active_key    = PasswordKey(args.account, password, role="active")
+            active_key = PasswordKey(args.account, password, role="active")
             active_pubkey = format(active_key.get_public_key(), "STM")
             if active_pubkey in [x[0] for x in account["active"]["key_auths"]]:
                 print("Importing active key!")
@@ -1691,7 +1691,7 @@ def main() :
                 imported = True
 
         if "posting" in args.roles:
-            posting_key    = PasswordKey(args.account, password, role="posting")
+            posting_key = PasswordKey(args.account, password, role="posting")
             posting_pubkey = format(posting_key.get_public_key(), "STM")
             if posting_pubkey in [x[0] for x in account["posting"]["key_auths"]]:
                 print("Importing posting key!")
@@ -1700,7 +1700,7 @@ def main() :
                 imported = True
 
         if "memo" in args.roles:
-            memo_key    = PasswordKey(args.account, password, role="memo")
+            memo_key = PasswordKey(args.account, password, role="memo")
             memo_pubkey = format(memo_key.get_public_key(), "STM")
             if memo_pubkey == account["memo_key"]:
                 print("Importing memo key!")

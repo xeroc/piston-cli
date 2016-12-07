@@ -353,7 +353,7 @@ def print_permissions(account):
 
 def get_terminal(text="Password", confirm=False, allowedempty=False):
     import getpass
-    while True :
+    while True:
         pw = getpass.getpass(text)
         if not pw and not allowedempty:
             print("Cannot be empty!")
@@ -364,8 +364,8 @@ def get_terminal(text="Password", confirm=False, allowedempty=False):
             pwck = getpass.getpass(
                 "Confirm " + text
             )
-            if (pw == pwck) :
+            if (pw == pwck):
                 break
-            else :
+            else:
                 print("Not matching!")
     return pw
