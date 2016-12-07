@@ -1867,7 +1867,7 @@ def main():
         ))
 
     elif args.command == "setprofile":
-        from .profile import Profile
+        from steem.profile import Profile
         keys = []
         values = []
         if args.pair:
