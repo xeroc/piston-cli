@@ -6,9 +6,6 @@ source environment.sh
 cd `dirname $0`
 set -e
 
-# Install Steem
-wine $PYHOME/Scripts/pip.exe install https://github.com/xeroc/python-steem/archive/develop.zip#egg=steem --upgrade
-
 cd tmp
 
 # GIT repository found, update it
@@ -16,8 +13,14 @@ echo "Pull"
 if [ -d piston ];
  then
   cd piston
-  git checkout $BRANCH
-  git pull
+  git fetch
+  if [ $1 ]
+  then
+   git checkout -b $1 $1
+  else
+   git reset --hard origin/develop
+  fi
+  git branch
  else
   git clone -b $BRANCH $GIT_URL piston
   cd piston
@@ -25,7 +28,7 @@ fi
 
 $PYTHON setup.py install
 
-VERSION=`git describe --tags`
+VERSION=`git describe --tags | sed 's/\([^-]*\)-.*/\1/'`
 echo "Last commit: $VERSION"
 
 cd ..
@@ -48,9 +51,10 @@ $PYTHON "C:/pyinstaller/pyinstaller.py" --noconfirm --ascii --paths=$PYHOME\Lib\
 wine "$WINEPREFIX/drive_c/Program Files (x86)/NSIS/makensis.exe" /DPRODUCT_VERSION=$VERSION piston.nsi
 
 cd dist
-mv piston-setup.exe $NAME_ROOT-$VERSION-setup.exe
-mv piston $NAME_ROOT-$VERSION
-zip -r $NAME_ROOT-$VERSION.zip $NAME_ROOT-$VERSION
+mv piston-setup.exe $NAME_ROOT-win32-$VERSION-setup.exe
+mv piston $NAME_ROOT-win32-$VERSION
+zip -r $NAME_ROOT-$VERSION.zip $NAME_ROOT-win32-$VERSION
+cp *.exe *.zip ../../dist/
 cd ..
 
 echo "Done."
