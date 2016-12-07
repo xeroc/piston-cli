@@ -2,11 +2,19 @@
 
 Swiss army knife for interacting with the STEEM blockchain.
 
+[![rtd master](https://readthedocs.org/projects/piston/badge/?version=latest)](http://piston.readthedocs.io/en/latest/)
+[![codecov](https://codecov.io/gh/xeroc/piston/branch/master/graph/badge.svg)](https://codecov.io/gh/xeroc/piston)
 [![Travis master](https://travis-ci.org/xeroc/piston.png?branch=master)](https://travis-ci.org/xeroc/piston)
 [![Travis develop](https://travis-ci.org/xeroc/piston.png?branch=develop)](https://travis-ci.org/xeroc/piston)
+
 [![PyPI](https://img.shields.io/pypi/dm/steem-piston.svg?maxAge=2592000)]()
 [![PyPI](https://img.shields.io/pypi/dw/steem-piston.svg?maxAge=2592000)]()
-[![PyPI](https://img.shields.io/pypi/dd/steem.-pistonsvg?maxAge=2592000)]()
+
+**Develop**
+
+[![docs develop](https://readthedocs.org/projects/piston/badge/?version=develop)](http://piston.readthedocs.io/en/develop/)
+[![Travis develop](https://travis-ci.org/xeroc/piston.png?branch=develop)](https://travis-ci.org/xeroc/piston)
+[![codecov develop](https://codecov.io/gh/xeroc/piston/branch/develop/graph/badge.svg)](https://codecov.io/gh/xeroc/piston)
 
 ## Quick-Start
 
