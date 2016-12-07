@@ -15,7 +15,10 @@ from steem.utils import (
     formatTime,
     strfage,
 )
-from steem.steem import Steem, Post, SteemConnector, Amount
+from steem.steem import Steem, SteemConnector
+from steem.amount import Amount
+from steem.post import Post
+from steem.dex import Dex
 import frontmatter
 import time
 from prettytable import PrettyTable
@@ -1748,7 +1751,8 @@ def main() :
             except:
                 print("To use --chart, you need gnuplot and gnuplot-py installed")
                 sys.exit(1)
-        orderbook = steem.dex().returnOrderBook()
+        dex = Dex(steem)
+        orderbook = dex.returnOrderBook()
 
         if args.chart:
             g = Gnuplot.Gnuplot()
@@ -1801,7 +1805,8 @@ def main() :
             price = 1.0 / args.price
         else:
             price = args.price
-        pprint(steem.buy(
+        dex = Dex(steem)
+        pprint(dex.buy(
             args.amount,
             args.asset,
             price,
@@ -1813,7 +1818,8 @@ def main() :
             price = 1.0 / args.price
         else:
             price = args.price
-        pprint(steem.sell(
+        dex = Dex(steem)
+        pprint(dex.sell(
             args.amount,
             args.asset,
             price,
