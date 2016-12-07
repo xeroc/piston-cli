@@ -9,11 +9,11 @@ from flask import (
     url_for,
     abort
 )
-from .utils import resolveIdentifier
-from .steem import Post, SteemConnector
-from .web_app import app
-from .storage import configStorage as configStore
-from . import web_forms
+from ..utils import resolveIdentifier
+from ..steem import Post, SteemConnector, Amount
+from .app import app
+from ..storage import configStorage as configStore
+from . import forms
 from textwrap import indent
 import logging
 log = logging.getLogger(__name__)
@@ -90,26 +90,26 @@ def user_funds(user):
     info = steem.rpc.get_dynamic_global_properties()
     median_price = steem.rpc.get_current_median_history_price()
     steem_per_mvest = (
-        float(info["total_vesting_fund_steem"].split(" ")[0]) /
-        (float(info["total_vesting_shares"].split(" ")[0]) / 1e6)
+        Amount(info["total_vesting_fund_steem"]).amount /
+        (Amount(info["total_vesting_shares"]).amount / 1e6)
     )
     price = (
-        float(median_price["base"].split(" ")[0]) /
-        float(median_price["quote"].split(" ")[0])
+        Amount(median_price["base"]).amount /
+        Amount(median_price["quote"]).amount
     )
-    vesting_shares = float(user["vesting_shares"].split(" ")[0]) / 1e6 * steem_per_mvest
-    vets_shares = float(user["vesting_shares"].split(" ")[0])
-    steem_balance = float(user["balance"].split(" ")[0])
-    sbd_balance = float(user["sbd_balance"].split(" ")[0])
+    vesting_shares = Amount(user["vesting_shares"]).amount / 1e6 * steem_per_mvest
+    vets_shares = Amount(user["vesting_shares"]).amount
+    steem_balance = Amount(user["balance"]).amount
+    sbd_balance = Amount(user["sbd_balance"]).amount
 
     latestOp = request.args.get('latestOp')
     if latestOp:
         latestOp = int(latestOp) - 1
     else:
-        lastTx = steem.get_account_history(user["name"], end=99999999, limit=1)
-        latestOp = lastTx[-1][0]
+        lastTx = steem.get_account_history(user["name"], limit=1)
+        latestOp = next(lastTx)[0]
 
-    transactionFilterForm = web_forms.TransactionFilterForm()
+    transactionFilterForm = forms.TransactionFilterForm()
     if transactionFilterForm.validate_on_submit():
         ops = transactionFilterForm.operations.data
     else:
@@ -117,7 +117,7 @@ def user_funds(user):
 
     transactions = steem.get_account_history(
         user["name"],
-        end=latestOp,
+        first=latestOp,
         limit=10,
         only_ops=ops
     )
@@ -163,8 +163,8 @@ def showPrivateKeys(account):
 
 @app.route('/wallet', methods=["GET", "POST"])
 def wallet():
-    import_wifForm = web_forms.ImportWifKey()
-    import_accountpwd = web_forms.ImportAccountPassword()
+    import_wifForm = forms.ImportWifKey()
+    import_accountpwd = forms.ImportAccountPassword()
 
     if request.method == 'POST' and steem.wallet.locked():
         flash("Wallet is locked!")
@@ -239,14 +239,14 @@ def post(identifier):
             abort(400)
         if not post:
             abort(400)
-        postForm = web_forms.NewReplyForm(
+        postForm = forms.NewReplyForm(
             category=post.category,
             body=indent(post.body, "> "),
             title="Re: " + post.title,
             reply=identifier,
         )
     else:
-        postForm = web_forms.NewPostForm()
+        postForm = forms.NewPostForm()
 
     if postForm.validate_on_submit():
         if steem.wallet.locked():
@@ -289,7 +289,7 @@ def post(identifier):
 @app.route('/settings', methods=["GET", "POST"])
 def settings():
     global steem
-    settingsForm = web_forms.SettingsForm(
+    settingsForm = forms.SettingsForm(
         node=configStore["node"],
         rpcuser=configStore["rpcuser"],
         rpcpass=configStore["rpcpass"],

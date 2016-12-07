@@ -5,5 +5,7 @@ __ALL__ = [
     "ui",
     "utils",
     "steem",
-    "web"
+    "amount",
+    "post",
+    "profile"
 ]

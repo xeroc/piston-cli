@@ -380,8 +380,56 @@ will be derived. If you already have a private key, you can use `addkey`
 instead.
 
 Sign/Broadcast Transaction
-~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Unsigned (but properly prepared) transactions can be signed with
 ``sign``. Signed transactions can be broadcast using ``broadcast``.
 These feature is described in :doc:`<coldstorage.rst>` and :doc:`<multisig.rst>`.
+
+Approve/Disapprove Witnesses
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+With piston, you can also approve and disapprove witnesses who are
+producing blocks on the Steem blockchain:::
+
+    piston approvewitness <witnessname>
+    piston disapprovewitness <witnessname>
+
+Info
+~~~~
+Piston can read data from the blockchain and present it to the user in
+tabular form. It can automatically identify:
+
+* block numbers (``1000021``)
+* account names (``piston``)
+* public keys (``STMxxxxxxxxxx``)
+* post identifiers (``@<accountname>/<permlink>``)
+* general blockchain parameters
+
+The corresponding data can be presented using:::
+
+    piston info [block_num [account name [pubkey [identifier]]]]
+
+Resteem
+~~~~~~~
+Existing posts can be resteemed using:::
+
+    piston resteem [--account <account>] @author/permlink
+
+Follow/Unfollow
+~~~~~~~~~~~~~~~
+You can follow and unfollow someones blog posts by:::
+
+    piston follow <accountname>
+    piston unfollow <accountname>
+
+Profile
+~~~~~~~
+Piston can help you set your profile variables (through
+``json_metadata``):::
+
+    piston setprofile profile.url "http://chainsquad.com"
+    piston setprofile --pair "profile.url=http://chainsquad.com" "profile.name=ChainSquad GmbH" 
+
+Keys can be removed with:::
+
+    piston delprofile profile.url

@@ -1,12 +1,20 @@
 import re
-from .utils import strfdelta, strfage
-from .storage import configStorage as configStore
-from .web_app import app, socketio
-from .steem import SteemConnector
-from . import web_views, web_assets, web_socketio
+from ..utils import strfdelta, strfage
+from ..storage import configStorage as configStore
+from .app import app, socketio
+from ..steem import SteemConnector
+from . import views, assets
 import logging
 log = logging.getLogger(__name__)
 steem = SteemConnector().getSteem()
+
+__ALL__ = [
+    "app",
+    "assets",
+    "forms",
+    "socketio",
+    "views",
+]
 
 
 @app.template_filter('age')

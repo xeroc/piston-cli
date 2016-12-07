@@ -4,9 +4,9 @@ from prettytable import PrettyTable, ALL as allBorders
 from textwrap import fill, TextWrapper
 import frontmatter
 import re
-from .storage import configStorage as config
-from .utils import constructIdentifier
-from .steem import SteemConnector
+from steem.storage import configStorage as config
+from steem.utils import constructIdentifier
+from steem.steem import SteemConnector
 
 # For recursive display of a discussion thread (--comments + --parents)
 currentThreadDepth = 0
@@ -276,12 +276,12 @@ def format_operation_details(op, memos=False):
             op[1]["voter"],
             constructIdentifier(op[1]["author"], op[1]["permlink"])
         )
-    if op[0] == "comment":
+    elif op[0] == "comment":
         return "%s: %s" % (
             op[1]["author"],
             constructIdentifier(op[1]["author"], op[1]["permlink"])
         )
-    if op[0] == "transfer":
+    elif op[0] == "transfer":
         str_ = "%s -> %s %s" % (
             op[1]["from"],
             op[1]["to"],
@@ -296,6 +296,10 @@ def format_operation_details(op, memos=False):
                 memo = steem.decode_memo(memo, op)
             str_ += " (%s)" % memo
         return str_
+    elif op[0] == "interest":
+        return "%s" % (
+            op[1]["interest"]
+        )
     else:
         return json.dumps(op[1])
 
@@ -349,7 +353,7 @@ def print_permissions(account):
 
 def get_terminal(text="Password", confirm=False, allowedempty=False):
     import getpass
-    while True :
+    while True:
         pw = getpass.getpass(text)
         if not pw and not allowedempty:
             print("Cannot be empty!")
@@ -360,8 +364,8 @@ def get_terminal(text="Password", confirm=False, allowedempty=False):
             pwck = getpass.getpass(
                 "Confirm " + text
             )
-            if (pw == pwck) :
+            if (pw == pwck):
                 break
-            else :
+            else:
                 print("Not matching!")
     return pw

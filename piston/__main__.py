@@ -4,17 +4,26 @@ import sys
 import os
 import argparse
 import json
+import re
 from pprint import pprint
 from steembase.account import PrivateKey, PublicKey, Address
 import steembase.transactions as transactions
-from .__version__ import __VERSION__
-from .storage import configStorage as config
-from .utils import (
+from steem.storage import configStorage as config
+from steem.utils import (
     resolveIdentifier,
     yaml_parse_file,
     formatTime,
     strfage,
 )
+from steem.steem import Steem, SteemConnector
+from steem.amount import Amount
+from steem.post import Post
+from steem.dex import Dex
+import frontmatter
+import time
+from prettytable import PrettyTable
+import logging
+from .__version__ import __VERSION__
 from .ui import (
     dump_recursive_parents,
     dump_recursive_comments,
@@ -25,11 +34,7 @@ from .ui import (
     print_permissions,
     get_terminal
 )
-from .steem import Steem, Post, SteemConnector
-import frontmatter
-import time
-from prettytable import PrettyTable
-import logging
+from steem.steem import AccountDoesNotExistsException
 
 
 availableConfigurationKeys = [
@@ -52,7 +57,7 @@ availableConfigurationKeys = [
 ]
 
 
-def main() :
+def main():
     global args
 
     parser = argparse.ArgumentParser(
@@ -140,6 +145,12 @@ def main() :
     """
     parser_info = subparsers.add_parser('info', help='Show infos about piston and Steem')
     parser_info.set_defaults(command="info")
+    parser_info.add_argument(
+        'objects',
+        nargs='*',
+        type=str,
+        help='General information about the blockchain, a block, an account name, a post, a public key, ...'
+    )
 
     """
         Command "changewalletpassphrase"
@@ -151,12 +162,6 @@ def main() :
         Command "addkey"
     """
     addkey = subparsers.add_parser('addkey', help='Add a new key to the wallet')
-    addkey.add_argument(
-        'wifkeys',
-        nargs='*',
-        type=str,
-        help='the private key in wallet import format (wif)'
-    )
     addkey.set_defaults(command="addkey")
 
     """
@@ -521,7 +526,7 @@ def main() :
         '--to',
         type=str,
         required=False,
-        default=config["default_author"],
+        default=None,
         help='Powerup this account'
     )
 
@@ -628,6 +633,11 @@ def main() :
         help='Show (decode) memos'
     )
     parser_history.add_argument(
+        '--csv',
+        action='store_true',
+        help='Output in CSV format'
+    )
+    parser_history.add_argument(
         '--first',
         type=int,
         default=99999999999999,
@@ -639,6 +649,13 @@ def main() :
         nargs="*",
         default=[],
         help='Show only these operation types'
+    )
+    parser_history.add_argument(
+        '--exclude_types',
+        type=str,
+        nargs="*",
+        default=[],
+        help='Do not show operations of this type'
     )
 
     """
@@ -768,6 +785,13 @@ def main() :
         type=str,
         help='Account name'
     )
+    parser_importaccount.add_argument(
+        '--roles',
+        type=str,
+        nargs="*",
+        default=["active", "posting", "memo"],  # no owner
+        help='Import specified keys (owner, active, posting, memo)'
+    )
 
     """
         Command "updateMemoKey"
@@ -786,6 +810,42 @@ def main() :
         type=str,
         default=None,
         help='The new memo key'
+    )
+
+    """
+        Command "approvewitness"
+    """
+    parser_approvewitness = subparsers.add_parser('approvewitness', help='Approve a witnesses')
+    parser_approvewitness.set_defaults(command="approvewitness")
+    parser_approvewitness.add_argument(
+        'witness',
+        type=str,
+        help='Witness to approve'
+    )
+    parser_approvewitness.add_argument(
+        '--account',
+        type=str,
+        required=False,
+        default=config["default_author"],
+        help='Your account'
+    )
+
+    """
+        Command "disapprovewitness"
+    """
+    parser_disapprovewitness = subparsers.add_parser('disapprovewitness', help='Disapprove a witnesses')
+    parser_disapprovewitness.set_defaults(command="disapprovewitness")
+    parser_disapprovewitness.add_argument(
+        'witness',
+        type=str,
+        help='Witness to disapprove'
+    )
+    parser_disapprovewitness.add_argument(
+        '--account',
+        type=str,
+        required=False,
+        default=config["default_author"],
+        help='Your account'
     )
 
     """
@@ -900,6 +960,128 @@ def main() :
     )
 
     """
+        Command "resteem"
+    """
+    parser_resteem = subparsers.add_parser('resteem', help='Resteem an existing post')
+    parser_resteem.set_defaults(command="resteem")
+    parser_resteem.add_argument(
+        'identifier',
+        type=str,
+        help='@author/permlink-identifier of the post to resteem'
+    )
+    parser_resteem.add_argument(
+        '--account',
+        type=str,
+        required=False,
+        default=config["default_author"],
+        help='Resteem as this user (requires to have the key installed in the wallet)'
+    )
+
+    """
+        Command "follow"
+    """
+    parser_follow = subparsers.add_parser('follow', help='Follow another account')
+    parser_follow.set_defaults(command="follow")
+    parser_follow.add_argument(
+        'follow',
+        type=str,
+        help='Account to follow'
+    )
+    parser_follow.add_argument(
+        '--account',
+        type=str,
+        required=False,
+        default=config["default_account"],
+        help='Follow from this account'
+    )
+    parser_follow.add_argument(
+        '--what',
+        type=str,
+        required=False,
+        nargs="*",
+        default=["blog"],
+        help='Follow these objects (defaults to "blog")'
+    )
+
+    """
+        Command "unfollow"
+    """
+    parser_unfollow = subparsers.add_parser('unfollow', help='unfollow another account')
+    parser_unfollow.set_defaults(command="unfollow")
+    parser_unfollow.add_argument(
+        'unfollow',
+        type=str,
+        help='Account to unfollow'
+    )
+    parser_unfollow.add_argument(
+        '--account',
+        type=str,
+        required=False,
+        default=config["default_account"],
+        help='Unfollow from this account'
+    )
+    parser_unfollow.add_argument(
+        '--what',
+        type=str,
+        required=False,
+        nargs="*",
+        default=[],
+        help='Unfollow these objects (defaults to "blog")'
+    )
+
+    """
+        Command "setprofile"
+    """
+    parser_setprofile = subparsers.add_parser('setprofile', help='Set a variable in an account\'s profile')
+    parser_setprofile.set_defaults(command="setprofile")
+    parser_setprofile.add_argument(
+        '--account',
+        type=str,
+        required=False,
+        default=config["default_author"],
+        help='setprofile as this user (requires to have the key installed in the wallet)'
+    )
+    parser_setprofileA = parser_setprofile.add_argument_group('Multiple keys at once')
+    parser_setprofileA.add_argument(
+        '--pair',
+        type=str,
+        nargs='*',
+        help='"Key=Value" pairs'
+    )
+    parser_setprofileB = parser_setprofile.add_argument_group('Just a single key')
+    parser_setprofileB.add_argument(
+        'variable',
+        type=str,
+        nargs='?',
+        help='Variable to set'
+    )
+    parser_setprofileB.add_argument(
+        'value',
+        type=str,
+        nargs='?',
+        help='Value to set'
+    )
+
+    """
+        Command "delprofile"
+    """
+    parser_delprofile = subparsers.add_parser('delprofile', help='Set a variable in an account\'s profile')
+    parser_delprofile.set_defaults(command="delprofile")
+    parser_delprofile.add_argument(
+        '--account',
+        type=str,
+        required=False,
+        default=config["default_author"],
+        help='delprofile as this user (requires to have the key installed in the wallet)'
+    )
+    parser_delprofile.add_argument(
+        'variable',
+        type=str,
+        nargs='*',
+        help='Variable to set'
+    )
+
+    """
         Parse Arguments
     """
     args = parser.parse_args()
@@ -986,53 +1168,119 @@ def main() :
         print(t)
 
     elif args.command == "info":
-        t = PrettyTable(["Key", "Value"])
-        t.align = "l"
-        info = steem.rpc.get_dynamic_global_properties()
-        median_price = steem.rpc.get_current_median_history_price()
-        steem_per_mvest = (
-            float(info["total_vesting_fund_steem"].split(" ")[0]) /
-            (float(info["total_vesting_shares"].split(" ")[0]) / 1e6)
-        )
-        price = (
-            float(median_price["base"].split(" ")[0]) /
-            float(median_price["quote"].split(" ")[0])
-        )
-        for key in info:
-            t.add_row([key, info[key]])
-        t.add_row(["steem per mvest", steem_per_mvest])
-        t.add_row(["internal price", price])
-        print(t)
+        if not args.objects:
+            t = PrettyTable(["Key", "Value"])
+            t.align = "l"
+            info = steem.rpc.get_dynamic_global_properties()
+            median_price = steem.rpc.get_current_median_history_price()
+            steem_per_mvest = (
+                Amount(info["total_vesting_fund_steem"]).amount /
+                (Amount(info["total_vesting_shares"]).amount / 1e6)
+            )
+            price = (
+                Amount(median_price["base"]).amount /
+                Amount(median_price["quote"]).amount
+            )
+            for key in info:
+                t.add_row([key, info[key]])
+            t.add_row(["steem per mvest", steem_per_mvest])
+            t.add_row(["internal price", price])
+            print(t.get_string(sortby="Key"))
+
+        for obj in args.objects:
+            # Block
+            if re.match("^[0-9]*$", obj):
+                block = steem.rpc.get_block(obj)
+                if block:
+                    t = PrettyTable(["Key", "Value"])
+                    t.align = "l"
+                    for key in sorted(block):
+                        value = block[key]
+                        if key == "transactions":
+                            value = json.dumps(value, indent=4)
+                        t.add_row([key, value])
+                    print(t)
+                else:
+                    print("Block number %s unknown" % obj)
+            # Account name
+            elif re.match("^[a-zA-Z0-9\._]{2,16}$", obj):
+                account = steem.rpc.get_account(obj)
+                if account:
+                    t = PrettyTable(["Key", "Value"])
+                    t.align = "l"
+                    for key in sorted(account):
+                        value = account[key]
+                        if (key == "json_metadata"):
+                            value = json.dumps(
+                                json.loads(value),
+                                indent=4
+                            )
+                        if (key == "posting" or
+                                key == "witness_votes" or
+                                key == "active" or
+                                key == "owner"):
+                            value = json.dumps(value, indent=4)
+                        t.add_row([key, value])
+                    print(t)
+                else:
+                    print("Account %s unknown" % obj)
+            # Public Key
+            elif re.match("^STM.{48,55}$", obj):
+                account = steem.wallet.getAccountFromPublicKey(obj)
+                if account:
+                    t = PrettyTable(["Account"])
+                    t.align = "l"
+                    t.add_row(account)
+                    print(t)
+                else:
+                    print("Public Key not known" % obj)
+            # Post identifier
+            elif re.match("^@.{3,16}/.*$", obj):
+                post = steem.get_content(obj)
+                if post:
+                    t = PrettyTable(["Key", "Value"])
+                    t.align = "l"
+                    for key in sorted(post):
+                        if (key == "tags" or
+                                key == "json_metadata"):
+                            value = json.dumps(value, indent=4)
+                        value = str(post[key])
+                        t.add_row([key, value])
+                    print(t)
+                else:
+                    print("Post now known" % obj)
+            else:
+                print("Couldn't identify object to read")
 
     elif args.command == "changewalletpassphrase":
         steem.wallet.changePassphrase()
 
     elif args.command == "addkey":
-        pub = None
-        if len(args.wifkeys):
-            for wifkey in args.wifkeys:
-                pub = (steem.wallet.addPrivateKey(wifkey))
-                if pub:
-                    print(pub)
-        else:
-            import getpass
-            wifkey = ""
-            while True:
-                wifkey = getpass.getpass('Private Key (wif) [Enter to quit]:')
-                if not wifkey:
-                    break
-                pub = (steem.wallet.addPrivateKey(wifkey))
-                if pub:
-                    print(pub)
+        import getpass
+        while True:
+            wifkey = getpass.getpass('Private Key (wif) [Enter to quit]:')
+            if not wifkey:
+                break
+            try:
+                steem.wallet.addPrivateKey(wifkey)
+            except Exception as e:
+                print(str(e))
+                continue
 
-        if pub:
-            name = steem.wallet.getAccountFromPublicKey(pub)
-            print("Setting new default user: %s" % name)
-            print("You can change these settings with:")
-            print("    piston set default_author x")
-            print("    piston set default_voter x")
-            config["default_author"] = name
-            config["default_voter"] = name
+            installedKeys = steem.wallet.getPublicKeys()
+            if len(installedKeys) == 1:
+                name = steem.wallet.getAccountFromPublicKey(installedKeys[0])
+                print("=" * 30)
+                print("Setting new default user: %s" % name)
+                print()
+                print("You can change these settings with:")
+                print("    piston set default_author <account>")
+                print("    piston set default_voter <account>")
+                print("    piston set default_account <account>")
+                print("=" * 30)
+                config["default_author"] = name
+                config["default_voter"] = name
+                config["default_account"] = name
 
     elif args.command == "delkey":
         if confirm(
@@ -1280,7 +1528,9 @@ def main() :
         ))
 
     elif args.command == "balance":
-        t = PrettyTable(["Account", "STEEM", "SBD", "VESTS", "VESTS (in STEEM)"])
+        t = PrettyTable(["Account", "STEEM", "SBD", "VESTS",
+                         "VESTS (in STEEM)", "Savings (STEEM)",
+                         "Savings (SBD)"])
         t.align = "r"
         if isinstance(args.account, str):
             args.account = [args.account]
@@ -1291,13 +1541,21 @@ def main() :
                 b["balance"],
                 b["sbd_balance"],
                 b["vesting_shares"],
-                b["vesting_shares_steem"]
+                b["vesting_shares_steem"],
+                b["savings_balance"],
+                b["savings_sbd_balance"]
             ])
         print(t)
 
     elif args.command == "history":
-        t = PrettyTable(["#", "time/block", "Operation", "Details"])
-        t.align = "r"
+        header = ["#", "time (block)", "operation", "details"]
+        if args.csv:
+            import csv
+            t = csv.writer(sys.stdout, delimiter=";")
+            t.writerow(header)
+        else:
+            t = PrettyTable(header)
+            t.align = "r"
         if isinstance(args.account, str):
             args.account = [args.account]
         if isinstance(args.types, str):
@@ -1308,15 +1566,21 @@ def main() :
                 a,
                 args.first,
                 limit=args.limit,
-                only_ops=args.types
+                only_ops=args.types,
+                exclude_ops=args.exclude_types
             ):
-                t.add_row([
+                row = [
                     b[0],
                     "%s (%s)" % (b[1]["timestamp"], b[1]["block"]),
                     b[1]["op"][0],
                     format_operation_details(b[1]["op"], memos=args.memos),
-                ])
-        print(t)
+                ]
+                if args.csv:
+                    t.writerow(row)
+                else:
+                    t.add_row(row)
+        if not args.csv:
+            print(t)
 
     elif args.command == "interest":
         t = PrettyTable(["Account",
@@ -1370,7 +1634,7 @@ def main() :
             from steembase.account import PasswordKey
             pw = get_terminal(text="Password for Memo Key: ", confirm=True, allowedempty=False)
             memo_key = PasswordKey(args.account, pw, "memo")
-            args.key  = format(memo_key.get_public_key(), "STM")
+            args.key = format(memo_key.get_public_key(), "STM")
             memo_privkey = memo_key.get_private_key()
             # Add the key to the wallet
             if not args.nobroadcast:
@@ -1382,7 +1646,7 @@ def main() :
 
     elif args.command == "newaccount":
         import getpass
-        while True :
+        while True:
             pw = getpass.getpass("New Account Passphrase: ")
             if not pw:
                 print("You cannot chosen an empty password!")
@@ -1391,9 +1655,9 @@ def main() :
                 pwck = getpass.getpass(
                     "Confirm New Account Passphrase: "
                 )
-                if (pw == pwck) :
+                if (pw == pwck):
                     break
-                else :
+                else:
                     print("Given Passphrases do not match!")
         pprint(steem.create_account(
             args.accountname,
@@ -1405,34 +1669,47 @@ def main() :
         from steembase.account import PasswordKey
         import getpass
         password = getpass.getpass("Account Passphrase: ")
-
-        posting_key = PasswordKey(args.account, password, role="posting")
-        active_key  = PasswordKey(args.account, password, role="active")
-        memo_key    = PasswordKey(args.account, password, role="memo")
-        posting_pubkey = format(posting_key.get_public_key(), "STM")
-        active_pubkey  = format(active_key.get_public_key(), "STM")
-        memo_pubkey    = format(memo_key.get_public_key(), "STM")
-
         account = steem.rpc.get_account(args.account)
-
         imported = False
-        if active_pubkey in [x[0] for x in account["active"]["key_auths"]]:
-            active_privkey = active_key.get_private_key()
-            steem.wallet.addPrivateKey(active_privkey)
-            imported = True
 
-        if posting_pubkey in [x[0] for x in account["posting"]["key_auths"]]:
-            posting_privkey = posting_key.get_private_key()
-            steem.wallet.addPrivateKey(posting_privkey)
-            imported = True
+        if "owner" in args.roles:
+            owner_key = PasswordKey(args.account, password, role="owner")
+            owner_pubkey = format(owner_key.get_public_key(), "STM")
+            if owner_pubkey in [x[0] for x in account["owner"]["key_auths"]]:
+                print("Importing owner key!")
+                owner_privkey = owner_key.get_private_key()
+                steem.wallet.addPrivateKey(owner_privkey)
+                imported = True
 
-        if memo_pubkey == account["memo_key"]:
-            memo_privkey = memo_key.get_private_key()
-            steem.wallet.addPrivateKey(memo_privkey)
-            imported = True
+        if "active" in args.roles:
+            active_key = PasswordKey(args.account, password, role="active")
+            active_pubkey = format(active_key.get_public_key(), "STM")
+            if active_pubkey in [x[0] for x in account["active"]["key_auths"]]:
+                print("Importing active key!")
+                active_privkey = active_key.get_private_key()
+                steem.wallet.addPrivateKey(active_privkey)
+                imported = True
+
+        if "posting" in args.roles:
+            posting_key = PasswordKey(args.account, password, role="posting")
+            posting_pubkey = format(posting_key.get_public_key(), "STM")
+            if posting_pubkey in [x[0] for x in account["posting"]["key_auths"]]:
+                print("Importing posting key!")
+                posting_privkey = posting_key.get_private_key()
+                steem.wallet.addPrivateKey(posting_privkey)
+                imported = True
+
+        if "memo" in args.roles:
+            memo_key = PasswordKey(args.account, password, role="memo")
+            memo_pubkey = format(memo_key.get_public_key(), "STM")
+            if memo_pubkey == account["memo_key"]:
+                print("Importing memo key!")
+                memo_privkey = memo_key.get_private_key()
+                steem.wallet.addPrivateKey(memo_privkey)
+                imported = True
 
         if not imported:
-            print("No keys matched! Invalid password?")
+            print("No matching key(s) found. Password correct?")
 
     elif args.command == "sign":
         if args.file and args.file != "-":
@@ -1474,12 +1751,13 @@ def main() :
             except:
                 print("To use --chart, you need gnuplot and gnuplot-py installed")
                 sys.exit(1)
-        orderbook = steem.dex().returnOrderBook()
+        dex = Dex(steem)
+        orderbook = dex.returnOrderBook()
 
         if args.chart:
             g = Gnuplot.Gnuplot()
             g.title("Steem internal market - SBD:STEEM")
-            g.xlabel("price")
+            g.xlabel("price in SBD")
             g.ylabel("volume")
             g("""
                 set style data line
@@ -1527,7 +1805,8 @@ def main() :
             price = 1.0 / args.price
         else:
             price = args.price
-        pprint(steem.buy(
+        dex = Dex(steem)
+        pprint(dex.buy(
             args.amount,
             args.asset,
             price,
@@ -1539,10 +1818,84 @@ def main() :
             price = 1.0 / args.price
         else:
             price = args.price
-        pprint(steem.sell(
+        dex = Dex(steem)
+        pprint(dex.sell(
             args.amount,
             args.asset,
             price,
+            account=args.account
+        ))
+
+    elif args.command == "approvewitness":
+        pprint(steem.approve_witness(
+            args.witness,
+            account=args.account
+        ))
+
+    elif args.command == "disapprovewitness":
+        pprint(steem.disapprove_witness(
+            args.witness,
+            account=args.account
+        ))
+
+    elif args.command == "resteem":
+        pprint(steem.resteem(
+            args.identifier,
+            account=args.account
+        ))
+
+    elif args.command == "follow":
+        pprint(steem.follow(
+            args.follow,
+            what=args.what,
+            account=args.account
+        ))
+
+    elif args.command == "unfollow":
+        pprint(steem.unfollow(
+            args.unfollow,
+            what=args.what,
+            account=args.account
+        ))
+
+    elif args.command == "setprofile":
+        from .profile import Profile
+        keys = []
+        values = []
+        if args.pair:
+            for pair in args.pair:
+                key, value = pair.split("=")
+                keys.append(key)
+                values.append(value)
+        if args.variable and args.value:
+            keys.append(args.variable)
+            values.append(args.value)
+
+        profile = Profile(keys, values)
+
+        account = steem.rpc.get_account(args.account)
+        if not account:
+            raise AccountDoesNotExistsException(account)
+        account["json_metadata"] = Profile(account["json_metadata"])
+        account["json_metadata"].update(profile)
+
+        pprint(steem.update_account_profile(
+            account["json_metadata"],
+            account=args.account
+        ))
+
+    elif args.command == "delprofile":
+        from .profile import Profile
+        account = steem.rpc.get_account(args.account)
+        if not account:
+            raise AccountDoesNotExistsException(account)
+        account["json_metadata"] = Profile(account["json_metadata"])
+
+        for var in args.variable:
+            account["json_metadata"].remove(var)
+
+        pprint(steem.update_account_profile(
+            account["json_metadata"],
             account=args.account
         ))
 

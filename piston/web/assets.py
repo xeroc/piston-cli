@@ -1,5 +1,5 @@
 from flask_assets import Bundle
-from .web_app import app, webassets
+from .app import app, webassets
 
 # Javascript Libraries
 js_libs = Bundle("libs/bootstrap-notify/js/bootstrap-notify.js",

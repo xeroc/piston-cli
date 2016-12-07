@@ -29,32 +29,36 @@ This is the ``config.ini`` file for steemd:
 
 ::
 
-      rpc-endpoint = 127.0.0.1:5090
+    rpc-endpoint = 127.0.0.1:5090
 
-      seed-node=52.38.66.234:2001
-      seed-node=52.37.169.52:2001
-      seed-node=52.26.78.244:2001
-      seed-node=192.99.4.226:2001
-      seed-node=46.252.27.1:1337
-      seed-node=81.89.101.133:2001
-      seed-node=52.4.250.181:39705
-      seed-node=85.214.65.220:2001
-      seed-node=104.199.157.70:2001
-      seed-node=104.236.82.250:2001
-      seed-node=104.168.154.160:40696
-      seed-node=162.213.199.171:34191
-      seed-node=seed.steemed.net:2001
-      seed-node=steem.clawmap.com:2001
-      seed-node=seed.steemwitness.com:2001
-      seed-node=steem-seed1.abit-more.com:2001
+    seed-node=52.38.66.234:2001
+    seed-node=52.37.169.52:2001
+    seed-node=52.26.78.244:2001
+    seed-node=192.99.4.226:2001
+    seed-node=46.252.27.1:1337
+    seed-node=81.89.101.133:2001
+    seed-node=52.4.250.181:39705
+    seed-node=85.214.65.220:2001
+    seed-node=104.199.157.70:2001
+    seed-node=104.236.82.250:2001
+    seed-node=104.168.154.160:40696
+    seed-node=162.213.199.171:34191
+    seed-node=seed.steemed.net:2001
+    seed-node=steem.clawmap.com:2001
+    seed-node=seed.steemwitness.com:2001
+    seed-node=steem-seed1.abit-more.com:2001
 
-      enable-plugin = account_history
-      enable-plugin = follow
-      enable-plugin = market_history
-      enable-plugin = private_message
-      enable-plugin = tags
+    enable-plugin = account_by_key
+    enable-plugin = account_history
+    enable-plugin = follow
+    enable-plugin = market_history
+    enable-plugin = tags
 
-      public-api = database_api login_api market_history_api tag_api follow_api
+    public-api = database_api login_api
+    public-api = account_by_key_api
+    public-api = follow_api
+    public-api = market_history_api
+    public-api = tag_api
 
 This opens up the port ``5090`` for localhost. Going forward, you can either open up this port directly to the public, or tunnel it through a webserver (such as nginx) to add SSL on top, do load balancing, throttling etc.
 

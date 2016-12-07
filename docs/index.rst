@@ -6,10 +6,11 @@
 Piston - The Swiss army knife for the Steem network
 ===================================================
 
-
-Piston is a tool with a library to interact with the STEEM network using Python 3.
+Piston is a tool to interact with the STEEM network using Python 3 and
+python-steem.
 
 * Piston's home is `github.com/xeroc/piston <https://github.com/xeroc/piston>`_ and
+* python-steem's home is `github.com/xeroc/python-steem <https://github.com/xeroc/python-steem>`_ and
 * this documentation is available through ReadMyDocs and is hosted on `piston.rocks <http://piston.rocks>`_
 
 Piston.web - Graphical User Interface
@@ -32,28 +33,6 @@ in the Steem network. After installation, you can get the full list of features 
 
     $ piston --help
 
-Library
--------
-
-Piston can be used as a library and thus helps you
-
-* deal with configuration settings (node, prefered options, ..)
-* accounts and private keys (with integrated wallet)
-* presentation of Steem content
-
-It further can be used to easily deploy bots on steem. The most easy
-auto-reply bot can be coded with just a few lines of code:
-
-.. code-block:: python
-
-   from piston.steem import Steem
-   import os
-   import json
-   steem = Steem(wif="<posting-key-for-default-author>")
-   for c in steem.stream_comments():
-       if "Boobie" in c["body"]:
-           print(c.reply(".. doobidoo"))
-
 General
 ========
 
@@ -71,13 +50,12 @@ Standalone App
     :maxdepth: 2
 
     app
-    multisig
-    coldstorage
 
-Library
-=======
+Howtows
+==============
 
 .. toctree::
     :maxdepth: 2
 
-    lib
+    multisig
+    coldstorage
