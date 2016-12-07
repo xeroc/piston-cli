@@ -162,6 +162,12 @@ def main():
         Command "addkey"
     """
     addkey = subparsers.add_parser('addkey', help='Add a new key to the wallet')
+    addkey.add_argument(
+        '--unsafe-import-key',
+        nargs='*',
+        type=str,
+        help='private key to import into the wallet (unsafe, unless you delete your bash history)'
+    )
     addkey.set_defaults(command="addkey")
 
     """
@@ -1256,31 +1262,37 @@ def main():
         steem.wallet.changePassphrase()
 
     elif args.command == "addkey":
-        import getpass
-        while True:
-            wifkey = getpass.getpass('Private Key (wif) [Enter to quit]:')
-            if not wifkey:
-                break
+        if args.unsafe_import_key and len(args.unsafe_import_key) == 1:
             try:
-                steem.wallet.addPrivateKey(wifkey)
+                steem.wallet.addPrivateKey(args.unsafe_import_key[0])
             except Exception as e:
                 print(str(e))
-                continue
+        else:
+            import getpass
+            while True:
+                wifkey = getpass.getpass('Private Key (wif) [Enter to quit]:')
+                if not wifkey:
+                    break
+                try:
+                    steem.wallet.addPrivateKey(wifkey)
+                except Exception as e:
+                    print(str(e))
+                    continue
 
-            installedKeys = steem.wallet.getPublicKeys()
-            if len(installedKeys) == 1:
-                name = steem.wallet.getAccountFromPublicKey(installedKeys[0])
-                print("=" * 30)
-                print("Setting new default user: %s" % name)
-                print()
-                print("You can change these settings with:")
-                print("    piston set default_author <account>")
-                print("    piston set default_voter <account>")
-                print("    piston set default_account <account>")
-                print("=" * 30)
-                config["default_author"] = name
-                config["default_voter"] = name
-                config["default_account"] = name
+                installedKeys = steem.wallet.getPublicKeys()
+                if len(installedKeys) == 1:
+                    name = steem.wallet.getAccountFromPublicKey(installedKeys[0])
+                    print("=" * 30)
+                    print("Setting new default user: %s" % name)
+                    print()
+                    print("You can change these settings with:")
+                    print("    piston set default_author <account>")
+                    print("    piston set default_voter <account>")
+                    print("    piston set default_account <account>")
+                    print("=" * 30)
+                    config["default_author"] = name
+                    config["default_voter"] = name
+                    config["default_account"] = name
 
     elif args.command == "delkey":
         if confirm(
