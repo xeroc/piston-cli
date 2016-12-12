@@ -1210,6 +1210,7 @@ def main():
                     print("Block number %s unknown" % obj)
             # Account name
             elif re.match("^[a-zA-Z0-9\._]{2,16}$", obj):
+                from math import log10
                 account = steem.rpc.get_account(obj)
                 if account:
                     t = PrettyTable(["Key", "Value"])
@@ -1226,6 +1227,13 @@ def main():
                                 key == "active" or
                                 key == "owner"):
                             value = json.dumps(value, indent=4)
+                        if key == "reputation":
+                            value = int(value)
+                            rep = (max(log10(value) - 9, 0) * 9 + 25 if value > 0
+                                   else max(log10(-value) - 9, 0) * -9 + 25)
+                            value = "{:.2f} ({:d})".format(
+                                rep, value
+                            )
                         t.add_row([key, value])
                     print(t)
                 else:
@@ -1871,7 +1879,7 @@ def main():
         ))
 
     elif args.command == "setprofile":
-        from .profile import Profile
+        from steem.profile import Profile
         keys = []
         values = []
         if args.pair:
