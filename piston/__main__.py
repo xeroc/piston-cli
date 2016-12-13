@@ -1270,11 +1270,12 @@ def main():
         steem.wallet.changePassphrase()
 
     elif args.command == "addkey":
-        if args.unsafe_import_key and len(args.unsafe_import_key) == 1:
-            try:
-                steem.wallet.addPrivateKey(args.unsafe_import_key[0])
-            except Exception as e:
-                print(str(e))
+        if args.unsafe_import_key:
+            for key in args.unsafe_import_key:
+                try:
+                    steem.wallet.addPrivateKey(key)
+                except Exception as e:
+                    print(str(e))
         else:
             import getpass
             while True:
