@@ -1897,7 +1897,11 @@ def main():
         account = steem.rpc.get_account(args.account)
         if not account:
             raise AccountDoesNotExistsException(account)
-        account["json_metadata"] = Profile(account["json_metadata"])
+        account["json_metadata"] = Profile(
+            account["json_metadata"]
+            if account["json_metadata"]
+            else {}
+        )
         account["json_metadata"].update(profile)
 
         pprint(steem.update_account_profile(
