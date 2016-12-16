@@ -1219,7 +1219,7 @@ def main():
                         value = account[key]
                         if (key == "json_metadata"):
                             value = json.dumps(
-                                json.loads(value),
+                                json.loads(value or "{}"),
                                 indent=4
                             )
                         if (key == "posting" or
