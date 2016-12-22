@@ -1423,7 +1423,7 @@ def main():
         ))
 
     elif args.command == "upvote" or args.command == "downvote":
-        post = Post(steem, args.post)
+        post = Post(args.post)
         if args.command == "downvote":
             weight = -float(args.weight)
         else:

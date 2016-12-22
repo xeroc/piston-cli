@@ -223,7 +223,7 @@ def browse(category, sort):
 @app.route('/read/<path:identifier>')
 def read(identifier):
     identifier = re.sub(r'.*@', '@', identifier)
-    post = Post(steem, identifier)
+    post = Post(identifier)
     if not post:
         abort(400)
     return render_template('read.html', **locals())
@@ -234,7 +234,7 @@ def read(identifier):
 def post(identifier):
     if identifier:
         try:
-            post = Post(steem, identifier)
+            post = Post(identifier)
         except:
             abort(400)
         if not post:

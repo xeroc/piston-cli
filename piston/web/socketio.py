@@ -78,7 +78,7 @@ def vote(identifier, weight):
 
     print(steem.wallet.locked())
     try:
-        post = Post(steem, identifier)
+        post = Post(identifier)
         post.vote(weight=weight,
                   voter=config["web:user"])
         emit("success.vote", {"identifier": identifier,
