@@ -15,7 +15,7 @@ from steem.utils import (
     formatTime,
     strfage,
 )
-from steem.steem import Steem, SteemConnector
+from steem.steem import Steem
 from steem.amount import Amount
 from steem.post import Post
 from steem.dex import Dex
@@ -1155,7 +1155,7 @@ def main():
         if args.command == "sign":
             options.update({"offline": True})
 
-        steem = SteemConnector(**options).getSteem()
+        steem = Steem(**options)
 
     if args.command == "set":
         if (args.key in ["default_author",
@@ -1755,11 +1755,13 @@ def main():
         steem.broadcast(tx)
 
     elif args.command == "web":
-        SteemConnector(node=args.node,
-                       rpcuser=args.rpcuser,
-                       rpcpassword=args.rpcpassword,
-                       nobroadcast=args.nobroadcast,
-                       num_retries=1)
+        Steem(
+            node=args.node,
+            rpcuser=args.rpcuser,
+            rpcpassword=args.rpcpassword,
+            nobroadcast=args.nobroadcast,
+            num_retries=1
+        )
         from . import web
         web.run(port=args.port, host=args.host)
 

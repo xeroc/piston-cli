@@ -6,7 +6,7 @@ import frontmatter
 import re
 from steem.storage import configStorage as config
 from steem.utils import constructIdentifier
-from steem.steem import SteemConnector
+from steem import steem as stm
 
 # For recursive display of a discussion thread (--comments + --parents)
 currentThreadDepth = 0
@@ -291,7 +291,7 @@ def format_operation_details(op, memos=False):
         if memos:
             memo = op[1]["memo"]
             if len(memo) > 0 and memo[0] == "#":
-                steem = SteemConnector().getSteem()
+                steem = stm.Steem()
                 # memo = steem.decode_memo(memo, op[1]["from"])
                 memo = steem.decode_memo(memo, op)
             str_ += " (%s)" % memo

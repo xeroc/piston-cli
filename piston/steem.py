@@ -1,6 +1,5 @@
 import warnings
 from steem.steem import Steem as SteemSteem
-from steem.steem import SteemConnector as SteemConnectorSteem
 from steem.post import Post as PostSteem
 from steem.amount import Amount as AmountSteem
 from steem.steem import AccountDoesNotExistsException
@@ -35,9 +34,9 @@ class Amount(AmountSteem):
         super(Amount, self).__init__(*args, **kwargs)
 
 
-class SteemConnector(SteemConnectorSteem):
+class SteemConnector():
     def __init__(self, *args, **kwargs):
         warnings.warn(
             "[DeprecationWarning] Please replace 'import piston.steem' by 'import steem.steem'"
         )
-        super(SteemConnector, self).__init__(*args, **kwargs)
+        raise
