@@ -494,7 +494,7 @@ def main():
         'asset',
         type=str,
         choices=["STEEM", "SBD"],
-        help='Asset to (i.e. STEEM or SDB)'
+        help='Asset to transfer (i.e. STEEM or SDB)'
     )
     parser_transfer.add_argument(
         'memo',
@@ -647,7 +647,7 @@ def main():
         '--first',
         type=int,
         default=99999999999999,
-        help='Transactioon numer (#) of the last transaction to show.'
+        help='Transaction number (#) of the last transaction to show.'
     )
     parser_history.add_argument(
         '--types',
