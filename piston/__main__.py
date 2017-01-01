@@ -1462,7 +1462,10 @@ def main():
                 for key in post:
                     if key in ["steem", "body"]:
                         continue
-                    meta[key] = post[key]
+                    if isinstance(post[key], Amount):
+                        meta[key] = str(post[key])
+                    else:
+                        meta[key] = post[key]
                 yaml = frontmatter.Post(body, **meta)
                 print(frontmatter.dumps(yaml))
             else:
