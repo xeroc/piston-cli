@@ -3,17 +3,18 @@ from steem.steem import Steem as SteemSteem
 from steem.post import Post as PostSteem
 from steem.amount import Amount as AmountSteem
 from steem.steem import AccountDoesNotExistsException
-
 from steem.steem import (
     MissingKeyError,
     InsufficientAuthorityError
 )
+warnings.simplefilter('default')
 
 
 class Steem(SteemSteem):
     def __init__(self, *args, **kwargs):
         warnings.warn(
-            "[DeprecationWarning] Please replace 'import piston.steem' by 'import steem.steem'"
+            "Please replace 'import piston.steem' by 'import steem.steem'",
+            DeprecationWarning
         )
         super(Steem, self).__init__(*args, **kwargs)
 
@@ -21,7 +22,8 @@ class Steem(SteemSteem):
 class Post(PostSteem):
     def __init__(self, *args, **kwargs):
         warnings.warn(
-            "[DeprecationWarning] Please replace 'from piston.steem import Post' by 'from steem.post import Post'"
+            "Please replace 'from piston.steem import Post' by 'from steem.post import Post'",
+            DeprecationWarning
         )
         super(Post, self).__init__(*args, **kwargs)
 
@@ -29,7 +31,8 @@ class Post(PostSteem):
 class Amount(AmountSteem):
     def __init__(self, *args, **kwargs):
         warnings.warn(
-            "[DeprecationWarning] Please replace 'from piston.steem import Amount' by 'from steem.amount import Amount'"
+            "Please replace 'from piston.steem import Amount' by 'from steem.amount import Amount'",
+            DeprecationWarning
         )
         super(Amount, self).__init__(*args, **kwargs)
 
@@ -37,6 +40,7 @@ class Amount(AmountSteem):
 class SteemConnector():
     def __init__(self, *args, **kwargs):
         warnings.warn(
-            "[DeprecationWarning] Please replace 'import piston.steem' by 'import steem.steem'"
+            "Please replace 'import piston.steem' by 'import steem.steem'",
+            DeprecationWarning
         )
         raise
