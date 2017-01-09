@@ -1351,8 +1351,7 @@ def main():
                     t = PrettyTable(["Key", "Value"])
                     t.align = "l"
                     for key in sorted(post):
-                        if (key == "tags" or
-                                key == "json_metadata"):
+                        if (key in ["tags", "json_metadata"]):
                             value = json.dumps(value, indent=4)
                         value = str(post[key])
                         t.add_row([key, value])
@@ -1465,14 +1464,17 @@ def main():
 
     elif args.command == "post" or args.command == "yaml":
         initmeta = {
-            "title": args.title if args.title else "required",
-            "author": args.author if args.author else "required",
-            "category": args.category if args.category else "required",
+            "title": args.title or "required",
+            "author": args.author or "required",
+            "category": args.category or "required",
+            "tags": args.tags or [],
+            "max_accepted_payout": "1000000.000 SBD",
+            "percent_steem_dollars": 100,
+            "allow_votes": True,
+            "allow_curation_rewards": True,
         }
-        if args.tags:
-            initmeta["tags"] = args.tags
-        post = frontmatter.Post("", **initmeta)
 
+        post = frontmatter.Post("", **initmeta)
         meta, json_meta, body = yaml_parse_file(args, initial_content=post)
 
         if not body:
