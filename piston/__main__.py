@@ -1295,33 +1295,30 @@ def main():
             # Account name
             elif re.match("^[a-zA-Z0-9\._]{2,16}$", obj):
                 from math import log10
-                account = steem.rpc.get_account(obj)
-                if account:
-                    t = PrettyTable(["Key", "Value"])
-                    t.align = "l"
-                    for key in sorted(account):
-                        value = account[key]
-                        if (key == "json_metadata"):
-                            value = json.dumps(
-                                json.loads(value or "{}"),
-                                indent=4
-                            )
-                        if (key == "posting" or
-                                key == "witness_votes" or
-                                key == "active" or
-                                key == "owner"):
-                            value = json.dumps(value, indent=4)
-                        if key == "reputation":
-                            value = int(value)
-                            rep = (max(log10(value) - 9, 0) * 9 + 25 if value > 0
-                                   else max(log10(-value) - 9, 0) * -9 + 25)
-                            value = "{:.2f} ({:d})".format(
-                                rep, value
-                            )
-                        t.add_row([key, value])
-                    print(t)
-                else:
-                    print("Account %s unknown" % obj)
+                account = Account(obj)
+                t = PrettyTable(["Key", "Value"])
+                t.align = "l"
+                for key in sorted(account):
+                    value = account[key]
+                    if (key == "json_metadata"):
+                        value = json.dumps(
+                            json.loads(value or "{}"),
+                            indent=4
+                        )
+                    if (key == "posting" or
+                            key == "witness_votes" or
+                            key == "active" or
+                            key == "owner"):
+                        value = json.dumps(value, indent=4)
+                    if key == "reputation":
+                        value = int(value)
+                        rep = (max(log10(value) - 9, 0) * 9 + 25 if value > 0
+                               else max(log10(-value) - 9, 0) * -9 + 25)
+                        value = "{:.2f} ({:d})".format(
+                            rep, value
+                        )
+                    t.add_row([key, value])
+                print(t)
             # Public Key
             elif re.match("^STM.{48,55}$", obj):
                 account = steem.wallet.getAccountFromPublicKey(obj)
@@ -1712,7 +1709,7 @@ def main():
         print(t)
 
     elif args.command == "permissions":
-        account = steem.rpc.get_account(args.account)
+        account = Account(args.account)
         print_permissions(account)
 
     elif args.command == "allow":
@@ -1777,7 +1774,7 @@ def main():
         from steembase.account import PasswordKey
         import getpass
         password = getpass.getpass("Account Passphrase: ")
-        account = steem.rpc.get_account(args.account)
+        account = Account(args.account)
         imported = False
 
         if "owner" in args.roles:
@@ -1983,9 +1980,7 @@ def main():
 
         profile = Profile(keys, values)
 
-        account = steem.rpc.get_account(args.account)
-        if not account:
-            raise AccountDoesNotExistsException(account)
+        account = Account(args.account)
         account["json_metadata"] = Profile(
             account["json_metadata"]
             if account["json_metadata"]
