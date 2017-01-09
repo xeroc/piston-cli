@@ -1305,12 +1305,12 @@ def main():
                             json.loads(value or "{}"),
                             indent=4
                         )
-                    if (key == "posting" or
-                            key == "witness_votes" or
-                            key == "active" or
-                            key == "owner"):
+                    if key in ["posting",
+                               "witness_votes",
+                               "active",
+                               "owner"]:
                         value = json.dumps(value, indent=4)
-                    if key == "reputation":
+                    if key == "reputation" and int(value) > 0:
                         value = int(value)
                         rep = (max(log10(value) - 9, 0) * 9 + 25 if value > 0
                                else max(log10(-value) - 9, 0) * -9 + 25)
@@ -1319,6 +1319,21 @@ def main():
                         )
                     t.add_row([key, value])
                 print(t)
+
+                # witness available?
+                try:
+                    witness = Witness(obj)
+                    t = PrettyTable(["Key", "Value"])
+                    t.align = "l"
+                    for key in sorted(witness):
+                        value = witness[key]
+                        if key in ["props",
+                                   "sbd_exchange_rate"]:
+                            value = json.dumps(value, indent=4)
+                        t.add_row([key, value])
+                    print(t)
+                except:
+                    pass
             # Public Key
             elif re.match("^STM.{48,55}$", obj):
                 account = steem.wallet.getAccountFromPublicKey(obj)
