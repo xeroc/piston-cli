@@ -19,6 +19,8 @@ from steem.steem import Steem
 from steem.amount import Amount
 from steem.post import Post
 from steem.dex import Dex
+from steem.account import Account
+from steem.witness import Witness
 import frontmatter
 import time
 from prettytable import PrettyTable
@@ -1088,6 +1090,88 @@ def main():
     )
 
     """
+        Command "witnessupdate"
+    """
+    parser_witnessprops = subparsers.add_parser('witnessupdate', help='Change witness properties')
+    parser_witnessprops.set_defaults(command="witnessupdate")
+    parser_witnessprops.add_argument(
+        '--witness',
+        type=str,
+        default=config["default_account"],
+        help='Witness name'
+    )
+    parser_witnessprops.add_argument(
+        '--maximum_block_size',
+        type=float,
+        required=False,
+        help='Max block size'
+    )
+    parser_witnessprops.add_argument(
+        '--account_creation_fee',
+        type=float,
+        required=False,
+        help='Account creation fee'
+    )
+    parser_witnessprops.add_argument(
+        '--sbd_interest_rate',
+        type=float,
+        required=False,
+        help='SBD interest rate in percent'
+    )
+    parser_witnessprops.add_argument(
+        '--url',
+        type=str,
+        required=False,
+        help='Witness URL'
+    )
+    parser_witnessprops.add_argument(
+        '--signing_key',
+        type=str,
+        required=False,
+        help='Signing Key'
+    )
+
+    """
+        Command "witnesscreate"
+    """
+    parser_witnesscreate = subparsers.add_parser('witnesscreate', help='Create a witness')
+    parser_witnesscreate.set_defaults(command="witnesscreate")
+    parser_witnesscreate.add_argument(
+        'witness',
+        type=str,
+        help='Witness name'
+    )
+    parser_witnesscreate.add_argument(
+        'signing_key',
+        type=str,
+        help='Signing Key'
+    )
+    parser_witnesscreate.add_argument(
+        '--maximum_block_size',
+        type=float,
+        default="65536",
+        help='Max block size'
+    )
+    parser_witnesscreate.add_argument(
+        '--account_creation_fee',
+        type=float,
+        default=30,
+        help='Account creation fee'
+    )
+    parser_witnesscreate.add_argument(
+        '--sbd_interest_rate',
+        type=float,
+        default=0.0,
+        help='SBD interest rate in percent'
+    )
+    parser_witnesscreate.add_argument(
+        '--url',
+        type=str,
+        default="",
+        help='Witness URL'
+    )
+
+    """
         Parse Arguments
     """
     args = parser.parse_args()
@@ -1916,9 +2000,7 @@ def main():
 
     elif args.command == "delprofile":
         from .profile import Profile
-        account = steem.rpc.get_account(args.account)
-        if not account:
-            raise AccountDoesNotExistsException(account)
+        account = Account(args.account)
         account["json_metadata"] = Profile(account["json_metadata"])
 
         for var in args.variable:
@@ -1927,6 +2009,37 @@ def main():
         pprint(steem.update_account_profile(
             account["json_metadata"],
             account=args.account
+        ))
+
+    elif args.command == "witnessupdate":
+
+        witness = Witness(args.witness)
+        props = witness["props"]
+        if args.account_creation_fee:
+            props["account_creation_fee"] = str(Amount("%f STEEM" % args.account_creation_fee))
+        if args.maximum_block_size:
+            props["maximum_block_size"] = args.maximum_block_size
+        if args.sbd_interest_rate:
+            props["sbd_interest_rate"] = int(args.sbd_interest_rate * 100)
+
+        pprint(steem.witness_update(
+            args.signing_key or witness["signing_key"],
+            args.url or witness["url"],
+            props,
+            account=args.witness
+        ))
+
+    elif args.command == "witnesscreate":
+        props = {
+            "account_creation_fee": str(Amount("%f STEEM" % args.account_creation_fee)),
+            "maximum_block_size": args.maximum_block_size,
+            "sbd_interest_rate": int(args.sbd_interest_rate * 100)
+        }
+        pprint(steem.witness_update(
+            args.signing_key,
+            args.url,
+            props,
+            account=args.witness
         ))
 
     else:
