@@ -49,7 +49,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'piston'
-copyright = '2016, Fabian Schuh'
+copyright = '2017, ChainSquad GmbH'
 author = 'Fabian Schuh'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -225,7 +225,7 @@ latex_elements = {
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
   (master_doc, 'piston.tex', 'piston',
-   'Fabian Schuh', 'manual'),
+   author, 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
