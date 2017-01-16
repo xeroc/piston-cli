@@ -17,6 +17,7 @@ from steem.utils import (
 )
 from steem.steem import Steem
 from steem.amount import Amount
+from steem.account import Account
 from steem.post import Post
 from steem.dex import Dex
 from steem.account import Account
@@ -1684,9 +1685,8 @@ def main():
             args.types = [args.types]
 
         for a in args.account:
-            for b in steem.rpc.account_history(
-                a,
-                args.first,
+            for b in Account(a).rawhistory(
+                first=args.first,
                 limit=args.limit,
                 only_ops=args.types,
                 exclude_ops=args.exclude_types
