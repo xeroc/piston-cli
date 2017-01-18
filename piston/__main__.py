@@ -15,10 +15,14 @@ from steem.utils import (
     formatTime,
     strfage,
 )
-from steem.steem import Steem, SteemConnector
+from steem.steem import Steem
 from steem.amount import Amount
+from steem.account import Account
 from steem.post import Post
+from steem.blockchain import Blockchain
+from steem.block import Block
 from steem.dex import Dex
+from steem.witness import Witness
 import frontmatter
 import time
 from prettytable import PrettyTable
@@ -494,7 +498,7 @@ def main():
         'asset',
         type=str,
         choices=["STEEM", "SBD"],
-        help='Asset to (i.e. STEEM or SDB)'
+        help='Asset to transfer (i.e. STEEM or SDB)'
     )
     parser_transfer.add_argument(
         'memo',
@@ -647,7 +651,7 @@ def main():
         '--first',
         type=int,
         default=99999999999999,
-        help='Transactioon numer (#) of the last transaction to show.'
+        help='Transaction number (#) of the last transaction to show.'
     )
     parser_history.add_argument(
         '--types',
@@ -1088,6 +1092,88 @@ def main():
     )
 
     """
+        Command "witnessupdate"
+    """
+    parser_witnessprops = subparsers.add_parser('witnessupdate', help='Change witness properties')
+    parser_witnessprops.set_defaults(command="witnessupdate")
+    parser_witnessprops.add_argument(
+        '--witness',
+        type=str,
+        default=config["default_account"],
+        help='Witness name'
+    )
+    parser_witnessprops.add_argument(
+        '--maximum_block_size',
+        type=float,
+        required=False,
+        help='Max block size'
+    )
+    parser_witnessprops.add_argument(
+        '--account_creation_fee',
+        type=float,
+        required=False,
+        help='Account creation fee'
+    )
+    parser_witnessprops.add_argument(
+        '--sbd_interest_rate',
+        type=float,
+        required=False,
+        help='SBD interest rate in percent'
+    )
+    parser_witnessprops.add_argument(
+        '--url',
+        type=str,
+        required=False,
+        help='Witness URL'
+    )
+    parser_witnessprops.add_argument(
+        '--signing_key',
+        type=str,
+        required=False,
+        help='Signing Key'
+    )
+
+    """
+        Command "witnesscreate"
+    """
+    parser_witnesscreate = subparsers.add_parser('witnesscreate', help='Create a witness')
+    parser_witnesscreate.set_defaults(command="witnesscreate")
+    parser_witnesscreate.add_argument(
+        'witness',
+        type=str,
+        help='Witness name'
+    )
+    parser_witnesscreate.add_argument(
+        'signing_key',
+        type=str,
+        help='Signing Key'
+    )
+    parser_witnesscreate.add_argument(
+        '--maximum_block_size',
+        type=float,
+        default="65536",
+        help='Max block size'
+    )
+    parser_witnesscreate.add_argument(
+        '--account_creation_fee',
+        type=float,
+        default=30,
+        help='Account creation fee'
+    )
+    parser_witnesscreate.add_argument(
+        '--sbd_interest_rate',
+        type=float,
+        default=0.0,
+        help='SBD interest rate in percent'
+    )
+    parser_witnesscreate.add_argument(
+        '--url',
+        type=str,
+        default="",
+        help='Witness URL'
+    )
+
+    """
         Parse Arguments
     """
     args = parser.parse_args()
@@ -1155,7 +1241,7 @@ def main():
         if args.command == "sign":
             options.update({"offline": True})
 
-        steem = SteemConnector(**options).getSteem()
+        steem = Steem(**options)
 
     if args.command == "set":
         if (args.key in ["default_author",
@@ -1177,7 +1263,8 @@ def main():
         if not args.objects:
             t = PrettyTable(["Key", "Value"])
             t.align = "l"
-            info = steem.rpc.get_dynamic_global_properties()
+            blockchain = Blockchain(mode="head")
+            info = blockchain.info()
             median_price = steem.rpc.get_current_median_history_price()
             steem_per_mvest = (
                 Amount(info["total_vesting_fund_steem"]).amount /
@@ -1196,7 +1283,7 @@ def main():
         for obj in args.objects:
             # Block
             if re.match("^[0-9]*$", obj):
-                block = steem.rpc.get_block(obj)
+                block = Block(obj)
                 if block:
                     t = PrettyTable(["Key", "Value"])
                     t.align = "l"
@@ -1211,33 +1298,45 @@ def main():
             # Account name
             elif re.match("^[a-zA-Z0-9\._]{2,16}$", obj):
                 from math import log10
-                account = steem.rpc.get_account(obj)
-                if account:
+                account = Account(obj)
+                t = PrettyTable(["Key", "Value"])
+                t.align = "l"
+                for key in sorted(account):
+                    value = account[key]
+                    if (key == "json_metadata"):
+                        value = json.dumps(
+                            json.loads(value or "{}"),
+                            indent=4
+                        )
+                    if key in ["posting",
+                               "witness_votes",
+                               "active",
+                               "owner"]:
+                        value = json.dumps(value, indent=4)
+                    if key == "reputation" and int(value) > 0:
+                        value = int(value)
+                        rep = (max(log10(value) - 9, 0) * 9 + 25 if value > 0
+                               else max(log10(-value) - 9, 0) * -9 + 25)
+                        value = "{:.2f} ({:d})".format(
+                            rep, value
+                        )
+                    t.add_row([key, value])
+                print(t)
+
+                # witness available?
+                try:
+                    witness = Witness(obj)
                     t = PrettyTable(["Key", "Value"])
                     t.align = "l"
-                    for key in sorted(account):
-                        value = account[key]
-                        if (key == "json_metadata"):
-                            value = json.dumps(
-                                json.loads(value),
-                                indent=4
-                            )
-                        if (key == "posting" or
-                                key == "witness_votes" or
-                                key == "active" or
-                                key == "owner"):
+                    for key in sorted(witness):
+                        value = witness[key]
+                        if key in ["props",
+                                   "sbd_exchange_rate"]:
                             value = json.dumps(value, indent=4)
-                        if key == "reputation":
-                            value = int(value)
-                            rep = (max(log10(value) - 9, 0) * 9 + 25 if value > 0
-                                   else max(log10(-value) - 9, 0) * -9 + 25)
-                            value = "{:.2f} ({:d})".format(
-                                rep, value
-                            )
                         t.add_row([key, value])
                     print(t)
-                else:
-                    print("Account %s unknown" % obj)
+                except:
+                    pass
             # Public Key
             elif re.match("^STM.{48,55}$", obj):
                 account = steem.wallet.getAccountFromPublicKey(obj)
@@ -1255,8 +1354,7 @@ def main():
                     t = PrettyTable(["Key", "Value"])
                     t.align = "l"
                     for key in sorted(post):
-                        if (key == "tags" or
-                                key == "json_metadata"):
+                        if (key in ["tags", "json_metadata"]):
                             value = json.dumps(value, indent=4)
                         value = str(post[key])
                         t.add_row([key, value])
@@ -1270,11 +1368,12 @@ def main():
         steem.wallet.changePassphrase()
 
     elif args.command == "addkey":
-        if args.unsafe_import_key and len(args.unsafe_import_key) == 1:
-            try:
-                steem.wallet.addPrivateKey(args.unsafe_import_key[0])
-            except Exception as e:
-                print(str(e))
+        if args.unsafe_import_key:
+            for key in args.unsafe_import_key:
+                try:
+                    steem.wallet.addPrivateKey(key)
+                except Exception as e:
+                    print(str(e))
         else:
             import getpass
             while True:
@@ -1368,14 +1467,17 @@ def main():
 
     elif args.command == "post" or args.command == "yaml":
         initmeta = {
-            "title": args.title if args.title else "required",
-            "author": args.author if args.author else "required",
-            "category": args.category if args.category else "required",
+            "title": args.title or "required",
+            "author": args.author or "required",
+            "category": args.category or "required",
+            "tags": args.tags or [],
+            "max_accepted_payout": "1000000.000 SBD",
+            "percent_steem_dollars": 100,
+            "allow_votes": True,
+            "allow_curation_rewards": True,
         }
-        if args.tags:
-            initmeta["tags"] = args.tags
-        post = frontmatter.Post("", **initmeta)
 
+        post = frontmatter.Post("", **initmeta)
         meta, json_meta, body = yaml_parse_file(args, initial_content=post)
 
         if not body:
@@ -1410,7 +1512,7 @@ def main():
         post = frontmatter.Post(original_post["body"], **{
             "title": original_post["title"] + " (immutable)",
             "author": original_post["author"] + " (immutable)",
-            "tags": original_post["_tags"]
+            "tags": original_post["tags"]
         })
 
         meta, json_meta, edited_message = yaml_parse_file(args, initial_content=post)
@@ -1422,7 +1524,7 @@ def main():
         ))
 
     elif args.command == "upvote" or args.command == "downvote":
-        post = Post(steem, args.post)
+        post = Post(args.post)
         if args.command == "downvote":
             weight = -float(args.weight)
         else:
@@ -1461,7 +1563,10 @@ def main():
                 for key in post:
                     if key in ["steem", "body"]:
                         continue
-                    meta[key] = post[key]
+                    if isinstance(post[key], Amount):
+                        meta[key] = str(post[key])
+                    else:
+                        meta[key] = post[key]
                 yaml = frontmatter.Post(body, **meta)
                 print(frontmatter.dumps(yaml))
             else:
@@ -1575,16 +1680,15 @@ def main():
             t.writerow(header)
         else:
             t = PrettyTable(header)
-            t.align = "r"
+            t.align = "l"
         if isinstance(args.account, str):
             args.account = [args.account]
         if isinstance(args.types, str):
             args.types = [args.types]
 
         for a in args.account:
-            for b in steem.rpc.account_history(
-                a,
-                args.first,
+            for b in Account(a).rawhistory(
+                first=args.first,
                 limit=args.limit,
                 only_ops=args.types,
                 exclude_ops=args.exclude_types
@@ -1624,7 +1728,7 @@ def main():
         print(t)
 
     elif args.command == "permissions":
-        account = steem.rpc.get_account(args.account)
+        account = Account(args.account)
         print_permissions(account)
 
     elif args.command == "allow":
@@ -1689,7 +1793,7 @@ def main():
         from steembase.account import PasswordKey
         import getpass
         password = getpass.getpass("Account Passphrase: ")
-        account = steem.rpc.get_account(args.account)
+        account = Account(args.account)
         imported = False
 
         if "owner" in args.roles:
@@ -1754,11 +1858,13 @@ def main():
         steem.broadcast(tx)
 
     elif args.command == "web":
-        SteemConnector(node=args.node,
-                       rpcuser=args.rpcuser,
-                       rpcpassword=args.rpcpassword,
-                       nobroadcast=args.nobroadcast,
-                       num_retries=1)
+        Steem(
+            node=args.node,
+            rpcuser=args.rpcuser,
+            rpcpassword=args.rpcpassword,
+            nobroadcast=args.nobroadcast,
+            num_retries=1
+        )
         from . import web
         web.run(port=args.port, host=args.host)
 
@@ -1893,10 +1999,12 @@ def main():
 
         profile = Profile(keys, values)
 
-        account = steem.rpc.get_account(args.account)
-        if not account:
-            raise AccountDoesNotExistsException(account)
-        account["json_metadata"] = Profile(account["json_metadata"])
+        account = Account(args.account)
+        account["json_metadata"] = Profile(
+            account["json_metadata"]
+            if account["json_metadata"]
+            else {}
+        )
         account["json_metadata"].update(profile)
 
         pprint(steem.update_account_profile(
@@ -1906,9 +2014,7 @@ def main():
 
     elif args.command == "delprofile":
         from .profile import Profile
-        account = steem.rpc.get_account(args.account)
-        if not account:
-            raise AccountDoesNotExistsException(account)
+        account = Account(args.account)
         account["json_metadata"] = Profile(account["json_metadata"])
 
         for var in args.variable:
@@ -1917,6 +2023,37 @@ def main():
         pprint(steem.update_account_profile(
             account["json_metadata"],
             account=args.account
+        ))
+
+    elif args.command == "witnessupdate":
+
+        witness = Witness(args.witness)
+        props = witness["props"]
+        if args.account_creation_fee:
+            props["account_creation_fee"] = str(Amount("%f STEEM" % args.account_creation_fee))
+        if args.maximum_block_size:
+            props["maximum_block_size"] = args.maximum_block_size
+        if args.sbd_interest_rate:
+            props["sbd_interest_rate"] = int(args.sbd_interest_rate * 100)
+
+        pprint(steem.witness_update(
+            args.signing_key or witness["signing_key"],
+            args.url or witness["url"],
+            props,
+            account=args.witness
+        ))
+
+    elif args.command == "witnesscreate":
+        props = {
+            "account_creation_fee": str(Amount("%f STEEM" % args.account_creation_fee)),
+            "maximum_block_size": args.maximum_block_size,
+            "sbd_interest_rate": int(args.sbd_interest_rate * 100)
+        }
+        pprint(steem.witness_update(
+            args.signing_key,
+            args.url,
+            props,
+            account=args.witness
         ))
 
     else:

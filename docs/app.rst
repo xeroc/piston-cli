@@ -21,7 +21,7 @@ Adding keys (for posting)
 Piston comes with its own encrypted wallet to which keys need to be
 added:::
 
-    piston addkey <posting-wif-key>
+    piston addkey
 
 On first run, you will be asked to provide a new passphrase that you
 will need to provide every time you want to post on the Steem network.
@@ -223,7 +223,7 @@ Transfer Steem
 
 STEEM can be transfered via::
 
-    piston transfer receipient "100.000 STEEM"
+    piston transfer receipient 100.000 STEEM
 
 If ``--author`` is not provided, the *default* account as defined with
 ``piston set author`` will be taken.
@@ -245,8 +245,8 @@ Powerup/Powerdown
 
 You can powerup/down your account with piston using:::
 
-    piston powerup "100 STEEM"
-    piston powerdown "10000 VESTS"
+    piston powerup 100   # in STEEM
+    piston powerdown 10000   # in VESTS
 
 If ``--author``/``--to`` are not provided, the *default* account as defined with
 ``piston set author`` will be taken.
