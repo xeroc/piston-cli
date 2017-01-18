@@ -301,7 +301,7 @@ def format_operation_details(op, memos=False):
             op[1]["interest"]
         )
     else:
-        return json.dumps(op[1])
+        return json.dumps(op[1], indent=4)
 
 
 def confirm(question, default="yes"):

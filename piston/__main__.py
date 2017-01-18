@@ -19,8 +19,9 @@ from steem.steem import Steem
 from steem.amount import Amount
 from steem.account import Account
 from steem.post import Post
+from steem.blockchain import Blockchain
+from steem.block import Block
 from steem.dex import Dex
-from steem.account import Account
 from steem.witness import Witness
 import frontmatter
 import time
@@ -1262,7 +1263,8 @@ def main():
         if not args.objects:
             t = PrettyTable(["Key", "Value"])
             t.align = "l"
-            info = steem.rpc.get_dynamic_global_properties()
+            blockchain = Blockchain(mode="head")
+            info = blockchain.info()
             median_price = steem.rpc.get_current_median_history_price()
             steem_per_mvest = (
                 Amount(info["total_vesting_fund_steem"]).amount /
@@ -1281,7 +1283,7 @@ def main():
         for obj in args.objects:
             # Block
             if re.match("^[0-9]*$", obj):
-                block = steem.rpc.get_block(obj)
+                block = Block(obj)
                 if block:
                     t = PrettyTable(["Key", "Value"])
                     t.align = "l"
@@ -1678,7 +1680,7 @@ def main():
             t.writerow(header)
         else:
             t = PrettyTable(header)
-            t.align = "r"
+            t.align = "l"
         if isinstance(args.account, str):
             args.account = [args.account]
         if isinstance(args.types, str):
