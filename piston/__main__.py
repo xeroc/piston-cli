@@ -1348,15 +1348,18 @@ def main():
                 else:
                     print("Public Key not known" % obj)
             # Post identifier
-            elif re.match("^@.{3,16}/.*$", obj):
-                post = steem.get_content(obj)
+            elif re.match(".*@.{3,16}/.*$", obj):
+                post = Post(obj)
                 if post:
                     t = PrettyTable(["Key", "Value"])
                     t.align = "l"
                     for key in sorted(post):
-                        if (key in ["tags", "json_metadata"]):
+                        value = post[key]
+                        if (key in ["tags",
+                                    "json_metadata",
+                                    "active_votes"
+                                    ]):
                             value = json.dumps(value, indent=4)
-                        value = str(post[key])
                         t.add_row([key, value])
                     print(t)
                 else:
