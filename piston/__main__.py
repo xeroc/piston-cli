@@ -1296,7 +1296,7 @@ def main():
                 else:
                     print("Block number %s unknown" % obj)
             # Account name
-            elif re.match("^[a-zA-Z0-9\._]{2,16}$", obj):
+            elif re.match("^[a-zA-Z0-9\-\._]{2,16}$", obj):
                 from math import log10
                 account = Account(obj)
                 t = PrettyTable(["Key", "Value"])
