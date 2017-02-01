@@ -27,7 +27,6 @@ import frontmatter
 import time
 from prettytable import PrettyTable
 import logging
-from .__version__ import __VERSION__
 from .ui import (
     dump_recursive_parents,
     dump_recursive_comments,
@@ -39,6 +38,7 @@ from .ui import (
     get_terminal
 )
 from steem.steem import AccountDoesNotExistsException
+import pkg_resources  # part of setuptools
 
 
 availableConfigurationKeys = [
@@ -116,8 +116,13 @@ def main():
         default=3,
         help='Verbosity'
     )
-    parser.add_argument('--version', action='version',
-                        version='%(prog)s {version}'.format(version=__VERSION__))
+    parser.add_argument(
+        '--version',
+        action='version',
+        version='%(prog)s {version}'.format(
+            version=pkg_resources.require("steem-piston")[0].version
+        )
+    )
 
     subparsers = parser.add_subparsers(help='sub-command help')
 
@@ -1343,7 +1348,7 @@ def main():
                 if account:
                     t = PrettyTable(["Account"])
                     t.align = "l"
-                    t.add_row(account)
+                    t.add_row([account])
                     print(t)
                 else:
                     print("Public Key not known" % obj)
@@ -1482,6 +1487,11 @@ def main():
 
         post = frontmatter.Post("", **initmeta)
         meta, json_meta, body = yaml_parse_file(args, initial_content=post)
+
+        # Default "app"
+        if "app" not in json_meta:
+            version = pkg_resources.require("steem-piston")[0].version
+            json_meta["app"] = "piston/{}".format(version)
 
         if not body:
             print("Empty body! Not posting!")

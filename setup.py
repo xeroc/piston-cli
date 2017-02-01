@@ -2,9 +2,10 @@
 
 from setuptools import setup
 import sys
-from piston.__version__ import __VERSION__
 
 assert sys.version_info[0] == 3, "Piston requires Python > 3"
+
+__VERSION__ = '0.4.2'
 
 setup(name='steem-piston',
       version=__VERSION__,
