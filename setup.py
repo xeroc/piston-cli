@@ -5,7 +5,7 @@ import sys
 
 assert sys.version_info[0] == 3, "Piston requires Python > 3"
 
-__VERSION__ = '0.4.3'
+__VERSION__ = '0.4.3a'
 
 setup(name='steem-piston',
       version=__VERSION__,
@@ -32,7 +32,7 @@ setup(name='steem-piston',
               'piston = piston.__main__:main',
           ],
       },
-      install_requires=["steem>=0.4.0",
+      install_requires=["steem>=0.4.3",
                         "prettytable==0.7.2",
                         "colorama==0.3.6",
                         ],
