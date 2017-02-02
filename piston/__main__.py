@@ -27,7 +27,6 @@ import frontmatter
 import time
 from prettytable import PrettyTable
 import logging
-from .__version__ import __VERSION__
 from .ui import (
     dump_recursive_parents,
     dump_recursive_comments,
@@ -39,6 +38,7 @@ from .ui import (
     get_terminal
 )
 from steem.steem import AccountDoesNotExistsException
+import pkg_resources  # part of setuptools
 
 
 availableConfigurationKeys = [
@@ -116,8 +116,13 @@ def main():
         default=3,
         help='Verbosity'
     )
-    parser.add_argument('--version', action='version',
-                        version='%(prog)s {version}'.format(version=__VERSION__))
+    parser.add_argument(
+        '--version',
+        action='version',
+        version='%(prog)s {version}'.format(
+            version=pkg_resources.require("steem-piston")[0].version
+        )
+    )
 
     subparsers = parser.add_subparsers(help='sub-command help')
 
@@ -1296,7 +1301,7 @@ def main():
                 else:
                     print("Block number %s unknown" % obj)
             # Account name
-            elif re.match("^[a-zA-Z0-9\._]{2,16}$", obj):
+            elif re.match("^[a-zA-Z0-9\-\._]{2,16}$", obj):
                 from math import log10
                 account = Account(obj)
                 t = PrettyTable(["Key", "Value"])
@@ -1343,20 +1348,23 @@ def main():
                 if account:
                     t = PrettyTable(["Account"])
                     t.align = "l"
-                    t.add_row(account)
+                    t.add_row([account])
                     print(t)
                 else:
                     print("Public Key not known" % obj)
             # Post identifier
-            elif re.match("^@.{3,16}/.*$", obj):
-                post = steem.get_content(obj)
+            elif re.match(".*@.{3,16}/.*$", obj):
+                post = Post(obj)
                 if post:
                     t = PrettyTable(["Key", "Value"])
                     t.align = "l"
                     for key in sorted(post):
-                        if (key in ["tags", "json_metadata"]):
+                        value = post[key]
+                        if (key in ["tags",
+                                    "json_metadata",
+                                    "active_votes"
+                                    ]):
                             value = json.dumps(value, indent=4)
-                        value = str(post[key])
                         t.add_row([key, value])
                     print(t)
                 else:
@@ -1479,6 +1487,11 @@ def main():
 
         post = frontmatter.Post("", **initmeta)
         meta, json_meta, body = yaml_parse_file(args, initial_content=post)
+
+        # Default "app"
+        if "app" not in json_meta:
+            version = pkg_resources.require("steem-piston")[0].version
+            json_meta["app"] = "piston/{}".format(version)
 
         if not body:
             print("Empty body! Not posting!")
