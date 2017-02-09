@@ -502,7 +502,7 @@ def main():
     parser_transfer.add_argument(
         'asset',
         type=str,
-        choices=["STEEM", "SBD"],
+        choices=["STEEM", "SBD", "GOLOS", "GBG"],
         help='Asset to transfer (i.e. STEEM or SDB)'
     )
     parser_transfer.add_argument(
@@ -929,7 +929,7 @@ def main():
     parser_buy.add_argument(
         'asset',
         type=str,
-        choices=["STEEM", "SBD"],
+        choices=["STEEM", "SBD", "GOLOS", "GBG"],
         help='Asset to buy (i.e. STEEM or SDB)'
     )
     parser_buy.add_argument(
@@ -958,7 +958,7 @@ def main():
     parser_sell.add_argument(
         'asset',
         type=str,
-        choices=["STEEM", "SBD"],
+        choices=["STEEM", "SBD", "GOLOS", "GBG"],
         help='Asset to sell (i.e. STEEM or SDB)'
     )
     parser_sell.add_argument(
@@ -1479,7 +1479,7 @@ def main():
             "author": args.author or "required",
             "category": args.category or "required",
             "tags": args.tags or [],
-            "max_accepted_payout": "1000000.000 SBD",
+            "max_accepted_payout": "1000000.000 %s" % steem.symbol("SBD"),
             "percent_steem_dollars": 100,
             "allow_votes": True,
             "allow_curation_rewards": True,
@@ -1736,7 +1736,7 @@ def main():
                 i["last_payment"],
                 "in %s" % strfage(i["next_payment_duration"]),
                 "%.1f%%" % i["interest_rate"],
-                "%.3f SBD" % i["interest"],
+                "%.3f %s" % (i["interest"], steem.symbol("SBD")),
             ])
         print(t)
 
@@ -1940,7 +1940,7 @@ def main():
         print(t)
 
     elif args.command == "buy":
-        if args.asset == "SBD":
+        if args.asset == steem.symbol("SBD"):
             price = 1.0 / args.price
         else:
             price = args.price
@@ -1953,7 +1953,7 @@ def main():
         ))
 
     elif args.command == "sell":
-        if args.asset == "SBD":
+        if args.asset == steem.symbol("SBD"):
             price = 1.0 / args.price
         else:
             price = args.price
