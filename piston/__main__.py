@@ -1912,32 +1912,44 @@ def main():
             g("set terminal dumb")
             g.plot(dbids, dasks)  # write SVG data directly to stdout ...
 
-        t = PrettyTable(["bid SBD", "sum bids SBD", "bid STEEM", "sum bids STEEM",
-                         "bid price", "+", "ask price",
-                         "ask STEEM", "sum asks steem", "ask SBD", "sum asks SBD"])
-        t.align = "r"
+        t = {}
+        # Bid side
         bidssteem = 0
         bidssbd = 0
-        askssteem = 0
-        askssbd = 0
+        t["bids"] = PrettyTable([
+            "SBD", "sum SBD", "STEEM", "sum STEEM", "price"
+        ])
         for i, o in enumerate(orderbook["asks"]):
             bidssbd += orderbook["bids"][i]["sbd"]
             bidssteem += orderbook["bids"][i]["steem"]
-            askssbd += orderbook["asks"][i]["sbd"]
-            askssteem += orderbook["asks"][i]["steem"]
-            t.add_row([
+            t["bids"].add_row([
                 "%.3f Ṩ" % orderbook["bids"][i]["sbd"],
                 "%.3f ∑" % bidssbd,
                 "%.3f ȿ" % orderbook["bids"][i]["steem"],
                 "%.3f ∑" % bidssteem,
                 "%.3f Ṩ/ȿ" % orderbook["bids"][i]["price"],
-                "|",
+            ])
+
+        # Ask side
+        askssteem = 0
+        askssbd = 0
+        t["asks"] = PrettyTable([
+            "price", "STEEM", "sum STEEM", "SBD", "sum SBD"
+        ])
+        for i, o in enumerate(orderbook["asks"]):
+            askssbd += orderbook["asks"][i]["sbd"]
+            askssteem += orderbook["asks"][i]["steem"]
+            t["asks"].add_row([
                 "%.3f Ṩ/ȿ" % orderbook["asks"][i]["price"],
                 "%.3f ȿ" % orderbook["asks"][i]["steem"],
                 "%.3f ∑" % askssteem,
                 "%.3f Ṩ" % orderbook["asks"][i]["sbd"],
-                "%.3f ∑" % askssbd])
-        print(t)
+                "%.3f ∑" % askssbd
+            ])
+
+        book = PrettyTable(["bids", "asks"])
+        book.add_row([t["bids"], t["asks"]])
+        print(book)
 
     elif args.command == "buy":
         if args.asset == steem.symbol("SBD"):
