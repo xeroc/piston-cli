@@ -973,6 +973,23 @@ def main():
         default=config["default_account"],
         help='Sell from this account (defaults to "default_account")'
     )
+    """
+        Command "cancel"
+    """
+    parser_cancel = subparsers.add_parser('cancel', help='Cancel order in the internal market')
+    parser_cancel.set_defaults(command="cancel")
+    parser_cancel.add_argument(
+        'orderid',
+        type=int,
+        help='Orderid'
+    )
+    parser_cancel.add_argument(
+        '--account',
+        type=str,
+        required=False,
+        default=config["default_account"],
+        help='Cancel from this account (defaults to "default_account")'
+    )
 
     """
         Command "resteem"
@@ -1976,6 +1993,12 @@ def main():
             price,
             account=args.account
         ))
+
+    elif args.command == "cancel":
+        dex = Dex(steem)
+        pprint(
+            dex.cancel(args.orderid)
+        )
 
     elif args.command == "approvewitness":
         pprint(steem.approve_witness(
