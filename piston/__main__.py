@@ -37,7 +37,6 @@ from .ui import (
     print_permissions,
     get_terminal
 )
-from steem.steem import AccountDoesNotExistsException
 import pkg_resources  # part of setuptools
 
 
