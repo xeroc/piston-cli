@@ -6,23 +6,23 @@ import argparse
 import json
 import re
 from pprint import pprint
-from steembase.account import PrivateKey, PublicKey, Address
-import steembase.transactions as transactions
-from steem.storage import configStorage as config
-from steem.utils import (
+from pistonbase.account import PrivateKey, PublicKey, Address
+import pistonbase.transactions as transactions
+from piston.storage import configStorage as config
+from piston.utils import (
     resolveIdentifier,
     yaml_parse_file,
     formatTime,
     strfage,
 )
-from steem.steem import Steem
-from steem.amount import Amount
-from steem.account import Account
-from steem.post import Post
-from steem.blockchain import Blockchain
-from steem.block import Block
-from steem.dex import Dex
-from steem.witness import Witness
+from piston.steem import Steem
+from piston.amount import Amount
+from piston.account import Account
+from piston.post import Post
+from piston.blockchain import Blockchain
+from piston.block import Block
+from piston.dex import Dex
+from piston.witness import Witness
 import frontmatter
 import time
 from prettytable import PrettyTable
@@ -37,6 +37,7 @@ from .ui import (
     print_permissions,
     get_terminal
 )
+from piston.exceptions import AccountDoesNotExistsException
 import pkg_resources  # part of setuptools
 
 
@@ -52,11 +53,6 @@ availableConfigurationKeys = [
     "categories_sorting",
     "limit",
     "post_category",
-    "web:user",
-    "web:port",
-    "web:debug",
-    "web:host",
-    "web:nobroadcast",
 ]
 
 
@@ -119,7 +115,7 @@ def main():
         '--version',
         action='version',
         version='%(prog)s {version}'.format(
-            version=pkg_resources.require("steem-piston")[0].version
+            version=pkg_resources.require("piston-cli")[0].version
         )
     )
 
@@ -547,7 +543,7 @@ def main():
     """
         Command "powerdown"
     """
-    parser_powerdown = subparsers.add_parser('powerdown', help='Power down (start withdrawing STEEM from STEEM POWER)')
+    parser_powerdown = subparsers.add_parser('powerdown', help='Power down (start withdrawing STEEM from piston POWER)')
     parser_powerdown.set_defaults(command="powerdown")
     parser_powerdown.add_argument(
         'amount',
@@ -887,24 +883,6 @@ def main():
     )
 
     """
-        Command "web"
-    """
-    webconfig = subparsers.add_parser('web', help='Launch web version of piston')
-    webconfig.set_defaults(command="web")
-    webconfig.add_argument(
-        '--port',
-        type=int,
-        default=config["web:port"],
-        help='Port to open for internal web requests'
-    )
-    webconfig.add_argument(
-        '--host',
-        type=str,
-        default=config["web:host"],
-        help='Host address to listen to'
-    )
-
-    """
         Command "orderbook"
     """
     orderbook = subparsers.add_parser('orderbook', help='Obtain orderbook of the internal market')
@@ -1241,7 +1219,6 @@ def main():
     rpc_not_required = [
         "set",
         "config",
-        "web",
         ""]
     if args.command not in rpc_not_required and args.command:
         options = {
@@ -1762,7 +1739,7 @@ def main():
 
     elif args.command == "allow":
         if not args.foreign_account:
-            from steembase.account import PasswordKey
+            from pistonbase.account import PasswordKey
             pwd = get_terminal(text="Password for Key Derivation: ", confirm=True)
             args.foreign_account = format(PasswordKey(args.account, pwd, args.permission).get_public(), "STM")
         pprint(steem.allow(
@@ -1784,7 +1761,7 @@ def main():
     elif args.command == "updatememokey":
         if not args.key:
             # Loop until both match
-            from steembase.account import PasswordKey
+            from pistonbase.account import PasswordKey
             pw = get_terminal(text="Password for Memo Key: ", confirm=True, allowedempty=False)
             memo_key = PasswordKey(args.account, pw, "memo")
             args.key = format(memo_key.get_public_key(), "STM")
@@ -1819,7 +1796,7 @@ def main():
         ))
 
     elif args.command == "importaccount":
-        from steembase.account import PasswordKey
+        from pistonbase.account import PasswordKey
         import getpass
         password = getpass.getpass("Account Passphrase: ")
         account = Account(args.account)
@@ -1885,17 +1862,6 @@ def main():
             tx = sys.stdin.read()
         tx = eval(tx)
         steem.broadcast(tx)
-
-    elif args.command == "web":
-        Steem(
-            node=args.node,
-            rpcuser=args.rpcuser,
-            rpcpassword=args.rpcpassword,
-            nobroadcast=args.nobroadcast,
-            num_retries=1
-        )
-        from . import web
-        web.run(port=args.port, host=args.host)
 
     elif args.command == "orderbook":
         if args.chart:
@@ -2032,7 +1998,7 @@ def main():
         ))
 
     elif args.command == "setprofile":
-        from steem.profile import Profile
+        from piston.profile import Profile
         keys = []
         values = []
         if args.pair:

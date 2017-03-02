@@ -4,9 +4,9 @@ from prettytable import PrettyTable, ALL as allBorders
 from textwrap import fill, TextWrapper
 import frontmatter
 import re
-from steem.storage import configStorage as config
-from steem.utils import constructIdentifier
-from steem import steem as stm
+from piston.storage import configStorage as config
+from piston.utils import constructIdentifier
+from piston import steem as stm
 
 # For recursive display of a discussion thread (--comments + --parents)
 currentThreadDepth = 0
