@@ -5,7 +5,7 @@ import sys
 
 assert sys.version_info[0] == 3, "Piston requires Python > 3"
 
-__VERSION__ = '0.5.0'
+__VERSION__ = '0.5.0a1'
 
 setup(
     name='piston-cli',
