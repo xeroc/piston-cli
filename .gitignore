@@ -62,13 +62,7 @@ target/
 *.swp
 posts
 
-# compile locally
-piston/web/static/css/*.css
-piston/web/static/js/*.js
-piston/web/static/.webassets-cache
-
 env
-
 contrib/build
 contrib/dist
 contrib/src

@@ -6,23 +6,23 @@ import argparse
 import json
 import re
 from pprint import pprint
-from steembase.account import PrivateKey, PublicKey, Address
-import steembase.transactions as transactions
-from steem.storage import configStorage as config
-from steem.utils import (
+from pistonbase.account import PrivateKey, PublicKey, Address
+import pistonbase.transactions as transactions
+from piston.storage import configStorage as config
+from piston.utils import (
     resolveIdentifier,
     yaml_parse_file,
     formatTime,
     strfage,
 )
-from steem.steem import Steem
-from steem.amount import Amount
-from steem.account import Account
-from steem.post import Post
-from steem.blockchain import Blockchain
-from steem.block import Block
-from steem.dex import Dex
-from steem.witness import Witness
+from piston.steem import Steem
+from piston.amount import Amount
+from piston.account import Account
+from piston.post import Post
+from piston.blockchain import Blockchain
+from piston.block import Block
+from piston.dex import Dex
+from piston.witness import Witness
 import frontmatter
 import time
 from prettytable import PrettyTable
@@ -37,7 +37,7 @@ from .ui import (
     print_permissions,
     get_terminal
 )
-from steem.steem import AccountDoesNotExistsException
+from piston.exceptions import AccountDoesNotExistsException
 import pkg_resources  # part of setuptools
 
 
@@ -53,11 +53,6 @@ availableConfigurationKeys = [
     "categories_sorting",
     "limit",
     "post_category",
-    "web:user",
-    "web:port",
-    "web:debug",
-    "web:host",
-    "web:nobroadcast",
 ]
 
 
@@ -120,7 +115,7 @@ def main():
         '--version',
         action='version',
         version='%(prog)s {version}'.format(
-            version=pkg_resources.require("steem-piston")[0].version
+            version=pkg_resources.require("piston-cli")[0].version
         )
     )
 
@@ -502,7 +497,7 @@ def main():
     parser_transfer.add_argument(
         'asset',
         type=str,
-        choices=["STEEM", "SBD"],
+        choices=["STEEM", "SBD", "GOLOS", "GBG"],
         help='Asset to transfer (i.e. STEEM or SDB)'
     )
     parser_transfer.add_argument(
@@ -548,7 +543,7 @@ def main():
     """
         Command "powerdown"
     """
-    parser_powerdown = subparsers.add_parser('powerdown', help='Power down (start withdrawing STEEM from STEEM POWER)')
+    parser_powerdown = subparsers.add_parser('powerdown', help='Power down (start withdrawing STEEM from piston POWER)')
     parser_powerdown.set_defaults(command="powerdown")
     parser_powerdown.add_argument(
         'amount',
@@ -888,24 +883,6 @@ def main():
     )
 
     """
-        Command "web"
-    """
-    webconfig = subparsers.add_parser('web', help='Launch web version of piston')
-    webconfig.set_defaults(command="web")
-    webconfig.add_argument(
-        '--port',
-        type=int,
-        default=config["web:port"],
-        help='Port to open for internal web requests'
-    )
-    webconfig.add_argument(
-        '--host',
-        type=str,
-        default=config["web:host"],
-        help='Host address to listen to'
-    )
-
-    """
         Command "orderbook"
     """
     orderbook = subparsers.add_parser('orderbook', help='Obtain orderbook of the internal market')
@@ -929,7 +906,7 @@ def main():
     parser_buy.add_argument(
         'asset',
         type=str,
-        choices=["STEEM", "SBD"],
+        choices=["STEEM", "SBD", "GOLOS", "GBG"],
         help='Asset to buy (i.e. STEEM or SDB)'
     )
     parser_buy.add_argument(
@@ -958,7 +935,7 @@ def main():
     parser_sell.add_argument(
         'asset',
         type=str,
-        choices=["STEEM", "SBD"],
+        choices=["STEEM", "SBD", "GOLOS", "GBG"],
         help='Asset to sell (i.e. STEEM or SDB)'
     )
     parser_sell.add_argument(
@@ -972,6 +949,23 @@ def main():
         required=False,
         default=config["default_account"],
         help='Sell from this account (defaults to "default_account")'
+    )
+    """
+        Command "cancel"
+    """
+    parser_cancel = subparsers.add_parser('cancel', help='Cancel order in the internal market')
+    parser_cancel.set_defaults(command="cancel")
+    parser_cancel.add_argument(
+        'orderid',
+        type=int,
+        help='Orderid'
+    )
+    parser_cancel.add_argument(
+        '--account',
+        type=str,
+        required=False,
+        default=config["default_account"],
+        help='Cancel from this account (defaults to "default_account")'
     )
 
     """
@@ -1225,7 +1219,6 @@ def main():
     rpc_not_required = [
         "set",
         "config",
-        "web",
         ""]
     if args.command not in rpc_not_required and args.command:
         options = {
@@ -1479,7 +1472,7 @@ def main():
             "author": args.author or "required",
             "category": args.category or "required",
             "tags": args.tags or [],
-            "max_accepted_payout": "1000000.000 SBD",
+            "max_accepted_payout": "1000000.000 %s" % steem.symbol("SBD"),
             "percent_steem_dollars": 100,
             "allow_votes": True,
             "allow_curation_rewards": True,
@@ -1736,7 +1729,7 @@ def main():
                 i["last_payment"],
                 "in %s" % strfage(i["next_payment_duration"]),
                 "%.1f%%" % i["interest_rate"],
-                "%.3f SBD" % i["interest"],
+                "%.3f %s" % (i["interest"], steem.symbol("SBD")),
             ])
         print(t)
 
@@ -1746,7 +1739,7 @@ def main():
 
     elif args.command == "allow":
         if not args.foreign_account:
-            from steembase.account import PasswordKey
+            from pistonbase.account import PasswordKey
             pwd = get_terminal(text="Password for Key Derivation: ", confirm=True)
             args.foreign_account = format(PasswordKey(args.account, pwd, args.permission).get_public(), "STM")
         pprint(steem.allow(
@@ -1768,7 +1761,7 @@ def main():
     elif args.command == "updatememokey":
         if not args.key:
             # Loop until both match
-            from steembase.account import PasswordKey
+            from pistonbase.account import PasswordKey
             pw = get_terminal(text="Password for Memo Key: ", confirm=True, allowedempty=False)
             memo_key = PasswordKey(args.account, pw, "memo")
             args.key = format(memo_key.get_public_key(), "STM")
@@ -1803,7 +1796,7 @@ def main():
         ))
 
     elif args.command == "importaccount":
-        from steembase.account import PasswordKey
+        from pistonbase.account import PasswordKey
         import getpass
         password = getpass.getpass("Account Passphrase: ")
         account = Account(args.account)
@@ -1870,17 +1863,6 @@ def main():
         tx = eval(tx)
         steem.broadcast(tx)
 
-    elif args.command == "web":
-        Steem(
-            node=args.node,
-            rpcuser=args.rpcuser,
-            rpcpassword=args.rpcpassword,
-            nobroadcast=args.nobroadcast,
-            num_retries=1
-        )
-        from . import web
-        web.run(port=args.port, host=args.host)
-
     elif args.command == "orderbook":
         if args.chart:
             try:
@@ -1912,35 +1894,47 @@ def main():
             g("set terminal dumb")
             g.plot(dbids, dasks)  # write SVG data directly to stdout ...
 
-        t = PrettyTable(["bid SBD", "sum bids SBD", "bid STEEM", "sum bids STEEM",
-                         "bid price", "+", "ask price",
-                         "ask STEEM", "sum asks steem", "ask SBD", "sum asks SBD"])
-        t.align = "r"
+        t = {}
+        # Bid side
         bidssteem = 0
         bidssbd = 0
-        askssteem = 0
-        askssbd = 0
+        t["bids"] = PrettyTable([
+            "SBD", "sum SBD", "STEEM", "sum STEEM", "price"
+        ])
         for i, o in enumerate(orderbook["asks"]):
             bidssbd += orderbook["bids"][i]["sbd"]
             bidssteem += orderbook["bids"][i]["steem"]
-            askssbd += orderbook["asks"][i]["sbd"]
-            askssteem += orderbook["asks"][i]["steem"]
-            t.add_row([
+            t["bids"].add_row([
                 "%.3f Ṩ" % orderbook["bids"][i]["sbd"],
                 "%.3f ∑" % bidssbd,
                 "%.3f ȿ" % orderbook["bids"][i]["steem"],
                 "%.3f ∑" % bidssteem,
                 "%.3f Ṩ/ȿ" % orderbook["bids"][i]["price"],
-                "|",
+            ])
+
+        # Ask side
+        askssteem = 0
+        askssbd = 0
+        t["asks"] = PrettyTable([
+            "price", "STEEM", "sum STEEM", "SBD", "sum SBD"
+        ])
+        for i, o in enumerate(orderbook["asks"]):
+            askssbd += orderbook["asks"][i]["sbd"]
+            askssteem += orderbook["asks"][i]["steem"]
+            t["asks"].add_row([
                 "%.3f Ṩ/ȿ" % orderbook["asks"][i]["price"],
                 "%.3f ȿ" % orderbook["asks"][i]["steem"],
                 "%.3f ∑" % askssteem,
                 "%.3f Ṩ" % orderbook["asks"][i]["sbd"],
-                "%.3f ∑" % askssbd])
-        print(t)
+                "%.3f ∑" % askssbd
+            ])
+
+        book = PrettyTable(["bids", "asks"])
+        book.add_row([t["bids"], t["asks"]])
+        print(book)
 
     elif args.command == "buy":
-        if args.asset == "SBD":
+        if args.asset == steem.symbol("SBD"):
             price = 1.0 / args.price
         else:
             price = args.price
@@ -1953,7 +1947,7 @@ def main():
         ))
 
     elif args.command == "sell":
-        if args.asset == "SBD":
+        if args.asset == steem.symbol("SBD"):
             price = 1.0 / args.price
         else:
             price = args.price
@@ -1964,6 +1958,12 @@ def main():
             price,
             account=args.account
         ))
+
+    elif args.command == "cancel":
+        dex = Dex(steem)
+        pprint(
+            dex.cancel(args.orderid)
+        )
 
     elif args.command == "approvewitness":
         pprint(steem.approve_witness(
@@ -1998,7 +1998,7 @@ def main():
         ))
 
     elif args.command == "setprofile":
-        from steem.profile import Profile
+        from piston.profile import Profile
         keys = []
         values = []
         if args.pair:
