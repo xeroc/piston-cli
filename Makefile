@@ -36,7 +36,6 @@ check:
 
 dist:
 	python3 setup.py sdist upload -r pypi
-	python3 setup.py bdist --format=zip upload
 	python3 setup.py bdist_wheel upload
 
 release: clean check dist steem-changelog git
