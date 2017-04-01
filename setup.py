@@ -36,8 +36,8 @@ setup(
     },
     install_requires=[
         "piston-lib>=0.5.2",
-        "prettytable==0.7.2",
-        "colorama==0.3.6",
+        "prettytable>=0.7.2",
+        "colorama>=0.3.6",
     ],
     setup_requires=['pytest-runner'],
     tests_require=['pytest'],
