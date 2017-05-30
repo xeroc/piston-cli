@@ -1173,6 +1173,19 @@ def main():
     )
 
     """
+        Command "claim"
+    """
+    parser_transfer = subparsers.add_parser('claim', help='Claim rewards')
+    parser_transfer.set_defaults(command="claim")
+    parser_transfer.add_argument(
+        '--account',
+        type=str,
+        default=config["default_account"],
+        required=False,
+        help='Recepient'
+    )
+
+    """
         Parse Arguments
     """
     args = parser.parse_args()
@@ -2067,6 +2080,11 @@ def main():
             args.url,
             props,
             account=args.witness
+        ))
+
+    elif args.command == "claim":
+        pprint(steem.claim_reward_balance(
+            account=args.account
         ))
 
     else:
