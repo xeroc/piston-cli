@@ -1497,7 +1497,7 @@ def main():
         # Default "app"
         if "app" not in json_meta:
             version = pkg_resources.require("piston-cli")[0].version
-            json_meta["app"] = "piston/{}".format(version)
+            json_meta["app"] = "piston-cli/{}".format(version)
 
         if not body:
             print("Empty body! Not posting!")
