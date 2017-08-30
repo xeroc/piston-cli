@@ -1716,7 +1716,7 @@ def main():
                     b[0],
                     "%s (%s)" % (b[1]["timestamp"], b[1]["block"]),
                     b[1]["op"][0],
-                    format_operation_details(b[1]["op"], memos=args.memos),
+                    format_operation_details(b[1]["op"], memos=args.memos) if not args.csv else b[1]["op"],
                 ]
                 if args.csv:
                     t.writerow(row)
