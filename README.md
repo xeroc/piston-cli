@@ -1,3 +1,8 @@
+# UNMAINTAINED
+
+This library is unmaintained, do not build productive buisness with it!
+Please not the disclaimer in the license file!
+
 # Piston for Steem
 
 Swiss army knife for interacting with the STEEM blockchain.
